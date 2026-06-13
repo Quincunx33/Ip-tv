@@ -15,6 +15,15 @@ import { auth, db, signInWithGoogle, logout } from './firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, orderBy, addDoc, serverTimestamp, limit, deleteDoc } from 'firebase/firestore';
 
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
+
 interface Channel {
   name: string;
   url: string;
@@ -149,6 +158,10 @@ const formatCountryName = (filename: string) => {
 };
 
 export default function App() {
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState<boolean>(false);
+  const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
+
   const [countries, setCountries] = useState<string[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('bd');
   const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
@@ -208,6 +221,53 @@ export default function App() {
   const [showQualityMenu, setShowQualityMenu] = useState(false);
 
   const t = TRANSLATIONS[lang];
+
+  // Listen for PWA installation prompt and online/offline status
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setIsAppInstalled(true);
+    };
+
+    const handleOnline = () => {
+      setIsOffline(false);
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsAppInstalled(true);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) {
+      return;
+    }
+    await deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`PWA Prompt choice outcome: ${outcome}`);
+    setDeferredPrompt(null);
+  };
 
   const handleFirestoreError = (error: any, operation: string, path: string) => {
     const errInfo = {
@@ -750,6 +810,21 @@ export default function App() {
             </button>
           </div>
         </div>
+
+        {deferredPrompt && (
+          <div className="my-3 border-t border-zinc-800 pt-3">
+            <div className="px-6 mb-2 text-sm font-bold text-teal-400 uppercase tracking-widest">PWA Desktop</div>
+            <div className="px-3">
+              <button 
+                onClick={handleInstallApp}
+                className="w-full flex items-center space-x-3 px-3 py-2.5 bg-teal-600/10 text-teal-300 hover:bg-teal-600/20 border border-teal-500/20 rounded-lg cursor-pointer transition-all active:scale-95 duration-150"
+              >
+                <AppWindow className="w-5 h-5 text-teal-400" />
+                <span className="text-xs font-bold uppercase tracking-wider">Install StreamTube</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -876,6 +951,24 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {isOffline && (
+        <div className="bg-amber-500 text-zinc-950 px-4 py-2 text-xs font-semibold flex items-center justify-between shrink-0 select-none z-40">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-950 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-900"></span>
+            </span>
+            <span>You are currently browsing offline. Channels and country lists are running from your offline fallback cache.</span>
+          </div>
+          <button 
+            onClick={() => setIsOffline(!navigator.onLine)} 
+            className="bg-zinc-950 text-amber-500 hover:bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1 font-bold text-[10px] uppercase transition-all"
+          >
+            Refresh Status
+          </button>
+        </div>
+      )}
 
       {/* Main Content Layout */}
       <div className="flex flex-1 overflow-hidden relative">
