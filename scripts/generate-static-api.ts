@@ -24,32 +24,32 @@ async function run() {
     fs.writeFileSync(path.join(OUTPUT_DIR, 'channels.json'), JSON.stringify(finalCountries));
     console.log('Generated channels.json');
 
+    const allChannels: any[] = [];
     for (const country of finalCountries) {
-      const channels: any[] = [];
+      const countryChannels: any[] = [];
       
       // Server 1
       if (server1Data[country]) {
         server1Data[country].forEach((ch: any) => {
-          channels.push({
+          const item = {
             name: ch.name,
             url: ch.url,
             logo: ch.logo || "",
-            source: 'server1'
-          });
+            source: 'server1',
+            country
+          };
+          countryChannels.push(item);
+          allChannels.push(item);
         });
       }
 
       // Server 2 (M3U File)
       const filePath = path.join(STREAMS_DIR, `${country}.m3u`);
       if (fs.existsSync(filePath)) {
-        const fileStream = fs.createReadStream(filePath);
-        const rl = readline.createInterface({
-          input: fileStream,
-          crlfDelay: Infinity
-        });
-        
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const lines = content.split('\n');
         let currentItem: any = {};
-        for await (const line of rl) {
+        for (const line of lines) {
           const tLine = line.trim();
           if (tLine.startsWith('#EXTINF:')) {
             const parts = tLine.split(',');
@@ -58,20 +58,33 @@ async function run() {
             if (logoMatch) currentItem.logo = logoMatch[1];
           } else if (tLine.startsWith('http')) {
             if (currentItem.name) {
-              channels.push({
+              const item = {
                 name: currentItem.name,
                 url: tLine,
                 logo: currentItem.logo || "",
-                source: 'global'
-              });
+                source: 'global',
+                country
+              };
+              countryChannels.push(item);
+              allChannels.push(item);
               currentItem = {};
             }
           }
         }
       }
 
-      fs.writeFileSync(path.join(OUTPUT_DIR, `${country}.json`), JSON.stringify(channels));
+      fs.writeFileSync(path.join(OUTPUT_DIR, `${country}.json`), JSON.stringify(countryChannels));
     }
+
+    // Generate Special Categories
+    const fifaKeywords = ['fifa', 'world cup', 'plus', 'star', 'sports', 'cricket', 'football', 'beout', 'bein', 'espn', 'tsports', 'gtv'];
+    const fifaChannels = allChannels.filter(ch => 
+      fifaKeywords.some(kw => ch.name.toLowerCase().includes(kw))
+    );
+    fs.writeFileSync(path.join(OUTPUT_DIR, 'fifa.json'), JSON.stringify(fifaChannels));
+    console.log('Generated fifa.json');
+
+
     console.log(`Generated ${countries.length} country channel files.`);
 
   } catch (error) {

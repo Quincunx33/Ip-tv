@@ -29,6 +29,7 @@ interface Channel {
   url: string;
   urls?: string[];
   logo?: string;
+  source?: string;
 }
 
 const ChannelLogo = ({ channel, className = "", isAvatar = false }: { channel: Channel, className?: string, isAvatar?: boolean }) => {
@@ -381,9 +382,11 @@ export default function App() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [errorMsg, setErrorMsg] = useState(false);
-  const [streamMode, setStreamMode] = useState<'proxy' | 'direct'>('proxy');
+  const [streamMode, setStreamMode] = useState<'proxy' | 'direct'>('direct');
   const [lang, setLang] = useState<'en' | 'bn'>('en');
   const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'sports' | 'news' | 'fifa'>('all');
+  const [isMiniPlayer, setIsMiniPlayer] = useState(false);
+  const [isClosingMiniPlayer, setIsClosingMiniPlayer] = useState(false);
 
   const [user, loadingAuth] = useAuthState(auth);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -698,22 +701,36 @@ export default function App() {
   }, [debouncedSearch, channels, favorites, activeTab]);
 
   const sortedFilteredChannels = React.useMemo(() => {
-    return [...filteredChannels].sort((a, b) => {
-      const aDead = deadChannels.has(a.url);
-      const bDead = deadChannels.has(b.url);
-      
-      if (aDead !== bDead) {
-        return aDead ? 1 : -1;
-      }
-      
-      // Secondary sort: Server 1 channels first (assuming they are more stable)
-      if (a.source === 'server1' && b.source !== 'server1') return -1;
-      if (a.source !== 'server1' && b.source === 'server1') return 1;
-      
-      // Tertiary sort: Alphabetical
-      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-    });
-  }, [filteredChannels, deadChannels]);
+    let sorted = [...filteredChannels];
+    
+    // For FIFA, prioritze specific channel keywords if they exist
+    if (activeTab === 'fifa') {
+      const priorityKeywords = ['fifa', 'world cup', 'plus', 'star'];
+      sorted.sort((a, b) => {
+        const aPriority = priorityKeywords.some(k => a.name.toLowerCase().includes(k)) ? 0 : 1;
+        const bPriority = priorityKeywords.some(k => b.name.toLowerCase().includes(k)) ? 0 : 1;
+        if (aPriority !== bPriority) return aPriority - bPriority;
+        return a.name.localeCompare(b.name);
+      });
+    } else {
+      sorted.sort((a, b) => {
+        const aDead = deadChannels.has(a.url);
+        const bDead = deadChannels.has(b.url);
+        
+        if (aDead !== bDead) {
+          return aDead ? 1 : -1;
+        }
+        
+        // Secondary sort: Server 1 channels first
+        if (a.source === 'server1' && b.source !== 'server1') return -1;
+        if (a.source !== 'server1' && b.source === 'server1') return 1;
+        
+        // Tertiary sort: Alphabetical
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      });
+    }
+    return sorted;
+  }, [filteredChannels, deadChannels, activeTab]);
 
   useEffect(() => {
     setVisibleCount(50);
@@ -887,29 +904,50 @@ export default function App() {
     navigator.clipboard.writeText(url);
   };
 
-  const togglePiP = async (e: React.MouseEvent) => {
+  const handlePiPClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!videoRef.current) return;
     try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-      } else if (document.pictureInPictureEnabled) {
-        await videoRef.current.requestPictureInPicture();
-      } else if ((videoRef.current as any).webkitSupportsPresentationMode && typeof (videoRef.current as any).webkitSetPresentationMode === 'function') {
-        // iOS Safari PiP fallback
-        const currentMode = (videoRef.current as any).webkitPresentationMode;
-        if (currentMode === 'picture-in-picture') {
-          (videoRef.current as any).webkitSetPresentationMode('inline');
+      if (videoRef.current) {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else if (document.pictureInPictureEnabled) {
+          await videoRef.current.requestPictureInPicture();
         } else {
-          (videoRef.current as any).webkitSetPresentationMode('picture-in-picture');
+          setIsMiniPlayer(!isMiniPlayer);
         }
-      } else {
-         throw new Error("PiP Not Supported");
       }
     } catch (err) {
-      console.error('PiP error:', err);
-      alert('Picture-in-Picture is not supported in this environment. Please open the app in a new tab.');
+      console.error('PiP Error:', err);
+      setIsMiniPlayer(!isMiniPlayer);
     }
+  };
+
+  const handleContainerClick = (e: React.MouseEvent) => {
+    if (isMiniPlayer) {
+      setIsMiniPlayer(false);
+      return;
+    }
+
+    if (window.innerWidth < 1024) {
+      const nextState = !showControls;
+      setShowControls(nextState);
+      if (nextState && isPlaying) {
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+        controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 2500);
+      }
+    } else {
+      handlePlayToggle(e);
+    }
+  };
+
+  const closeMiniPlayer = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsClosingMiniPlayer(true);
+    setTimeout(() => {
+      setCurrentChannel(null);
+      setIsMiniPlayer(false);
+      setIsClosingMiniPlayer(false);
+    }, 300);
   };
 
   const toggleFullscreen = async (e: React.MouseEvent) => {
@@ -1211,7 +1249,7 @@ export default function App() {
         {/* Home Browse vs Watch Mode */}
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent bg-[#0f0f0f]">
           
-          {!currentChannel ? (
+          {(!currentChannel || isMiniPlayer) && (
             /* HOME BROWSING MODE */
             <div className="p-4 sm:p-6 lg:p-8 max-w-[2000px] mx-auto min-h-full">
               {/* Category Pills directly below nav on mobile */}
@@ -1260,11 +1298,11 @@ export default function App() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 pb-10">
                     {sortedFilteredChannels.slice(0, visibleCount).map(channel => (
                       <ChannelCard 
-                        key={channel.url}
+                        key={`${channel.url}-${channel.name}`}
                         channel={channel}
                         isDead={deadChannels.has(channel.url)}
                         isFavorite={favorites.some(f => f.url === channel.url)}
-                        onClick={() => { setCurrentChannel(channel); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                        onClick={() => { setCurrentChannel(channel); setIsMiniPlayer(false); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}
                         onToggleFavorite={(e) => toggleFavorite(channel, e)}
                         countryName={formatCountryName(selectedCountry)}
                         t={t}
@@ -1281,67 +1319,60 @@ export default function App() {
               )}
             </div>
 
-          ) : (
-            <>
+          )}
+          
+          {currentChannel && (
+            <div className={isMiniPlayer ? 'fixed bottom-20 items-end right-4 w-72 sm:w-80 z-50' : ''}>
               {/* Watching Content Grid */}
-              <div className="w-full max-w-[1600px] mx-auto p-0 lg:p-6 lg:flex lg:space-x-6 min-h-full">
+              <div className={`${isMiniPlayer ? 'w-full' : 'w-full max-w-[1600px] mx-auto p-0 lg:p-6 lg:flex lg:space-x-6 min-h-full'}`}>
                 
                 {/* Main Column: Video Player, Info */}
-                <div className="flex-1 lg:w-2/3 xl:w-3/4 min-w-0 flex flex-col">
+                <div className={`flex-1 min-w-0 flex flex-col ${isMiniPlayer ? 'w-full' : 'lg:w-2/3 xl:w-3/4'}`}>
                   
                   {/* 16:9 Video Player - Sticky on mobile for simultaneous chat */}
                   <div 
                     ref={videoContainerRef}
-                    className={`w-full bg-black group overflow-hidden sticky sm:relative top-14 sm:top-0 z-[40] sm:z-10 ${isCssFullscreen ? 'fixed inset-0 z-[99999] h-[100dvh]' : `relative ${isFullscreen ? '' : 'aspect-video rounded-none lg:rounded-xl shadow-lg'}`}`}
+                    className={`w-full bg-black group overflow-hidden ${isMiniPlayer ? 'aspect-video rounded-xl border-2 border-indigo-500/50 shadow-2xl relative pointer-events-auto cursor-pointer' : `sticky sm:relative top-14 sm:top-0 z-[40] sm:z-10 ${isCssFullscreen ? 'fixed inset-0 z-[99999] h-[100dvh]' : `relative ${isFullscreen ? '' : 'aspect-video rounded-none lg:rounded-xl shadow-lg'}`}`}`}
                     onMouseMove={handleMouseMoveControls}
                     onMouseLeave={handleMouseLeaveVideo}
                     onMouseEnter={handleMouseEnterVideo}
-                    onClick={(e) => {
-                      if (window.innerWidth < 1024) {
-                         const nextState = !showControls;
-                         setShowControls(nextState);
-                         if (nextState && isPlaying) {
-                            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-                            controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 2500);
-                         }
-                      } else {
-                         handlePlayToggle(e);
-                      }
-                    }}
+                    onClick={handleContainerClick}
                   >
-                    {/* Centered Controls for Mobile (Play/Pause) */}
+                    {isMiniPlayer && (
+                      /* Interaction overlay for miniplayer */
+                      <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all" onClick={() => setIsMiniPlayer(false)}>
+                        <Maximize className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); closeMiniPlayer(e); }}
+                          className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/90 text-white rounded-full z-[60]"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+
+                    {!isMiniPlayer && (
+                       /* Centered Controls for Mobile (Play/Pause) */
                     <AnimatePresence>
                       {showControls && (
                         <motion.div 
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.9 }}
-                          className="absolute inset-0 z-[35] flex items-center justify-center pointer-events-none lg:hidden"
+                          className="absolute inset-0 z-[45] flex items-center justify-center pointer-events-none lg:hidden"
                         >
                           <button 
-                            onClick={(e) => { e.stopPropagation(); handlePlayToggle(); }}
-                            className="w-16 h-16 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white pointer-events-auto active:scale-90 transition-transform"
+                            onClick={(e) => { e.stopPropagation(); handlePlayToggle(e); }}
+                            className="w-20 h-20 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white pointer-events-auto active:scale-90 transition-transform shadow-2xl"
                           >
-                            {isPlaying ? <Pause className="w-8 h-8 fill-current"/> : <Play className="w-8 h-8 fill-current ml-1" />}
+                            {isPlaying ? <Pause className="w-10 h-10 fill-current"/> : <Play className="w-10 h-10 fill-current ml-1" />}
                           </button>
                         </motion.div>
                       )}
                     </AnimatePresence>
+                    )}
 
-                    {/* Back Button for mobile/tablet */}
-                    <AnimatePresence>
-                      {showControls && (
-                        <motion.button 
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -10 }}
-                          onClick={(e) => { e.stopPropagation(); setCurrentChannel(null); }}
-                          className="absolute top-4 left-4 z-50 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60 transition-colors sm:hidden"
-                        >
-                          <ChevronDown className="w-6 h-6 rotate-90" />
-                        </motion.button>
-                      )}
-                    </AnimatePresence>
+                    {/* Quality Settings (Native) hidden - we use custom HLS menu */}
 
                   {isBuffering && (
                     <div className="absolute inset-0 z-[25] flex flex-col justify-center items-center pointer-events-none bg-black/40">
@@ -1399,8 +1430,8 @@ export default function App() {
                         </div>
 
                         <div className="flex items-center space-x-2 sm:space-x-4">
-                           <button onClick={() => setStreamMode(streamMode === 'proxy' ? 'direct' : 'proxy')} className="border border-zinc-600 px-2 py-0.5 rounded text-[9px] font-bold uppercase hover:bg-white hover:text-black transition-colors cursor-pointer" title="Switch Routing Mode">
-                             {streamMode}
+                           <button onClick={(e) => { e.stopPropagation(); setIsMiniPlayer(!isMiniPlayer); }} className="hover:opacity-80 p-1 cursor-pointer" title="Miniplayer">
+                             {isMiniPlayer ? <Maximize className="w-5 h-5 sm:w-6 sm:h-6" /> : <Minimize className="w-5 h-5 sm:w-6 sm:h-6" />}
                            </button>
 
                            {qualityLevels.length > 1 && (
@@ -1451,7 +1482,7 @@ export default function App() {
                              </div>
                            )}
 
-                           <button onClick={togglePiP} className="hover:opacity-80 p-1 cursor-pointer" title="Picture in Picture">
+                           <button onClick={handlePiPClick} className="hover:opacity-80 p-1 cursor-pointer" title="Picture in Picture">
                              <PictureInPicture className="w-5 h-5" />
                            </button>
                            <button onClick={toggleFullscreen} className="hover:opacity-80 p-1 cursor-pointer">
@@ -1464,7 +1495,8 @@ export default function App() {
                 </div>
 
                 {/* Mobile Chat - Below Video, Above Info */}
-                <div className="lg:hidden border-b border-zinc-800 bg-[#0f0f0f] flex flex-col h-[350px] sm:h-[450px]">
+                {!isMiniPlayer && (
+                   <div className="lg:hidden border-b border-zinc-800 bg-[#0f0f0f] flex flex-col h-[350px] sm:h-[450px]">
                   <div className="p-3 bg-[#121212] border-b border-zinc-800 flex items-center justify-between shrink-0">
                     <span className="font-bold text-xs text-zinc-100 flex items-center gap-2 uppercase tracking-wider">
                       {t.chatTitle} 
@@ -1520,120 +1552,97 @@ export default function App() {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Video Info & Actions */}
-                <div className="mt-4 px-4 sm:px-0 mb-6">
-                  <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">{currentChannel.name}</h1>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-blue-700 flex-shrink-0 flex items-center justify-center border border-white/10 shadow-lg pointer-events-none">
-                         <div className="relative">
-                            <User className="w-6 h-6 text-white" />
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-500 rounded-full border-2 border-[#0f0f0f] flex items-center justify-center">
-                               <Check className="w-2 h-2 text-white" strokeWidth={5} />
+                {!isMiniPlayer && (
+                  <div className="mt-4 px-4 sm:px-0 mb-6">
+                    <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">{currentChannel.name}</h1>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-blue-700 flex-shrink-0 flex items-center justify-center border border-white/10 shadow-lg pointer-events-none">
+                          <div className="relative">
+                              <User className="w-6 h-6 text-white" />
+                              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-500 rounded-full border-2 border-[#0f0f0f] flex items-center justify-center">
+                                <Check className="w-2 h-2 text-white" strokeWidth={5} />
+                              </div>
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-white text-sm sm:text-base leading-tight flex items-center">
+                            Build by Taaissu
+                            <div className="ml-1.5 w-3.5 h-3.5 bg-blue-500 rounded-full flex items-center justify-center">
+                                <Check className="w-2.5 h-2.5 text-white" strokeWidth={5} />
                             </div>
-                         </div>
+                          </h3>
+                          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.1em]">Verified Developer</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-white text-sm sm:text-base leading-tight flex items-center">
-                           Build by Taaissu
-                           <div className="ml-1.5 w-3.5 h-3.5 bg-blue-500 rounded-full flex items-center justify-center">
-                              <Check className="w-2.5 h-2.5 text-white" strokeWidth={5} />
-                           </div>
-                        </h3>
-                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.1em]">Verified Developer</p>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center space-x-2 overflow-x-auto scrollbar-none pb-1 sm:pb-0">
-                      <button onClick={(e) => toggleFavorite(currentChannel, e)} className="flex items-center space-x-2 bg-zinc-800/80 hover:bg-zinc-700 px-4 py-2 rounded-full transition-colors shrink-0">
-                        <Bookmark className={`w-4 h-4 ${favorites.some(f => f.url === currentChannel.url) ? 'fill-white' : ''}`} />
-                        <span className="text-sm font-semibold">{favorites.some(f => f.url === currentChannel.url) ? t.saved : t.save}</span>
-                      </button>
+                      <div className="flex items-center space-x-2 overflow-x-auto scrollbar-none pb-1 sm:pb-0">
+                        <button onClick={(e) => toggleFavorite(currentChannel, e)} className="flex items-center space-x-2 bg-zinc-800/80 hover:bg-zinc-700 px-4 py-2 rounded-full transition-colors shrink-0">
+                          <Bookmark className={`w-4 h-4 ${favorites.some(f => f.url === currentChannel.url) ? 'fill-white' : ''}`} />
+                          <span className="text-sm font-semibold">{favorites.some(f => f.url === currentChannel.url) ? t.saved : t.save}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Related & Chat Column */}
-              <div className="w-full lg:w-[350px] xl:w-[420px] px-0 lg:px-0 flex-shrink-0 flex flex-col">
-                
-                {/* Embedded Sidebar Chat - DESKTOP ONLY */}
-                <div className="hidden lg:flex border border-zinc-800 rounded-none sm:rounded-2xl overflow-hidden bg-[#0f0f0f] flex-col h-[500px] lg:h-[600px] shadow-2xl mb-6">
-                  <div className="p-3 bg-[#121212] border-b border-zinc-800 flex items-center justify-between z-10 shadow-sm shrink-0">
-                    <div className="flex items-center space-x-2">
-                       <span className="font-bold text-sm text-zinc-100 flex items-center gap-2">
-                         {t.chatTitle} 
-                         <span className="flex items-center px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-500 border border-red-600/20">LIVE</span>
-                       </span>
+              {!isMiniPlayer && (
+                <div className="w-full lg:w-[350px] xl:w-[420px] px-0 lg:px-0 flex-shrink-0 flex flex-col">
+                  {/* Embedded Sidebar Chat - DESKTOP ONLY */}
+                  <div className="hidden lg:flex border border-zinc-800 rounded-none sm:rounded-2xl overflow-hidden bg-[#0f0f0f] flex-col h-[500px] lg:h-[600px] shadow-2xl mb-6 shrink-0">
+                    <div className="p-3 bg-[#121212] border-b border-zinc-800 flex items-center justify-between shrink-0">
+                      <span className="font-bold text-sm text-zinc-100 flex items-center gap-2">
+                        {t.chatTitle} 
+                        <span className="flex items-center px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-500 border border-red-600/20">LIVE</span>
+                      </span>
+                      <div className="flex items-center space-x-1">
+                        <Settings className="w-3.5 h-3.5 text-zinc-500" />
+                        <MoreVertical className="w-3.5 h-3.5 text-zinc-500" />
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <button className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors">
-                        <Settings className="w-3.5 h-3.5" />
-                      </button>
-                      <button className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors">
-                        <MoreVertical className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent bg-black/20">
-                    <AnimatePresence initial={false}>
-                      {chatMessages.map((msg, idx) => {
-                        const isMe = user?.uid === msg.id || user?.displayName === msg.user;
-                        return (
-                          <motion.div 
-                            key={msg.id || idx} 
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.15 }}
-                            className="flex items-start gap-2.5 mb-1"
-                          >
+                    
+                    <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-700 bg-black/20">
+                      <AnimatePresence initial={false}>
+                        {chatMessages.map((msg, idx) => (
+                          <div key={msg.id || idx} className="flex items-start gap-2.5 mb-1">
                             <div className="w-6 h-6 rounded-full bg-zinc-800 shrink-0 flex items-center justify-center text-[10px] uppercase font-bold text-zinc-500 border border-zinc-700/50 overflow-hidden mt-0.5">
-                              {msg.userPhoto ? <img src={msg.userPhoto} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"/> : <span>{msg.user?.charAt(0)}</span>}
+                              {msg.userPhoto ? <img src={msg.userPhoto} alt="" className="w-full h-full object-cover"/> : <span>{msg.user?.charAt(0)}</span>}
                             </div>
                             <div className="flex flex-col min-w-0">
                               <p className="text-[11px] leading-tight break-words">
-                                <span className={`font-bold mr-2 ${isMe ? 'text-blue-400' : 'text-zinc-500'}`}>{msg.user}</span>
+                                <span className={`font-bold mr-2 ${user?.uid === msg.id ? 'text-blue-400' : 'text-zinc-500'}`}>{msg.user}</span>
                                 <span className="text-zinc-200">{msg.text}</span>
                               </p>
                             </div>
-                          </motion.div>
-                        );
-                      })}
-                    </AnimatePresence>
-                  </div>
+                          </div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
 
-                  {user ? (
                     <div className="p-3 bg-[#121212] border-t border-zinc-800 shrink-0">
-                      <form onSubmit={handleChatSubmit} className="flex items-center space-x-2">
-                        <div className="flex-1 relative">
+                      {user ? (
+                        <form onSubmit={handleChatSubmit} className="flex items-center space-x-2">
                           <input 
                             type="text" 
                             value={chatInput}
                             onChange={e => setChatInput(e.target.value)}
                             placeholder="Chat message..." 
-                            className="w-full bg-zinc-900 rounded-lg px-3 py-2 border border-zinc-800 focus:border-blue-500 outline-none text-xs placeholder-zinc-600 transition-all" 
+                            className="w-full bg-zinc-900 rounded-lg px-3 py-2 border border-zinc-800 outline-none text-xs text-white" 
                           />
-                        </div>
-                        <button 
-                          type="submit" 
-                          disabled={!chatInput.trim()} 
-                          className="w-8 h-8 flex items-center justify-center bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 text-white disabled:text-zinc-500 rounded-lg transition-all active:scale-95 shrink-0"
-                        >
-                           <Send className="w-4 h-4 fill-current" />
-                        </button>
-                      </form>
+                          <button type="submit" className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-lg">
+                            <Send className="w-4 h-4 fill-current" />
+                          </button>
+                        </form>
+                      ) : (
+                        <button onClick={handleLogin} className="w-full py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold">Sign in</button>
+                      )}
                     </div>
-                  ) : (
-                    <div className="p-3 border-t border-zinc-800 bg-[#0f0f0f] flex flex-col items-center justify-center shrink-0">
-                      <button onClick={handleLogin} className="w-full flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all active:scale-95 border border-indigo-400/20">
-                        <LogIn className="w-3.5 h-3.5" />
-                        <span>Sign in to join chat</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  </div>
 
                 <div className="px-4 lg:px-0">
                   <div className="flex items-center space-x-2 mb-4 overflow-x-auto pb-2 scrollbar-none">
@@ -1667,15 +1676,17 @@ export default function App() {
                           <p className="text-[10px] text-zinc-500 mt-1 flex items-center"><Users className="w-3 h-3 mr-1 opacity-70"/> {(Math.random() * 8 + 1).toFixed(1)}K views</p>
                         </div>
                       </div>
-                    );})}
+                    );
+                  })}
                   </div>
                 </div>
               </div>
+              )}
+              </div>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
-    </div>
 
       {/* Select Country Modal (Desktop Dialog) */}
       <AnimatePresence>
