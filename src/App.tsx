@@ -968,14 +968,22 @@ export default function App() {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'hidden') {
         const video = videoRef.current;
-        if (video && isPlaying && !document.pictureInPictureElement) {
-          try {
-            if (document.pictureInPictureEnabled) {
-              await video.requestPictureInPicture();
-              console.log("Automatic PiP entered successfully on minimization.");
+        if (video && isPlaying) {
+          const isCurrentlyPiP = document.pictureInPictureElement === video || 
+            (video as any).webkitPresentationMode === 'picture-in-picture';
+
+          if (!isCurrentlyPiP) {
+            try {
+              if (document.pictureInPictureEnabled) {
+                await video.requestPictureInPicture();
+                console.log("Automatic PiP entered successfully on minimization.");
+              } else if ((video as any).webkitSupportsPresentationMode && typeof (video as any).webkitSetPresentationMode === 'function') {
+                (video as any).webkitSetPresentationMode('picture-in-picture');
+                console.log("iOS Safari: Automatic PiP entered successfully on minimization.");
+              }
+            } catch (err) {
+              console.warn("Could not automatically enter PiP:", err);
             }
-          } catch (err) {
-            console.warn("Could not automatically enter PiP:", err);
           }
         }
       }
@@ -985,6 +993,61 @@ export default function App() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isPlaying]);
+
+  // Synchronize Media Session Metadata and Playback State
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentChannel) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: currentChannel.name,
+          artist: 'StreamTube Live IPTV',
+          album: currentChannel.country ? formatCountryName(currentChannel.country) : 'Live Broadcast',
+          artwork: [
+            { src: currentChannel.logo || '/icon.svg', sizes: '128x128', type: 'image/png' },
+            { src: currentChannel.logo || '/icon.svg', sizes: '512x512', type: 'image/png' }
+          ]
+        });
+
+        // Set playback state
+        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+        // Action Handlers
+        navigator.mediaSession.setActionHandler('play', () => {
+          if (videoRef.current && videoRef.current.paused) {
+            videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+          }
+        });
+
+        navigator.mediaSession.setActionHandler('pause', () => {
+          if (videoRef.current && !videoRef.current.paused) {
+            videoRef.current.pause();
+            setIsPlaying(false);
+          }
+        });
+
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+          if (filteredChannels.length > 0) {
+            const idx = filteredChannels.findIndex(c => c.url === currentChannel.url);
+            if (idx !== -1) {
+              setCurrentChannel(filteredChannels[(idx + 1) % filteredChannels.length]);
+            }
+          }
+        });
+
+        navigator.mediaSession.setActionHandler('previoustrack', () => {
+          if (filteredChannels.length > 0) {
+            const idx = filteredChannels.findIndex(c => c.url === currentChannel.url);
+            if (idx !== -1) {
+              const prevIdx = (idx - 1 + filteredChannels.length) % filteredChannels.length;
+              setCurrentChannel(filteredChannels[prevIdx]);
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Error updating media session:', err);
+      }
+    }
+  }, [currentChannel, isPlaying, filteredChannels]);
 
   useEffect(() => {
     setSelectedServer(0);
@@ -1124,11 +1187,19 @@ export default function App() {
   const handlePiPClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      if (videoRef.current) {
+      const video = videoRef.current;
+      if (video) {
         if (document.pictureInPictureElement) {
           await document.exitPictureInPicture();
         } else if (document.pictureInPictureEnabled) {
-          await videoRef.current.requestPictureInPicture();
+          await video.requestPictureInPicture();
+        } else if ((video as any).webkitSupportsPresentationMode && typeof (video as any).webkitSetPresentationMode === 'function') {
+          // iOS Safari presentation mode toggling support
+          if ((video as any).webkitPresentationMode === 'picture-in-picture') {
+            (video as any).webkitSetPresentationMode('inline');
+          } else {
+            (video as any).webkitSetPresentationMode('picture-in-picture');
+          }
         } else {
           setIsMiniPlayer(!isMiniPlayer);
         }
@@ -1651,6 +1722,7 @@ export default function App() {
                     ref={videoRef}
                     className="w-full h-full object-contain pointer-events-none bg-black"
                     autoPlay playsInline
+                    {...{ autoPictureInPicture: true } as any}
                   />
 
                   {/* Player Controls Overlay */}
