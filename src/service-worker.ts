@@ -1,5 +1,11 @@
 /* eslint-disable no-restricted-globals */
 // src/service-worker.ts
+import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+
+cleanupOutdatedCaches();
+// @ts-ignore
+const manifestToPrecache = self.__WB_MANIFEST || [];
+precacheAndRoute(manifestToPrecache);
 
 interface ServiceWorkerManifestEntry {
   url: string;
@@ -52,11 +58,8 @@ sw.addEventListener("install", (event: ExtendableEvent) => {
       const urlsToCache: string[] = [...STATIC_ASSETS];
       
       // Integrate built assets from VitePWA's injected manifest
-      // Must use "self.__WB_MANIFEST" literally so the PWA builder can inject the array
-      // @ts-ignore
-      const manifest = self.__WB_MANIFEST;
-      if (manifest && Array.isArray(manifest)) {
-        manifest.forEach((entry: ServiceWorkerManifestEntry) => {
+      if (manifestToPrecache && Array.isArray(manifestToPrecache)) {
+        manifestToPrecache.forEach((entry: ServiceWorkerManifestEntry) => {
           if (entry && entry.url) {
             urlsToCache.push(entry.url);
           }
