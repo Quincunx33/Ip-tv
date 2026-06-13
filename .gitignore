@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+firebase-applet-config.json
+firebase-blueprint.json
+.DS_Store
