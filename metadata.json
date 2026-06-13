@@ -1,5 +1,5 @@
 {
-  "name": "IPTV Player",
+  "name": "StreamTube",
   "description": "A premium luxury bilingual IPTV player with multiple server source support, featuring high-quality primary stream sources.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

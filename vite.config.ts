@@ -6,7 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [
     react(),
     tailwindcss(),
@@ -15,15 +15,16 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'IPTV Player',
-        short_name: 'IPTV',
+        name: 'StreamTube',
+        short_name: 'StreamTube',
         description: 'Watch live TV channels from around the world',
-        theme_color: '#0f172a',
+        theme_color: '#0f0f0f',
         icons: [
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
             src: 'pwa-512x512.png',
