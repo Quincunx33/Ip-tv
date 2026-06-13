@@ -12,7 +12,7 @@ export default defineConfig({
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
-      filename: 'service-worker.ts',
+      filename: 'service-worker.js',
       registerType: 'autoUpdate',
       injectRegister: 'inline',
       manifestFilename: 'manifest.json',
