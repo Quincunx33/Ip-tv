@@ -701,7 +701,17 @@ export default function App() {
     return [...filteredChannels].sort((a, b) => {
       const aDead = deadChannels.has(a.url);
       const bDead = deadChannels.has(b.url);
-      return (aDead === bDead) ? 0 : aDead ? 1 : -1;
+      
+      if (aDead !== bDead) {
+        return aDead ? 1 : -1;
+      }
+      
+      // Secondary sort: Server 1 channels first (assuming they are more stable)
+      if (a.source === 'server1' && b.source !== 'server1') return -1;
+      if (a.source !== 'server1' && b.source === 'server1') return 1;
+      
+      // Tertiary sort: Alphabetical
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
     });
   }, [filteredChannels, deadChannels]);
 

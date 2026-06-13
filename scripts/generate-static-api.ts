@@ -14,12 +14,17 @@ async function run() {
   try {
     const files = fs.readdirSync(STREAMS_DIR).filter(f => f.endsWith('.m3u'));
     const countries = files.map(f => f.replace('.m3u', ''));
-    fs.writeFileSync(path.join(OUTPUT_DIR, 'channels.json'), JSON.stringify(countries));
-    console.log('Generated channels.json');
 
     const server1Data = fs.existsSync(SERVER1_PATH) ? JSON.parse(fs.readFileSync(SERVER1_PATH, 'utf-8')) : {};
+    
+    // Get unique list of countries from both sources
+    const allCountryKeys = new Set([...countries, ...Object.keys(server1Data)]);
+    const finalCountries = Array.from(allCountryKeys).sort();
 
-    for (const country of countries) {
+    fs.writeFileSync(path.join(OUTPUT_DIR, 'channels.json'), JSON.stringify(finalCountries));
+    console.log('Generated channels.json');
+
+    for (const country of finalCountries) {
       const channels: any[] = [];
       
       // Server 1
