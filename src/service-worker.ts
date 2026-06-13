@@ -45,10 +45,7 @@ const CACHE_NAME_API = "streamtube-api-v1";
 const STATIC_ASSETS: string[] = [
   "./",
   "./index.html",
-  "./icon.svg",
-  "./apple-touch-icon.png",
-  "./pwa-192x192.png",
-  "./pwa-512x512.png"
+  "./icon.svg"
 ];
 
 // Install listener - Cache static shell and pre-built assets
@@ -66,7 +63,13 @@ sw.addEventListener("install", (event: ExtendableEvent) => {
         });
       }
       
-      const uniqueUrls: string[] = Array.from(new Set(urlsToCache));
+      const uniqueUrls = Array.from(new Set(urlsToCache.map(url => {
+        try {
+          return new URL(url, location.href).href;
+        } catch {
+          return url;
+        }
+      })));
       return cache.addAll(uniqueUrls);
     }).then(() => {
       return sw.skipWaiting();
