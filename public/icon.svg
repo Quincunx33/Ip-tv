@@ -1,6 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#0f0f0f"/>
-  <rect x="106" y="156" width="300" height="200" rx="40" fill="#e53935"/>
-  <polygon points="226,206 316,256 226,306" fill="#ffffff"/>
-  <path d="M106,370 C106,370 256,400 406,370" stroke="#e53935" stroke-width="20" stroke-linecap="round" fill="none"/>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0f11"/>
+      <stop offset="100%" stop-color="#050505"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#991b1b"/>
+    </linearGradient>
+    <linearGradient id="red-light" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f87171"/>
+      <stop offset="100%" stop-color="#dc2626"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="12" stdDeviation="20" flood-color="#ef4444" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <g transform="translate(236, 256)">
+    <!-- Signal Waves -->
+    <path d="M 80 -80 A 115 115 0 0 1 80 80" fill="none" stroke="url(#red)" stroke-width="20" stroke-linecap="round" opacity="0.8"/>
+    <path d="M 130 -130 A 185 185 0 0 1 130 130" fill="none" stroke="url(#red)" stroke-width="20" stroke-linecap="round" opacity="0.4"/>
+
+    <!-- Outer Play Button -->
+    <polygon points="-55,-70 65,0 -55,70" fill="url(#red)" filter="url(#glow)" stroke="url(#red-light)" stroke-width="24" stroke-linejoin="round"/>
+    
+    <!-- Inner White Play Button -->
+    <polygon points="-30,-35 30,0 -30,35" fill="#ffffff" stroke="#ffffff" stroke-width="12" stroke-linejoin="round"/>
+  </g>
 </svg>
+

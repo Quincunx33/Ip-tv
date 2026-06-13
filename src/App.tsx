@@ -8,7 +8,7 @@ import Hls from 'hls.js';
 import { Play, Pause, Search, Menu, Tv, Globe, X, Volume2, VolumeX, RefreshCw, Copy, Check, ChevronDown, 
   Star, Heart, Languages, LayoutGrid, List, Flame, Radio, Bookmark, Tv2, Maximize, Minimize, 
   SkipForward, SkipBack, Expand, AppWindow, Tv2 as TvIcon, MoreVertical, Send, ThumbsUp, ThumbsDown, 
-  Share, Users, MessageSquare, Home, Compass, Settings, Clock, Cast, Bell, PictureInPicture, LogIn, LogOut
+  Share, Users, MessageSquare, Home, Compass, Settings, Clock, Cast, Bell, PictureInPicture, LogIn, LogOut, User
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { auth, db, signInWithGoogle, logout } from './firebase';
@@ -157,10 +157,208 @@ const formatCountryName = (filename: string) => {
   }
 };
 
+const getDeterministicViewers = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // Reduce viewer count to a more realistic lower range
+  return (Math.abs(hash % 25) / 10 + 0.5).toFixed(1);
+};
+
+const ChannelCard = React.memo(({ 
+  channel, 
+  isDead, 
+  onClick, 
+  onToggleFavorite, 
+  isFavorite, 
+  countryName, 
+  t 
+}: { 
+  channel: Channel, 
+  isDead: boolean, 
+  onClick: () => void, 
+  onToggleFavorite: (e: React.MouseEvent) => void, 
+  isFavorite: boolean, 
+  countryName: string, 
+  t: any 
+}) => {
+  const viewers = React.useMemo(() => getDeterministicViewers(channel.url), [channel.url]);
+
+  return (
+    <div 
+      className={`flex flex-col cursor-pointer group transition-all duration-300 ${isDead ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100' : ''}`} 
+      onClick={onClick}
+    >
+      <div className="w-full aspect-video bg-zinc-900 rounded-xl overflow-hidden relative mb-2.5 shadow-sm border border-zinc-800/60 group-hover:border-zinc-700 transition-all duration-300 flex items-center justify-center">
+         <ChannelLogo channel={channel} className="w-full h-full" />
+         <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300">
+           <Play className="w-12 h-12 text-white/80 scale-90 group-hover:scale-100 transition-transform" fill="currentColor" />
+         </div>
+         <div className="absolute bottom-1.5 right-1.5 bg-black/80 px-1.5 py-0.5 rounded textxs font-bold font-mono tracking-wider text-white shadow-sm flex items-center space-x-1.5">
+           <span className={`w-1.5 h-1.5 rounded-full ${isDead ? 'bg-zinc-500' : 'bg-red-600 animate-pulse'}`}></span>
+           <span className="text-[10px]">{isDead ? 'OFFLINE' : t.live}</span>
+         </div>
+      </div>
+      <div className="flex space-x-3 px-1">
+         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-600 to-blue-700 border border-white/10 flex items-center justify-center shrink-0 shadow-lg pointer-events-none">
+            <div className="relative">
+              <User className="w-5 h-5 text-white" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-[#0f0f0f] flex items-center justify-center">
+                <Check className="w-2 h-2 text-white" strokeWidth={5} />
+              </div>
+            </div>
+         </div>
+         <div className="flex flex-col overflow-hidden w-full">
+            <h3 className="text-sm font-semibold text-white leading-tight line-clamp-2 pr-4">{channel.name}</h3>
+            <div className="flex items-center space-x-1.5 mt-1">
+               <div className="w-3 h-3 rounded-full bg-blue-600 flex items-center justify-center shadow-[0_0_5px_rgba(37,99,235,0.3)] shrink-0">
+                  <Check className="w-2 h-2 text-white" strokeWidth={6} />
+               </div>
+               <p className="text-[11px] text-zinc-400 font-bold tracking-tight">Build by Taaissu</p>
+            </div>
+            <div className="text-[11px] text-zinc-500 mt-0.5 flex items-center justify-between w-full">
+              <span>{viewers}K {t.watching}</span>
+              <button 
+                onClick={onToggleFavorite} 
+                className={`p-1 hover:bg-zinc-800 rounded-full transition-colors z-10 ${isFavorite ? 'text-red-500' : 'hover:text-white'}`} 
+                title={t.save}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+         </div>
+      </div>
+    </div>
+  );
+});
+
+const SidebarContent = React.memo(({ 
+  isSidebarOpen, 
+  setIsSidebarOpen, 
+  setActiveTab, 
+  activeTab, 
+  setCurrentChannel, 
+  currentChannel, 
+  t, 
+  lang, 
+  user, 
+  logout, 
+  handleLogin, 
+  setIsCountryModalOpen, 
+  selectedCountry, 
+  deferredPrompt, 
+  handleInstallApp 
+}: {
+  isSidebarOpen: boolean,
+  setIsSidebarOpen: (o: boolean) => void,
+  setActiveTab: (t: any) => void,
+  activeTab: string,
+  setCurrentChannel: (c: any) => void,
+  currentChannel: any,
+  t: any,
+  lang: string,
+  user: any,
+  logout: () => void,
+  handleLogin: () => void,
+  setIsCountryModalOpen: (o: boolean) => void,
+  selectedCountry: string,
+  deferredPrompt: any,
+  handleInstallApp: () => void
+}) => (
+    <div className="flex flex-col h-full bg-[#0f0f0f] w-64 text-zinc-200">
+      <div className="hidden lg:flex items-center px-4 h-14 shrink-0 justify-between">
+        <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-zinc-800 rounded-full cursor-pointer lg:hidden">
+          <Menu className="w-6 h-6" />
+        </button>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 py-3">
+        <div className="px-3 space-y-1">
+          <button onClick={() => { setActiveTab('all'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'all' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
+            <Home className={`w-5 h-5 ${activeTab === 'all' && !currentChannel ? 'fill-current' : ''}`} />
+            <span className="text-sm">{t.home}</span>
+          </button>
+          
+          <button onClick={() => { setActiveTab('sports'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'sports' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
+            <Flame className={`w-5 h-5 ${activeTab === 'sports' && !currentChannel ? 'fill-current' : ''}`} />
+            <span className="text-sm">{t.sports}</span>
+          </button>
+          
+          <button onClick={() => { setActiveTab('fifa'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'fifa' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
+            <Globe className={`w-5 h-5 ${activeTab === 'fifa' && !currentChannel ? 'text-indigo-500' : ''}`} />
+            <span className="text-sm font-bold text-indigo-400">{t.fifa}</span>
+          </button>
+
+          <button onClick={() => { setActiveTab('news'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'news' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
+            <Radio className="w-5 h-5" />
+            <span className="text-sm">{t.news}</span>
+          </button>
+        </div>
+
+        <div className="my-3 border-t border-zinc-800 pt-3">
+          <div className="px-6 mb-2 text-base font-bold text-white flex items-center">{lang==='en'?'You':'আপনি'}</div>
+          <div className="px-3 space-y-1">
+            <button onClick={() => { setActiveTab('favorites'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'favorites' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
+              <Bookmark className={`w-5 h-5 ${activeTab === 'favorites' && !currentChannel ? 'fill-current' : ''}`} />
+              <span className="text-sm">{t.favorites}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="my-3 border-t border-zinc-800 pt-3">
+          <div className="px-3 space-y-1">
+            {user ? (
+              <button onClick={() => logout()} className="w-full flex items-center space-x-4 px-3 py-2.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg cursor-pointer">
+                {user.photoURL ? <img src={user.photoURL} alt="User" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full" /> : <LogOut className="w-5 h-5" />}
+                <span className="text-sm truncate">Logout ({user.displayName || user.email})</span>
+              </button>
+            ) : (
+              <button onClick={handleLogin} className="w-full flex items-center space-x-4 px-3 py-2.5 hover:bg-zinc-800 text-indigo-400 hover:text-indigo-300 rounded-lg cursor-pointer">
+                <LogIn className="w-5 h-5" />
+                <span className="text-sm">Sign in with Google</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="my-3 border-t border-zinc-800 pt-3">
+          <div className="px-6 mb-2 text-base font-bold text-white">{t.explore}</div>
+          <div className="px-3 space-y-1">
+            <button onClick={() => {setIsCountryModalOpen(true); if(window.innerWidth < 1024) setIsSidebarOpen(false);}} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-zinc-800 cursor-pointer">
+              <div className="flex items-center space-x-4">
+                <Globe className="w-5 h-5" />
+                <span className="text-sm truncate max-w-[120px]">{formatCountryName(selectedCountry)}</span>
+              </div>
+              <ChevronDown className="w-4 h-4 text-zinc-400" />
+            </button>
+          </div>
+        </div>
+
+        {deferredPrompt && (
+          <div className="my-3 border-t border-zinc-800 pt-3">
+            <div className="px-6 mb-2 text-sm font-bold text-teal-400 uppercase tracking-widest">{lang === 'en' ? 'Get the App' : 'অ্যাপ ইন্সটল করুন'}</div>
+            <div className="px-3">
+              <button 
+                onClick={handleInstallApp}
+                className="w-full flex items-center space-x-3 px-3 py-2.5 bg-teal-600/10 text-teal-300 hover:bg-teal-600/20 border border-teal-500/20 rounded-lg cursor-pointer transition-all active:scale-95 duration-150"
+              >
+                <AppWindow className="w-5 h-5 text-teal-400" />
+                <span className="text-xs font-bold uppercase tracking-wider">{lang === 'en' ? 'Install App' : 'ইন্সটল করুন'}</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+));
+
 export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isAppInstalled, setIsAppInstalled] = useState<boolean>(false);
   const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
+  const [showInstallPopup, setShowInstallPopup] = useState<boolean>(false);
+  const [deviceOS, setDeviceOS] = useState<'Android' | 'iOS' | 'Windows' | 'Mac' | 'Device'>('Device');
 
   const [countries, setCountries] = useState<string[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('bd');
@@ -172,7 +370,15 @@ export default function App() {
   const [currentChannel, setCurrentChannel] = useState<Channel | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [errorMsg, setErrorMsg] = useState(false);
   const [streamMode, setStreamMode] = useState<'proxy' | 'direct'>('proxy');
@@ -224,14 +430,43 @@ export default function App() {
 
   // Listen for PWA installation prompt and online/offline status
   useEffect(() => {
+    // OS Detection
+    const ua = navigator.userAgent;
+    let currentOS: 'Android' | 'iOS' | 'Windows' | 'Mac' | 'Device' = 'Device';
+    if (/android/i.test(ua)) currentOS = 'Android';
+    else if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) currentOS = 'iOS';
+    else if (/Mac OS/i.test(ua)) currentOS = 'Mac';
+    else if (/Windows/i.test(ua)) currentOS = 'Windows';
+    
+    setDeviceOS(currentOS);
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+    const dismissed = localStorage.getItem('installPromptDismissed') === 'true';
+
+    setDeviceOS(currentOS);
+
+    if (isStandalone) {
+      setIsAppInstalled(true);
+      setShowInstallPopup(false);
+    } else if (!dismissed) {
+      if (currentOS === 'iOS') {
+        setTimeout(() => setShowInstallPopup(true), 3000);
+      }
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
+      // Only show popup if NOT already installed/standalone and not dismissed
+      if (!dismissed && !isStandalone && !window.matchMedia('(display-mode: standalone)').matches) {
+        setTimeout(() => setShowInstallPopup(true), 2000);
+      }
     };
 
     const handleAppInstalled = () => {
       setDeferredPrompt(null);
       setIsAppInstalled(true);
+      setShowInstallPopup(false);
     };
 
     const handleOnline = () => {
@@ -247,10 +482,6 @@ export default function App() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsAppInstalled(true);
-    }
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
@@ -258,6 +489,12 @@ export default function App() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  const dismissInstallPopup = () => {
+    setShowInstallPopup(false);
+    localStorage.setItem('installPromptDismissed', 'true');
+  };
+
 
   const handleInstallApp = async () => {
     if (!deferredPrompt) {
@@ -456,9 +693,9 @@ export default function App() {
       const kw = ['news', 'somoy', 'jamuna', 'ekattor', 'independent', 'bbc', 'cnn', 'al jazeera'];
       list = channels.filter(c => kw.some(k => c.name.toLowerCase().includes(k)));
     }
-    if (searchQuery) list = list.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (debouncedSearch) list = list.filter(c => c.name.toLowerCase().includes(debouncedSearch.toLowerCase()));
     setFilteredChannels(list);
-  }, [searchQuery, channels, favorites, activeTab]);
+  }, [debouncedSearch, channels, favorites, activeTab]);
 
   const sortedFilteredChannels = React.useMemo(() => {
     return [...filteredChannels].sort((a, b) => {
@@ -537,7 +774,16 @@ export default function App() {
       
       if (Hls.isSupported()) {
         if (hlsRef.current) hlsRef.current.destroy();
-        const hls = new Hls({ maxBufferLength: 20, enableWorker: true, lowLatencyMode: true });
+        const hls = new Hls({ 
+          maxBufferLength: 10, 
+          maxMaxBufferLength: 30,
+          enableWorker: true, 
+          lowLatencyMode: true,
+          backBufferLength: 30,
+          progressive: true,
+          fragLoadingTimeOut: 20000,
+          manifestLoadingTimeOut: 20000
+        });
         hlsRef.current = hls;
         hls.loadSource(targetUrl);
         hls.attachMedia(video);
@@ -598,9 +844,15 @@ export default function App() {
   const handleMouseMoveControls = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    
+    const timeoutDuration = window.innerWidth < 1024 ? 2000 : 3000;
+    
     controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying && isHoveringVideo) setShowControls(false);
-    }, 3000);
+      // Auto-hide if playing and (is desktop and hovering) OR (is mobile/tablet)
+      if (isPlaying && (window.innerWidth < 1024 || isHoveringVideo)) {
+        setShowControls(false);
+      }
+    }, timeoutDuration);
   };
 
   const handleMouseLeaveVideo = () => {
@@ -700,9 +952,19 @@ export default function App() {
 
   const handlePlayToggle = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (videoRef.current) {
-      if (videoRef.current.paused) videoRef.current.play().catch(() => {});
-      else videoRef.current.pause();
+    if (!videoRef.current) return;
+
+    if (videoRef.current.paused) {
+      videoRef.current.play().catch(() => {});
+      setIsPlaying(true);
+      // Auto-hide controls after a short delay on play
+      const timeoutDuration = window.innerWidth < 1024 ? 1500 : 2500;
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+      controlsTimeoutRef.current = setTimeout(() => setShowControls(false), timeoutDuration);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+      setShowControls(true); // Keep visible when paused
     }
   };
 
@@ -741,94 +1003,6 @@ export default function App() {
     });
   };
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-[#0f0f0f] w-64 text-zinc-200">
-      <div className="hidden lg:flex items-center px-4 h-14 shrink-0 justify-between">
-        <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-zinc-800 rounded-full cursor-pointer lg:hidden">
-          <Menu className="w-6 h-6" />
-        </button>
-      </div>
-      
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 py-3">
-        <div className="px-3 space-y-1">
-          <button onClick={() => { setActiveTab('all'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'all' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
-            <Home className={`w-5 h-5 ${activeTab === 'all' && !currentChannel ? 'fill-current' : ''}`} />
-            <span className="text-sm">{t.home}</span>
-          </button>
-          
-          <button onClick={() => { setActiveTab('sports'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'sports' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
-            <Flame className={`w-5 h-5 ${activeTab === 'sports' && !currentChannel ? 'fill-current' : ''}`} />
-            <span className="text-sm">{t.sports}</span>
-          </button>
-          
-          <button onClick={() => { setActiveTab('fifa'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'fifa' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
-            <Globe className={`w-5 h-5 ${activeTab === 'fifa' && !currentChannel ? 'text-indigo-500' : ''}`} />
-            <span className="text-sm font-bold text-indigo-400">{t.fifa}</span>
-          </button>
-
-          <button onClick={() => { setActiveTab('news'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'news' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
-            <Radio className="w-5 h-5" />
-            <span className="text-sm">{t.news}</span>
-          </button>
-        </div>
-
-        <div className="my-3 border-t border-zinc-800 pt-3">
-          <div className="px-6 mb-2 text-base font-bold text-white flex items-center">{lang==='en'?'You':'আপনি'}</div>
-          <div className="px-3 space-y-1">
-            <button onClick={() => { setActiveTab('favorites'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'favorites' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
-              <Bookmark className={`w-5 h-5 ${activeTab === 'favorites' && !currentChannel ? 'fill-current' : ''}`} />
-              <span className="text-sm">{t.favorites}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="my-3 border-t border-zinc-800 pt-3">
-          <div className="px-3 space-y-1">
-            {user ? (
-              <button onClick={() => logout()} className="w-full flex items-center space-x-4 px-3 py-2.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg cursor-pointer">
-                {user.photoURL ? <img src={user.photoURL} alt="User" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full" /> : <LogOut className="w-5 h-5" />}
-                <span className="text-sm truncate">Logout ({user.displayName || user.email})</span>
-              </button>
-            ) : (
-              <button onClick={handleLogin} className="w-full flex items-center space-x-4 px-3 py-2.5 hover:bg-zinc-800 text-indigo-400 hover:text-indigo-300 rounded-lg cursor-pointer">
-                <LogIn className="w-5 h-5" />
-                <span className="text-sm">Sign in with Google</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="my-3 border-t border-zinc-800 pt-3">
-          <div className="px-6 mb-2 text-base font-bold text-white">{t.explore}</div>
-          <div className="px-3 space-y-1">
-            <button onClick={() => {setIsCountryModalOpen(true); if(window.innerWidth < 1024) setIsSidebarOpen(false);}} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-zinc-800 cursor-pointer">
-              <div className="flex items-center space-x-4">
-                <Globe className="w-5 h-5" />
-                <span className="text-sm truncate max-w-[120px]">{formatCountryName(selectedCountry)}</span>
-              </div>
-              <ChevronDown className="w-4 h-4 text-zinc-400" />
-            </button>
-          </div>
-        </div>
-
-        {deferredPrompt && (
-          <div className="my-3 border-t border-zinc-800 pt-3">
-            <div className="px-6 mb-2 text-sm font-bold text-teal-400 uppercase tracking-widest">{lang === 'en' ? 'Get the App' : 'অ্যাপ ইন্সটল করুন'}</div>
-            <div className="px-3">
-              <button 
-                onClick={handleInstallApp}
-                className="w-full flex items-center space-x-3 px-3 py-2.5 bg-teal-600/10 text-teal-300 hover:bg-teal-600/20 border border-teal-500/20 rounded-lg cursor-pointer transition-all active:scale-95 duration-150"
-              >
-                <AppWindow className="w-5 h-5 text-teal-400" />
-                <span className="text-xs font-bold uppercase tracking-wider">{lang === 'en' ? 'Install App' : 'ইন্সটল করুন'}</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
   const handleLogin = async () => {
     if (isLoggingIn) return;
     setIsLoggingIn(true);
@@ -841,41 +1015,44 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in chat or search
+      if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (currentChannel) {
+        switch (e.code) {
+          case 'Space':
+            e.preventDefault();
+            handlePlayToggle();
+            break;
+          case 'KeyM':
+            e.preventDefault();
+            setIsMuted(prev => !prev);
+            if (videoRef.current) videoRef.current.muted = !videoRef.current.muted;
+            break;
+          case 'KeyF':
+            e.preventDefault();
+            toggleFullscreen(e as any);
+            break;
+          case 'KeyL': // Like
+            e.preventDefault();
+            handleInteraction('like');
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentChannel, isPlaying, isMuted, isFullscreen, isCssFullscreen]);
+
   if (loadingAuth) {
     return (
       <div className="h-screen w-screen bg-[#0f0f0f] flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-zinc-800 border-t-red-600 rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="h-screen w-screen bg-[#0f0f0f] flex flex-col items-center justify-center text-white px-4">
-        <div className="max-w-md w-full text-center space-y-8">
-          <div className="space-y-4">
-            <div className="mx-auto w-24 h-24 rounded-3xl overflow-hidden shadow-lg shadow-red-600/20">
-              <img src="/streamtube_logo.jpg" alt="StreamTube Logo" className="w-full h-full object-cover" />
-            </div>
-            <h1 className="text-4xl font-bold tracking-tighter">StreamTube</h1>
-            <p className="text-zinc-400 text-lg">Watch your favorite channels from around the world in one place.</p>
-          </div>
-          
-          <button 
-            onClick={handleLogin}
-            disabled={isLoggingIn}
-            className="w-full flex items-center justify-center space-x-3 bg-white text-black font-bold py-4 rounded-xl hover:bg-zinc-200 transition-all active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoggingIn ? (
-              <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
-            ) : (
-              <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
-            )}
-            <span>{isLoggingIn ? "Signing in..." : "Sign in with Google"}</span>
-          </button>
-          
-          <p className="text-xs text-zinc-500 pt-8 uppercase tracking-widest font-semibold">Free • Global • Live</p>
-        </div>
       </div>
     );
   }
@@ -891,7 +1068,7 @@ export default function App() {
           </button>
           <div className="flex items-center space-x-1.5 cursor-pointer" onClick={() => setCurrentChannel(null)}>
             <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center border border-zinc-800">
-              <img src="/streamtube_logo.jpg" alt="Logo" className="w-full h-full object-cover" />
+              <img src="/icon.svg" alt="Logo" className="w-full h-full object-contain p-1" />
             </div>
             <span className="font-bold text-xl tracking-tighter hidden sm:block">Stream<span className="font-normal text-white">Tube</span></span>
           </div>
@@ -933,22 +1110,32 @@ export default function App() {
             <Bell className="w-5 h-5" />
           </button>
           
-          <div className="group relative ml-2">
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm cursor-pointer shadow-md border border-zinc-700 overflow-hidden">
-               {user?.photoURL ? <img src={user.photoURL} referrerPolicy="no-referrer" alt="user" className="w-full h-full object-cover" /> : user?.displayName?.charAt(0) || 'U'}
+          {user ? (
+            <div className="group relative ml-2">
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm cursor-pointer shadow-md border border-zinc-700 overflow-hidden">
+                 {user?.photoURL ? <img src={user.photoURL} referrerPolicy="no-referrer" alt="user" className="w-full h-full object-cover" /> : user?.displayName?.charAt(0) || 'U'}
+              </div>
+              {/* Dropdown for logout */}
+              <div className="absolute right-0 top-full mt-2 hidden group-hover:block bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl p-2 z-[100] min-w-[150px]">
+                 <div className="px-3 py-2 border-b border-zinc-700 mb-2">
+                   <p className="text-xs font-bold text-white truncate">{user?.displayName}</p>
+                   <p className="text-[10px] text-zinc-500 truncate">{user?.email}</p>
+                 </div>
+                 <button onClick={() => logout()} className="w-full flex items-center space-x-3 px-3 py-2 hover:bg-zinc-700 rounded-md text-sm text-zinc-300 transition-colors">
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                 </button>
+              </div>
             </div>
-            {/* Dropdown for logout */}
-            <div className="absolute right-0 top-full mt-2 hidden group-hover:block bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl p-2 z-[100] min-w-[150px]">
-               <div className="px-3 py-2 border-b border-zinc-700 mb-2">
-                 <p className="text-xs font-bold text-white truncate">{user?.displayName}</p>
-                 <p className="text-[10px] text-zinc-500 truncate">{user?.email}</p>
-               </div>
-               <button onClick={() => logout()} className="w-full flex items-center space-x-3 px-3 py-2 hover:bg-zinc-700 rounded-md text-sm text-zinc-300 transition-colors">
-                  <LogOut className="w-4 h-4" />
-                  <span>Sign Out</span>
-               </button>
-            </div>
-          </div>
+          ) : (
+            <button 
+              onClick={handleLogin}
+              className="flex items-center gap-2 px-4 py-1.5 border border-zinc-800 hover:border-[#3ea6ff]/30 hover:bg-[#3ea6ff]/10 rounded-full transition-all duration-300 group"
+            >
+              <User className="w-5 h-5 text-[#3ea6ff] hidden xs:block sm:hidden" />
+              <span className="text-sm font-medium text-[#3ea6ff]">Sign in</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -985,12 +1172,28 @@ export default function App() {
                  onClick={() => setIsSidebarOpen(false)}
                />
                
-               <motion.div 
-                 initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} transition={{ type: 'tween', duration: 0.2 }}
-                 className={`absolute top-0 left-0 bottom-0 z-50 shadow-2xl lg:relative lg:z-10`}
-               >
-                 <SidebarContent />
-               </motion.div>
+                <motion.div 
+                  initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} transition={{ type: 'tween', duration: 0.2 }}
+                  className={`absolute top-0 left-0 bottom-0 z-50 shadow-2xl lg:relative lg:z-10`}
+                >
+                  <SidebarContent 
+                    isSidebarOpen={isSidebarOpen}
+                    setIsSidebarOpen={setIsSidebarOpen}
+                    setActiveTab={setActiveTab}
+                    activeTab={activeTab}
+                    setCurrentChannel={setCurrentChannel}
+                    currentChannel={currentChannel}
+                    t={t}
+                    lang={lang}
+                    user={user}
+                    logout={logout}
+                    handleLogin={handleLogin}
+                    setIsCountryModalOpen={setIsCountryModalOpen}
+                    selectedCountry={selectedCountry}
+                    deferredPrompt={deferredPrompt}
+                    handleInstallApp={handleInstallApp}
+                  />
+                </motion.div>
              </>
           )}
         </AnimatePresence>
@@ -1045,39 +1248,18 @@ export default function App() {
               ) : (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 pb-10">
-                    {sortedFilteredChannels.slice(0, visibleCount).map(channel => {
-                      const isF = favorites.some(f => f.url === channel.url);
-                    const isDead = deadChannels.has(channel.url);
-                    return (
-                      <div key={channel.url} className={`flex flex-col cursor-pointer group ${isDead ? 'opacity-40 grayscale' : ''}`} onClick={() => { setCurrentChannel(channel); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}>
-                        <div className="w-full aspect-video bg-zinc-900 rounded-xl overflow-hidden relative mb-2.5 shadow-sm border border-zinc-800/60 group-hover:border-zinc-700 transition-colors flex items-center justify-center">
-                           <ChannelLogo channel={channel} className="w-full h-full" />
-                           <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                             <Play className="w-12 h-12 text-white/80 scale-90 group-hover:scale-100 transition-transform" fill="currentColor" />
-                           </div>
-                           <div className="absolute bottom-1.5 right-1.5 bg-black/80 px-1.5 py-0.5 rounded textxs font-bold font-mono tracking-wider text-white shadow-sm flex items-center space-x-1.5">
-                             <span className={`w-1.5 h-1.5 rounded-full ${isDead ? 'bg-zinc-500' : 'bg-red-600 animate-pulse'}`}></span>
-                             <span className="text-[10px]">{isDead ? 'OFFLINE' : t.live}</span>
-                           </div>
-                        </div>
-                        <div className="flex space-x-3 px-1">
-                           <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 text-zinc-400 font-bold uppercase text-xs overflow-hidden">
-                             <ChannelLogo channel={channel} className="w-full h-full" isAvatar />
-                           </div>
-                           <div className="flex flex-col overflow-hidden w-full">
-                              <h3 className="text-sm font-semibold text-white leading-tight line-clamp-2 pr-4">{channel.name}</h3>
-                              <p className="text-xs text-zinc-400 mt-1">{formatCountryName(selectedCountry)} TV</p>
-                              <div className="text-[11px] text-zinc-500 mt-0.5 flex items-center justify-between w-full">
-                                <span>{(Math.random() * 10 + 1).toFixed(1)}K {t.watching}</span>
-                                <button onClick={(e) => toggleFavorite(channel, e)} className="p-1 hover:bg-zinc-800 rounded-full transition-colors z-10 hover:text-white" title={t.save}>
-                                  <MoreVertical className="w-4 h-4" />
-                                </button>
-                              </div>
-                           </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+                    {sortedFilteredChannels.slice(0, visibleCount).map(channel => (
+                      <ChannelCard 
+                        key={channel.url}
+                        channel={channel}
+                        isDead={deadChannels.has(channel.url)}
+                        isFavorite={favorites.some(f => f.url === channel.url)}
+                        onClick={() => { setCurrentChannel(channel); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                        onToggleFavorite={(e) => toggleFavorite(channel, e)}
+                        countryName={formatCountryName(selectedCountry)}
+                        t={t}
+                      />
+                    ))}
                   </div>
                   {/* Infinity Scroll Loading Trigger */}
                   <div ref={loadMoreTriggerRef} className="h-20 w-full flex items-center justify-center">
@@ -1104,19 +1286,65 @@ export default function App() {
                     onMouseMove={handleMouseMoveControls}
                     onMouseLeave={handleMouseLeaveVideo}
                     onMouseEnter={handleMouseEnterVideo}
-                    onClick={handlePlayToggle}
+                    onClick={(e) => {
+                      if (window.innerWidth < 1024) {
+                         const nextState = !showControls;
+                         setShowControls(nextState);
+                         if (nextState && isPlaying) {
+                            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+                            controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 2500);
+                         }
+                      } else {
+                         handlePlayToggle(e);
+                      }
+                    }}
                   >
+                    {/* Centered Controls for Mobile (Play/Pause) */}
+                    <AnimatePresence>
+                      {showControls && (
+                        <motion.div 
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          className="absolute inset-0 z-[35] flex items-center justify-center pointer-events-none lg:hidden"
+                        >
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handlePlayToggle(); }}
+                            className="w-16 h-16 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white pointer-events-auto active:scale-90 transition-transform"
+                          >
+                            {isPlaying ? <Pause className="w-8 h-8 fill-current"/> : <Play className="w-8 h-8 fill-current ml-1" />}
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Back Button for mobile/tablet */}
+                    <AnimatePresence>
+                      {showControls && (
+                        <motion.button 
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -10 }}
+                          onClick={(e) => { e.stopPropagation(); setCurrentChannel(null); }}
+                          className="absolute top-4 left-4 z-50 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60 transition-colors sm:hidden"
+                        >
+                          <ChevronDown className="w-6 h-6 rotate-90" />
+                        </motion.button>
+                      )}
+                    </AnimatePresence>
+
                   {isBuffering && (
-                    <div className="absolute inset-0 z-20 flex flex-col justify-center items-center pointer-events-none bg-black/40">
-                      <div className="w-12 h-12 border-4 border-zinc-700 border-t-white rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 z-[25] flex flex-col justify-center items-center pointer-events-none bg-black/40">
+                      <div className="w-16 h-16 border-4 border-white/10 border-t-blue-500 rounded-full animate-spin shadow-[0_0_30px_rgba(59,130,246,0.4)]"></div>
+                      <div className="mt-6 text-white text-xs font-bold tracking-[0.3em] animate-pulse drop-shadow-lg">LOADING STREAM...</div>
                     </div>
                   )}
 
                   {errorMsg && (
-                    <div className="absolute inset-0 z-30 flex flex-col justify-center items-center bg-black/90 px-6 text-center">
-                      <TvIcon className="w-12 h-12 text-zinc-600 mb-4" />
+                    <div className="absolute inset-0 z-30 flex flex-col justify-center items-center bg-zinc-950 px-6 text-center">
+                      <TvIcon className="w-12 h-12 text-zinc-700 mb-4" />
                       <p className="text-white font-bold text-lg mb-2">{t.playbackError}</p>
-                      <button onClick={(e) => { e.stopPropagation(); setStreamMode(streamMode === 'proxy' ? 'direct' : 'proxy'); }} className="mt-4 px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-zinc-200 cursor-pointer">
+                      <button onClick={(e) => { e.stopPropagation(); setStreamMode(streamMode === 'proxy' ? 'direct' : 'proxy'); }} className="mt-4 px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-zinc-200 cursor-pointer shadow-lg active:scale-95 transition-transform">
                         Use {streamMode === 'proxy' ? t.directMode : t.proxyMode}
                       </button>
                     </div>
@@ -1124,14 +1352,13 @@ export default function App() {
 
                   <video
                     ref={videoRef}
-                    className="w-full h-full object-contain pointer-events-none"
+                    className="w-full h-full object-contain pointer-events-none bg-black"
                     autoPlay playsInline
                   />
 
                   {/* Player Controls Overlay */}
-                  <div className={`absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-16 pb-2 px-3 sm:px-4 flex flex-col justify-end transition-opacity duration-300 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={e => e.stopPropagation()}>
-                     
-                     {/* Fake Timeline Scrubber */}
+                  <div className={`absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-24 pb-2 px-3 sm:px-4 flex flex-col justify-end transition-opacity duration-500 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                     <div className="relative z-10 w-full flex flex-col" onClick={e => e.stopPropagation()}>
                      <div className="w-full h-1 sm:h-1.5 bg-zinc-600/60 cursor-pointer relative group/bar mb-2.5 sm:mb-3">
                         <div className="absolute top-0 left-0 h-full w-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>
                         <div className="absolute top-1/2 right-0 -translate-y-1/2 w-3 sm:w-3.5 h-3 sm:h-3.5 bg-red-600 rounded-full opacity-0 group-hover/bar:opacity-100 scale-0 group-hover/bar:scale-100 transition-all shadow-md"></div>
@@ -1223,6 +1450,7 @@ export default function App() {
                         </div>
                      </div>
                   </div>
+               </div>
                 </div>
 
                 {/* Mobile Chat - Below Video, Above Info */}
@@ -1272,8 +1500,13 @@ export default function App() {
                       </form>
                     </div>
                   ) : (
-                    <div className="p-3 border-t border-zinc-800 bg-[#121212] flex justify-center">
-                      <button onClick={handleLogin} className="text-xs font-bold text-blue-400 hover:underline">Sign In to join chat</button>
+                    <div className="p-2 border-t border-zinc-800 bg-[#0f0f0f] flex justify-center">
+                      <button 
+                        onClick={handleLogin} 
+                        className="w-full py-2 text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/5 rounded-lg border border-indigo-500/10 transition-all active:scale-95"
+                      >
+                        Sign In to join chat
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1283,12 +1516,22 @@ export default function App() {
                   <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">{currentChannel.name}</h1>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden shrink-0">
-                         <ChannelLogo channel={currentChannel} className="w-full h-full object-contain" />
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-blue-700 flex-shrink-0 flex items-center justify-center border border-white/10 shadow-lg pointer-events-none">
+                         <div className="relative">
+                            <User className="w-6 h-6 text-white" />
+                            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-500 rounded-full border-2 border-[#0f0f0f] flex items-center justify-center">
+                               <Check className="w-2 h-2 text-white" strokeWidth={5} />
+                            </div>
+                         </div>
                       </div>
                       <div>
-                        <h3 className="font-bold text-white text-sm sm:text-base leading-tight">{formatCountryName(selectedCountry)} TV</h3>
-                        <p className="text-[11px] text-zinc-500">{(Math.random() * 5 + 1).toFixed(1)}M subscribers</p>
+                        <h3 className="font-bold text-white text-sm sm:text-base leading-tight flex items-center">
+                           Build by Taaissu
+                           <div className="ml-1.5 w-3.5 h-3.5 bg-blue-500 rounded-full flex items-center justify-center">
+                              <Check className="w-2.5 h-2.5 text-white" strokeWidth={5} />
+                           </div>
+                        </h3>
+                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.1em]">Verified Developer</p>
                       </div>
                     </div>
 
@@ -1373,10 +1616,10 @@ export default function App() {
                       </form>
                     </div>
                   ) : (
-                    <div className="p-4 border-t border-zinc-800 bg-[#121212] flex flex-col items-center justify-center shrink-0">
-                      <button onClick={handleLogin} className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all active:scale-95">
+                    <div className="p-3 border-t border-zinc-800 bg-[#0f0f0f] flex flex-col items-center justify-center shrink-0">
+                      <button onClick={handleLogin} className="w-full flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all active:scale-95 border border-indigo-400/20">
                         <LogIn className="w-3.5 h-3.5" />
-                        <span>Sign In</span>
+                        <span>Sign in to join chat</span>
                       </button>
                     </div>
                   )}
@@ -1405,8 +1648,13 @@ export default function App() {
                         </div>
                         <div className="flex-1 min-w-0 py-0.5">
                           <h3 className="text-[13px] font-semibold text-white leading-snug line-clamp-2 group-hover:text-blue-400 transition-colors pr-4">{c.name}</h3>
-                          <p className="text-[11px] text-zinc-400 mt-1 font-medium">{formatCountryName(selectedCountry)} TV</p>
-                          <p className="text-[10px] text-zinc-500 mt-0.5 flex items-center"><Users className="w-3 h-3 mr-1 opacity-70"/> {(Math.random() * 8 + 1).toFixed(1)}K views</p>
+                          <div className="flex items-center space-x-1 mt-1">
+                             <div className="w-3 h-3 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                                <Check className="w-2 h-2 text-white" strokeWidth={4} />
+                             </div>
+                             <p className="text-[11px] text-zinc-400 font-medium">Build by Taaissu</p>
+                          </div>
+                          <p className="text-[10px] text-zinc-500 mt-1 flex items-center"><Users className="w-3 h-3 mr-1 opacity-70"/> {(Math.random() * 8 + 1).toFixed(1)}K views</p>
                         </div>
                       </div>
                     );})}
@@ -1451,6 +1699,62 @@ export default function App() {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Install Popup */}
+      <AnimatePresence>
+        {showInstallPopup && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#121212] rounded-2xl max-w-sm w-full p-6 relative border border-zinc-800 shadow-2xl"
+            >
+              <button 
+                onClick={dismissInstallPopup} 
+                className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-zinc-800 p-1.5 rounded-full transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg border border-zinc-800/50 bg-[#0f0f0f] flex items-center justify-center">
+                  <img src="/icon.svg" alt="App Icon" className="w-[80%] h-[80%] object-contain drop-shadow-md p-1" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold tracking-tight text-white mb-2">Install StreamTube App</h3>
+                  <p className="text-zinc-400 text-sm leading-relaxed px-2">
+                    {deviceOS === 'iOS' 
+                      ? "To install on iOS, tap the Share button below and select 'Add to Home Screen'."
+                      : `Install the app on your ${deviceOS} for a faster, full-screen experience.`}
+                  </p>
+                </div>
+                
+                <div className="w-full pt-4">
+                  {deviceOS !== 'iOS' ? (
+                    <button 
+                      onClick={() => {
+                        setShowInstallPopup(false);
+                        handleInstallApp();
+                      }}
+                      className="w-full py-3.5 bg-white hover:bg-zinc-200 text-black font-bold tracking-wide rounded-xl transition-colors shadow-[0_0_15px_rgba(255,255,255,0.1)] flex items-center justify-center space-x-2"
+                    >
+                      <span>Install Now</span>
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={dismissInstallPopup}
+                      className="w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-xl transition-colors"
+                    >
+                      Got it
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
