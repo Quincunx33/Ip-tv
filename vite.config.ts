@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-
 import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
@@ -12,13 +11,15 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'StreamTube',
         short_name: 'StreamTube',
         description: 'Watch live TV channels from around the world',
         theme_color: '#0f0f0f',
+        background_color: '#0f0f0f',
+        display: 'standalone',
+        orientation: 'portrait',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -30,7 +31,7 @@ export default defineConfig({
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'maskable any'
           }
         ]
       }
