@@ -1,0 +1,22 @@
+{
+  "name": "StreamTube - World IPTV Player",
+  "short_name": "StreamTube",
+  "description": "Watch live IPTV streams from around the world.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07060e",
+  "theme_color": "#0f0f0f",
+  "icons": [
+    {
+      "src": "/streamtube_logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
