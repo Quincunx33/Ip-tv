@@ -813,14 +813,14 @@ export default function App() {
 
         {deferredPrompt && (
           <div className="my-3 border-t border-zinc-800 pt-3">
-            <div className="px-6 mb-2 text-sm font-bold text-teal-400 uppercase tracking-widest">PWA Desktop</div>
+            <div className="px-6 mb-2 text-sm font-bold text-teal-400 uppercase tracking-widest">{lang === 'en' ? 'Get the App' : 'অ্যাপ ইন্সটল করুন'}</div>
             <div className="px-3">
               <button 
                 onClick={handleInstallApp}
                 className="w-full flex items-center space-x-3 px-3 py-2.5 bg-teal-600/10 text-teal-300 hover:bg-teal-600/20 border border-teal-500/20 rounded-lg cursor-pointer transition-all active:scale-95 duration-150"
               >
                 <AppWindow className="w-5 h-5 text-teal-400" />
-                <span className="text-xs font-bold uppercase tracking-wider">Install StreamTube</span>
+                <span className="text-xs font-bold uppercase tracking-wider">{lang === 'en' ? 'Install App' : 'ইন্সটল করুন'}</span>
               </button>
             </div>
           </div>
