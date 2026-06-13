@@ -16,7 +16,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'inline',
       manifestFilename: 'manifest.json',
-      includeAssets: ['streamtube_logo.jpg'],
+      includeAssets: ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'StreamTube',
         short_name: 'StreamTube',
@@ -29,15 +29,27 @@ export default defineConfig({
         scope: '/',
         icons: [
           {
-            src: 'streamtube_logo.jpg',
-            sizes: '192x192 512x512',
-            type: 'image/jpeg',
+            src: 'icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'streamtube_logo.jpg',
-            sizes: '192x192 512x512',
-            type: 'image/jpeg',
+            src: 'icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: 'icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
+          {
+            src: 'icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'maskable'
           }
         ]
