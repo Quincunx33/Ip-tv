@@ -854,8 +854,8 @@ export default function App() {
       <div className="h-screen w-screen bg-[#0f0f0f] flex flex-col items-center justify-center text-white px-4">
         <div className="max-w-md w-full text-center space-y-8">
           <div className="space-y-4">
-            <div className="mx-auto w-20 h-20 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-600/20">
-              <Tv2 className="w-12 h-12 text-white" />
+            <div className="mx-auto w-24 h-24 rounded-3xl overflow-hidden shadow-lg shadow-red-600/20">
+              <img src="/streamtube_logo.jpg" alt="StreamTube Logo" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-4xl font-bold tracking-tighter">StreamTube</h1>
             <p className="text-zinc-400 text-lg">Watch your favorite channels from around the world in one place.</p>
@@ -890,8 +890,8 @@ export default function App() {
             <Menu className="w-6 h-6 text-zinc-100"/>
           </button>
           <div className="flex items-center space-x-1.5 cursor-pointer" onClick={() => setCurrentChannel(null)}>
-            <div className="bg-red-600 rounded-lg w-8 h-6 flex items-center justify-center">
-              <div className="w-0 h-0 border-t-4 border-t-transparent border-l-[6px] border-l-white border-b-4 border-b-transparent ml-0.5"></div>
+            <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center border border-zinc-800">
+              <img src="/streamtube_logo.jpg" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-xl tracking-tighter hidden sm:block">Stream<span className="font-normal text-white">Tube</span></span>
           </div>
