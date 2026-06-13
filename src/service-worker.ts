@@ -45,7 +45,10 @@ const CACHE_NAME_API = "streamtube-api-v1";
 const STATIC_ASSETS: string[] = [
   "./",
   "./index.html",
-  "./icon.svg"
+  "./icon.svg",
+  "./apple-touch-icon.png",
+  "./pwa-192x192.png",
+  "./pwa-512x512.png"
 ];
 
 // Install listener - Cache static shell and pre-built assets
