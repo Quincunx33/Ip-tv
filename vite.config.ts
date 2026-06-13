@@ -11,6 +11,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'inline',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'StreamTube',
