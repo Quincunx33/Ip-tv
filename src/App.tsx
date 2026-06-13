@@ -42,7 +42,7 @@ const ChannelLogo = ({ channel, className = "", isAvatar = false }: { channel: C
 
   if (channel.logo && !error) {
     const isHttp = channel.logo.startsWith('http:');
-    const proxyUrl = isHttp ? `/api/image-proxy?url=${encodeURIComponent(channel.logo)}` : channel.logo;
+    const proxyUrl = isHttp ? `api/image-proxy?url=${encodeURIComponent(channel.logo)}` : channel.logo;
     
     return (
       <div className={`relative flex items-center justify-center overflow-hidden ${isAvatar ? '' : bgColor} ${className}`}>
@@ -338,7 +338,7 @@ export default function App() {
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        let res = await fetch('/api/channels');
+        let res = await fetch('api/channels');
         if (!res.ok) throw new Error('Not found');
         const data = await res.json();
         setCountries(data);
@@ -347,7 +347,7 @@ export default function App() {
       } catch (err) {
         // Fallback for GitHub Pages (Static Hosting)
         try {
-          const res = await fetch('/static-api/channels.json');
+          const res = await fetch('static-api/channels.json');
           const data = await res.json();
           setCountries(data);
           if (data.includes('bd')) setSelectedCountry('bd');
@@ -366,14 +366,14 @@ export default function App() {
       setLoading(true);
       const fetchId = activeTab === 'fifa' ? 'fifa' : selectedCountry;
       try {
-        let res = await fetch(`/api/channels/${fetchId}?source=${serverSource}`);
+        let res = await fetch(`api/channels/${fetchId}?source=${serverSource}`);
         if (!res.ok) throw new Error('Not found');
         const data = await res.json();
         setChannels(data);
       } catch (err) {
         // Fallback for GitHub Pages
         try {
-          const res = await fetch(`/static-api/${fetchId}.json`);
+          const res = await fetch(`static-api/${fetchId}.json`);
           const data = await res.json();
           setChannels(data);
         } catch (e) {
@@ -473,7 +473,7 @@ export default function App() {
         : currentChannel.url;
 
       const targetUrl = streamMode === 'proxy' 
-        ? `/api/proxy?url=${encodeURIComponent(streamUrl)}` : streamUrl;
+        ? `api/proxy?url=${encodeURIComponent(streamUrl)}` : streamUrl;
       
       if (Hls.isSupported()) {
         if (hlsRef.current) hlsRef.current.destroy();
