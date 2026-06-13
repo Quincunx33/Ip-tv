@@ -230,6 +230,88 @@ async function startServer() {
     });
   });
 
+  // Universal Global Search Endpoint
+  app.get('/api/search', (req, res) => {
+    const query = (req.query.q as string || '').toLowerCase().trim();
+    if (!query) return res.json([]);
+
+    const server1Path = path.join(process.cwd(), 'iptv-master', 'server1_streams.json');
+    const streamsDir = path.join(process.cwd(), 'iptv-master', 'streams');
+    
+    try {
+      const matched: any[] = [];
+      const seenUrls = new Set<string>();
+
+      // 1. Search in Server 1 JSON
+      if (fs.existsSync(server1Path)) {
+        const server1Data = JSON.parse(fs.readFileSync(server1Path, 'utf-8'));
+        Object.keys(server1Data).forEach(countryCode => {
+          if (Array.isArray(server1Data[countryCode])) {
+            server1Data[countryCode].forEach((ch: any) => {
+              if (ch.name && ch.name.toLowerCase().includes(query)) {
+                const uniqueKey = `${countryCode}_1_${ch.url}`;
+                if (!seenUrls.has(uniqueKey)) {
+                  seenUrls.add(uniqueKey);
+                  matched.push({
+                    name: ch.name,
+                    url: ch.url,
+                    logo: ch.logo || "",
+                    source: 'server1',
+                    country: countryCode
+                  });
+                }
+              }
+            });
+          }
+        });
+      }
+
+      // 2. Search in Server 2 M3U files
+      if (fs.existsSync(streamsDir)) {
+        const files = fs.readdirSync(streamsDir).filter(f => f.endsWith('.m3u'));
+        for (const file of files) {
+          if (matched.length > 200) break; // Limit scans
+          const countryCode = file.replace('.m3u', '');
+          const filePath = path.join(streamsDir, file);
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const lines = content.split('\n');
+          
+          let currentItem: any = {};
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('#EXTINF:')) {
+              const parts = line.split(',');
+              currentItem.name = parts.length > 1 ? parts[parts.length - 1].trim() : 'Unknown';
+              const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+              if (logoMatch) currentItem.logo = logoMatch[1];
+            } else if (line.startsWith('http')) {
+              if (currentItem.name) {
+                if (currentItem.name.toLowerCase().includes(query)) {
+                  const uniqueKey = `${countryCode}_2_${line}`;
+                  if (!seenUrls.has(uniqueKey)) {
+                    seenUrls.add(uniqueKey);
+                    matched.push({
+                      name: currentItem.name,
+                      url: line,
+                      logo: currentItem.logo || "",
+                      source: 'global',
+                      country: countryCode
+                    });
+                  }
+                }
+                currentItem = {};
+              }
+            }
+          }
+        }
+      }
+
+      res.json(matched.slice(0, 120)); // Return top matched channels
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
   // Add the API routes
   app.get('/api/channels', (req, res) => {
     const streamsDir = path.join(process.cwd(), 'iptv-master', 'streams');

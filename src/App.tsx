@@ -30,6 +30,7 @@ interface Channel {
   urls?: string[];
   logo?: string;
   source?: string;
+  country?: string;
 }
 
 const ChannelLogo = ({ channel, className = "", isAvatar = false }: { channel: Channel, className?: string, isAvatar?: boolean }) => {
@@ -211,7 +212,15 @@ const ChannelCard = React.memo(({
             </div>
          </div>
          <div className="flex flex-col overflow-hidden w-full">
-            <h3 className="text-sm font-semibold text-white leading-tight line-clamp-2 pr-4">{channel.name}</h3>
+            <h3 className="text-sm font-semibold text-white leading-tight line-clamp-2 pr-4 flex items-center gap-1.5 flex-wrap">
+              {channel.country && (
+                <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-300 uppercase shrink-0 border border-zinc-700/60 font-mono">
+                  <span>{getCountryFlag(channel.country)}</span>
+                  <span>{channel.country}</span>
+                </span>
+              )}
+              <span>{channel.name}</span>
+            </h3>
             <div className="flex items-center space-x-1.5 mt-1">
                <div className="w-3 h-3 rounded-full bg-blue-600 flex items-center justify-center shadow-[0_0_5px_rgba(37,99,235,0.3)] shrink-0">
                   <Check className="w-2 h-2 text-white" strokeWidth={6} />
@@ -266,7 +275,33 @@ const SidebarContent = React.memo(({
   selectedCountry: string,
   deferredPrompt: any,
   handleInstallApp: () => void
-}) => (
+}) => {
+  const [isClearing, setIsClearing] = useState(false);
+
+  const clearAppCache = async () => {
+    setIsClearing(true);
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.unregister();
+        }
+      }
+      if ('caches' in window) {
+        const cacheKeys = await caches.keys();
+        for (const key of cacheKeys) {
+          await caches.delete(key);
+        }
+      }
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (err) {
+      console.error('Failed to clear cache:', err);
+    }
+    window.location.reload();
+  };
+
+  return (
     <div className="flex flex-col h-full bg-[#0f0f0f] w-64 text-zinc-200">
       <div className="hidden lg:flex items-center px-4 h-14 shrink-0 justify-between">
         <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-zinc-800 rounded-full cursor-pointer lg:hidden">
@@ -350,9 +385,25 @@ const SidebarContent = React.memo(({
             </div>
           </div>
         )}
+
+        <div className="my-3 border-t border-zinc-800 pt-3">
+          <div className="px-6 mb-2 text-xs font-bold text-zinc-500 uppercase tracking-widest">{lang === 'en' ? 'System' : 'সিস্টেম'}</div>
+          <div className="px-3">
+            <button 
+              onClick={clearAppCache}
+              disabled={isClearing}
+              className="w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg text-zinc-400 hover:bg-red-950/20 hover:text-red-400 border border-transparent hover:border-red-900/30 font-medium transition-all duration-200 cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-5 h-5 ${isClearing ? 'animate-spin text-red-500' : ''}`} />
+              <span className="text-sm">{isClearing ? (lang === 'en' ? 'Clearing...' : 'পরিষ্কার ও রিলোড হচ্ছে...') : (lang === 'en' ? 'Force Refresh / Clear Cache' : 'ক্যাশ বাফার মুছুন (পুনরায় লোড)')}</span>
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
-));
+  );
+});
 
 export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -363,6 +414,7 @@ export default function App() {
 
   const [countries, setCountries] = useState<string[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('bd');
+  const [detectedCountry, setDetectedCountry] = useState<string>('bd');
   const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
   const [countryQuery, setCountryQuery] = useState('');
   
@@ -372,6 +424,84 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [universalSearchResults, setUniversalSearchResults] = useState<Channel[]>([]);
+  const [isSearchingGlobally, setIsSearchingGlobally] = useState(false);
+
+  // Auto Geolocate on load
+  useEffect(() => {
+    const detectCountry = async () => {
+      // Step A: Guess by user local timezone for instant feedback
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone.toLowerCase();
+      let inferred = 'bd';
+      if (tz.includes('dhaka')) inferred = 'bd';
+      else if (tz.includes('kolkata') || tz.includes('calcutta') || tz.includes('delhi')) inferred = 'in';
+      else if (tz.includes('london')) inferred = 'uk';
+      else if (tz.includes('new_york') || tz.includes('los_angeles') || tz.includes('chicago')) inferred = 'us';
+      else if (tz.includes('toronto')) inferred = 'ca';
+      else if (tz.includes('berlin')) inferred = 'de';
+      else if (tz.includes('paris')) inferred = 'fr';
+      else if (tz.includes('istanbul')) inferred = 'tr';
+      else if (tz.includes('sao_paulo')) inferred = 'br';
+
+      setDetectedCountry(inferred);
+
+      // Step B: Fetch micro ipapi geolocation details for exact match
+      try {
+        const response = await fetch('https://ipapi.co/json/');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.country_code) {
+            const code = data.country_code.toLowerCase();
+            setDetectedCountry(code);
+            console.log("Auto-detected country context:", code);
+          }
+        }
+      } catch (err) {
+        console.warn("IP-based geolocation lookup failed, utilizing timezone fallback:", err);
+      }
+    };
+    detectCountry();
+  }, []);
+
+  // Sync selected country with auto-detected country
+  useEffect(() => {
+    if (countries.length > 0) {
+      if (countries.includes(detectedCountry)) {
+        setSelectedCountry(detectedCountry);
+      } else if (countries.includes('bd')) {
+        setSelectedCountry('bd');
+      } else {
+        setSelectedCountry(countries[0]);
+      }
+    }
+  }, [countries, detectedCountry]);
+
+  // Universal Global Search Hook
+  useEffect(() => {
+    if (!debouncedSearch.trim()) {
+      setUniversalSearchResults([]);
+      return;
+    }
+
+    const searchGlobally = async () => {
+      setIsSearchingGlobally(true);
+      try {
+        const res = await fetch(`api/search?q=${encodeURIComponent(debouncedSearch)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setUniversalSearchResults(data);
+        } else {
+          setUniversalSearchResults([]);
+        }
+      } catch (err) {
+        console.error("Global search failed:", err);
+        setUniversalSearchResults([]);
+      } finally {
+        setIsSearchingGlobally(false);
+      }
+    };
+    searchGlobally();
+  }, [debouncedSearch]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -642,16 +772,12 @@ export default function App() {
         if (!res.ok) throw new Error('Not found');
         const data = await res.json();
         setCountries(data);
-        if (data.includes('bd')) setSelectedCountry('bd');
-        else if (data.length > 0) setSelectedCountry(data[0]);
       } catch (err) {
         // Fallback for GitHub Pages (Static Hosting)
         try {
           const res = await fetch('static-api/channels.json');
           const data = await res.json();
           setCountries(data);
-          if (data.includes('bd')) setSelectedCountry('bd');
-          else if (data.length > 0) setSelectedCountry(data[0]);
         } catch (e) {
           console.error("Static fallback failed", e);
         }
@@ -689,7 +815,10 @@ export default function App() {
   useEffect(() => {
     let list = channels;
     if (activeTab === 'favorites') list = favorites;
-    else if (activeTab === 'sports') {
+    else if (activeTab === 'fifa') {
+      const kw = ['fifa', 'caze', 'coze', 'bein', 'sport', 'football', 'soccer', 'ten', 'star sports', 't sports', 'tsports', 'gtv'];
+      list = channels.filter(c => kw.some(k => c.name.toLowerCase().includes(k)) && !c.name.toLowerCase().includes('news') && !c.name.toLowerCase().includes('msnbc'));
+    } else if (activeTab === 'sports') {
       const kw = ['sport', 'cricket', 'football', 'fifa', 'ten ', 'tsports', 'gtv'];
       list = channels.filter(c => kw.some(k => c.name.toLowerCase().includes(k)));
     } else if (activeTab === 'news') {
@@ -731,6 +860,13 @@ export default function App() {
     }
     return sorted;
   }, [filteredChannels, deadChannels, activeTab]);
+
+  const displayChannelsList = React.useMemo(() => {
+    if (debouncedSearch && universalSearchResults.length > 0) {
+      return universalSearchResults;
+    }
+    return sortedFilteredChannels;
+  }, [debouncedSearch, universalSearchResults, sortedFilteredChannels]);
 
   useEffect(() => {
     setVisibleCount(50);
@@ -780,6 +916,29 @@ export default function App() {
     };
   }, [currentChannel]);
 
+  // Auto-PiP on tab switch or app change (minimizing)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'hidden') {
+        const video = videoRef.current;
+        if (video && isPlaying && !document.pictureInPictureElement) {
+          try {
+            if (document.pictureInPictureEnabled) {
+              await video.requestPictureInPicture();
+              console.log("Automatic PiP entered successfully on minimization.");
+            }
+          } catch (err) {
+            console.warn("Could not automatically enter PiP:", err);
+          }
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isPlaying]);
+
   useEffect(() => {
     setSelectedServer(0);
     setQualityLevels([]);
@@ -789,6 +948,11 @@ export default function App() {
   useEffect(() => {
     if (currentChannel && videoRef.current) {
       const video = videoRef.current;
+      try {
+        (video as any).autoPictureInPicture = true;
+      } catch (e) {
+        console.warn(e);
+      }
       setErrorMsg(false);
       setIsBuffering(true);
       
@@ -796,8 +960,14 @@ export default function App() {
         ? currentChannel.urls[selectedServer] 
         : currentChannel.url;
 
+      // Auto-upgrade simple HTTP URLs to HTTPS on secure pages to avoid Mixed Content block by browsers
+      const isHttpsPage = window.location.protocol === 'https:';
+      const upgradedUrl = (isHttpsPage && streamUrl.startsWith('http:')) 
+        ? streamUrl.replace('http:', 'https:') 
+        : streamUrl;
+
       const targetUrl = streamMode === 'proxy' 
-        ? `api/proxy?url=${encodeURIComponent(streamUrl)}` : streamUrl;
+        ? `api/proxy?url=${encodeURIComponent(upgradedUrl)}` : upgradedUrl;
       
       if (Hls.isSupported()) {
         if (hlsRef.current) hlsRef.current.destroy();
@@ -1264,7 +1434,7 @@ export default function App() {
                  <h2 className="text-xl sm:text-2xl font-bold font-sans text-white">
                    {activeTab === 'all' ? t.explore : activeTab === 'favorites' ? t.favorites : activeTab === 'news' ? t.news : activeTab === 'fifa' ? t.fifa : t.sports}
                  </h2>
-                 <span className="text-sm font-medium text-zinc-500 hidden sm:block">{filteredChannels.length} {t.views.replace('views', 'streams')}</span>
+                 <span className="text-sm font-medium text-zinc-500 hidden sm:block">{displayChannelsList.length} {t.views.replace('views', 'streams')}</span>
               </div>
 
               {activeTab === 'all' && (
@@ -1288,15 +1458,21 @@ export default function App() {
                 <div className="w-full flex flex-col justify-center items-center py-20">
                    <div className="w-10 h-10 border-4 border-zinc-800 border-t-red-600 rounded-full animate-spin"></div>
                 </div>
-              ) : filteredChannels.length === 0 ? (
+              ) : displayChannelsList.length === 0 ? (
                 <div className="w-full flex flex-col justify-center items-center py-20 text-zinc-500">
                    <Tv className="w-16 h-16 mb-4 opacity-50" />
                    <p className="font-bold text-lg">{t.noChannels}</p>
                 </div>
               ) : (
                 <>
+                  {debouncedSearch && universalSearchResults.length > 0 && (
+                    <div className="mb-4 text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center space-x-2 animate-pulse font-mono">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
+                      <span>🌐 Universal Search Results ({universalSearchResults.length} channels found globally)</span>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 pb-10">
-                    {sortedFilteredChannels.slice(0, visibleCount).map(channel => (
+                    {displayChannelsList.slice(0, visibleCount).map(channel => (
                       <ChannelCard 
                         key={`${channel.url}-${channel.name}`}
                         channel={channel}
@@ -1304,14 +1480,14 @@ export default function App() {
                         isFavorite={favorites.some(f => f.url === channel.url)}
                         onClick={() => { setCurrentChannel(channel); setIsMiniPlayer(false); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}
                         onToggleFavorite={(e) => toggleFavorite(channel, e)}
-                        countryName={formatCountryName(selectedCountry)}
+                        countryName={formatCountryName(channel.country || selectedCountry)}
                         t={t}
                       />
                     ))}
                   </div>
                   {/* Infinity Scroll Loading Trigger */}
                   <div ref={loadMoreTriggerRef} className="h-20 w-full flex items-center justify-center">
-                    {visibleCount < sortedFilteredChannels.length && (
+                    {visibleCount < displayChannelsList.length && (
                       <div className="w-6 h-6 border-2 border-zinc-700 border-t-zinc-400 rounded-full animate-spin"></div>
                     )}
                   </div>
@@ -1352,24 +1528,50 @@ export default function App() {
                     )}
 
                     {!isMiniPlayer && (
-                       /* Centered Controls for Mobile (Play/Pause) */
-                    <AnimatePresence>
-                      {showControls && (
-                        <motion.div 
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.9 }}
-                          className="absolute inset-0 z-[45] flex items-center justify-center pointer-events-none lg:hidden"
-                        >
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handlePlayToggle(e); }}
-                            className="w-20 h-20 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white pointer-events-auto active:scale-90 transition-transform shadow-2xl"
+                       /* Centered Controls for Mobile (Play/Pause) & Mobile PiP Button */
+                     <>
+                      <AnimatePresence>
+                        {showControls && (
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="absolute inset-0 z-[45] flex items-center justify-center bg-transparent lg:hidden"
+                            onClick={(e) => {
+                              if (e.target === e.currentTarget) {
+                                handleContainerClick(e);
+                              }
+                            }}
                           >
-                            {isPlaying ? <Pause className="w-10 h-10 fill-current"/> : <Play className="w-10 h-10 fill-current ml-1" />}
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handlePlayToggle(e); }}
+                              className="w-20 h-20 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white cursor-pointer active:scale-90 transition-transform shadow-2xl border border-white/20"
+                            >
+                              {isPlaying ? <Pause className="w-10 h-10 fill-current text-white"/> : <Play className="w-10 h-10 fill-current ml-1 text-white" />}
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <AnimatePresence>
+                        {showControls && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="absolute top-4 right-4 z-[45] flex items-center space-x-2 lg:hidden"
+                          >
+                            <button 
+                              onClick={handlePiPClick}
+                              className="p-2.5 bg-black/60 backdrop-blur-md rounded-full text-white cursor-pointer hover:bg-black/80 active:scale-95 transition-all shadow-md border border-white/15"
+                              title="Picture in Picture / Miniplayer"
+                            >
+                              <PictureInPicture className="w-5 h-5 text-zinc-100" />
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                     </>
                     )}
 
                     {/* Quality Settings (Native) hidden - we use custom HLS menu */}
@@ -1388,6 +1590,13 @@ export default function App() {
                       <button onClick={(e) => { e.stopPropagation(); setStreamMode(streamMode === 'proxy' ? 'direct' : 'proxy'); }} className="mt-4 px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-zinc-200 cursor-pointer shadow-lg active:scale-95 transition-transform">
                         Use {streamMode === 'proxy' ? t.directMode : t.proxyMode}
                       </button>
+                      <div className="mt-4 max-w-sm text-center px-4 py-2.5 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-400">
+                        <p className="font-semibold text-zinc-300">⚠️ Hosting Info:</p>
+                        <p className="mt-1">
+                          If hosting on static servers like Cloudflare, the secure proxy option is limited. 
+                          Mixed HTTP feeds or CORS streams will prevent playback on HTTPS pages. Consider Node.js/Docker VPS deployment for 100% proxy coverage!
+                        </p>
+                      </div>
                     </div>
                   )}
 
