@@ -136,12 +136,23 @@ const TRANSLATIONS = {
 };
 
 const getCountryFlag = (code: string) => {
+  if (!code || code.length !== 2) return '🌐';
   const flags: Record<string, string> = {
     bd: '🇧🇩', in: '🇮🇳', us: '🇺🇸', ca: '🇨🇦', gb: '🇬🇧', de: '🇩🇪',
     fr: '🇫🇷', es: '🇪🇸', it: '🇮🇹', au: '🇦🇺', jp: '🇯🇵', kr: '🇰🇷',
-    br: '🇧🇷', ar: '🇦🇷', mx: '🇲🇽', za: '🇿🇦', tr: '🇹🇷', cn: '🇨🇳', pk: '🇵🇰'
+    br: '🇧🇷', ar: '🇦🇷', mx: '🇲🇽', za: '🇿🇦', tr: '🇹🇷', cn: '🇨🇳', pk: '🇵🇰',
+    uk: '🇬🇧'
   };
-  return flags[code.toLowerCase()] || '🌐';
+  const lower = code.toLowerCase();
+  if (flags[lower]) return flags[lower];
+  try {
+    const codePoints = lower
+      .split('')
+      .map(char => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  } catch (e) {
+    return '🌐';
+  }
 };
 
 const formatCountryName = (filename: string) => {
@@ -426,6 +437,7 @@ export default function App() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [universalSearchResults, setUniversalSearchResults] = useState<Channel[]>([]);
   const [isSearchingGlobally, setIsSearchingGlobally] = useState(false);
+  const searchIndexRef = useRef<Channel[] | null>(null);
 
   // Auto Geolocate on load
   useEffect(() => {
@@ -453,11 +465,10 @@ export default function App() {
           if (data && data.country_code) {
             const code = data.country_code.toLowerCase();
             setDetectedCountry(code);
-            console.log("Auto-detected country context:", code);
           }
         }
       } catch (err) {
-        console.warn("IP-based geolocation lookup failed, utilizing timezone fallback:", err);
+        // Silent timezone fallback, no warning or log to prevent noisy UI toasts
       }
     };
     detectCountry();
@@ -486,16 +497,51 @@ export default function App() {
     const searchGlobally = async () => {
       setIsSearchingGlobally(true);
       try {
-        const res = await fetch(`api/search?q=${encodeURIComponent(debouncedSearch)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setUniversalSearchResults(data);
+        if (!searchIndexRef.current) {
+          const res = await fetch(`static-api/search-index.json`);
+          if (res.ok) {
+            searchIndexRef.current = await res.json();
+          } else {
+            // Lazy cloudflare safe fallback path to relative static path or API
+            const fallbackRes = await fetch(`/static-api/search-index.json`);
+            if (fallbackRes.ok) {
+              searchIndexRef.current = await fallbackRes.json();
+            } else {
+              // Direct fallback (Express backend proxy)
+              const apiRes = await fetch(`api/search?q=${encodeURIComponent(debouncedSearch)}`);
+              if (apiRes.ok) {
+                const data = await apiRes.json();
+                setUniversalSearchResults(data);
+                setIsSearchingGlobally(false);
+                return;
+              }
+            }
+          }
+        }
+
+        if (searchIndexRef.current) {
+          const queryStr = debouncedSearch.toLowerCase().trim();
+          const results = searchIndexRef.current.filter(ch => 
+            ch.name.toLowerCase().includes(queryStr) || 
+            (ch.country && ch.country.toLowerCase().includes(queryStr))
+          );
+          setUniversalSearchResults(results);
         } else {
           setUniversalSearchResults([]);
         }
       } catch (err) {
-        console.error("Global search failed:", err);
-        setUniversalSearchResults([]);
+        console.error("Global search index failed, falling back to API:", err);
+        try {
+          const apiRes = await fetch(`api/search?q=${encodeURIComponent(debouncedSearch)}`);
+          if (apiRes.ok) {
+            const data = await apiRes.json();
+            setUniversalSearchResults(data);
+          } else {
+            setUniversalSearchResults([]);
+          }
+        } catch (e) {
+          setUniversalSearchResults([]);
+        }
       } finally {
         setIsSearchingGlobally(false);
       }
@@ -547,6 +593,7 @@ export default function App() {
 
   const [chatMessages, setChatMessages] = useState<{id?: string, user: string, userPhoto?: string, text: string, time: string}[]>([]);
   const [chatInput, setChatInput] = useState('');
+  const [isChatExpanded, setIsChatExpanded] = useState<boolean>(false);
   
   const [baseLikes, setBaseLikes] = useState(0);
   const [baseDislikes, setBaseDislikes] = useState(0);
@@ -790,7 +837,7 @@ export default function App() {
     if (!selectedCountry) return;
     const fetchChannels = async () => {
       setLoading(true);
-      const fetchId = activeTab === 'fifa' ? 'fifa' : selectedCountry;
+      const fetchId = activeTab === 'fifa' ? 'fifa' : activeTab === 'sports' ? 'sports' : selectedCountry;
       try {
         let res = await fetch(`api/channels/${fetchId}?source=${serverSource}`);
         if (!res.ok) throw new Error('Not found');
@@ -814,18 +861,18 @@ export default function App() {
 
   useEffect(() => {
     let list = channels;
-    if (activeTab === 'favorites') list = favorites;
-    else if (activeTab === 'fifa') {
-      const kw = ['fifa', 'caze', 'coze', 'bein', 'sport', 'football', 'soccer', 'ten', 'star sports', 't sports', 'tsports', 'gtv'];
-      list = channels.filter(c => kw.some(k => c.name.toLowerCase().includes(k)) && !c.name.toLowerCase().includes('news') && !c.name.toLowerCase().includes('msnbc'));
-    } else if (activeTab === 'sports') {
-      const kw = ['sport', 'cricket', 'football', 'fifa', 'ten ', 'tsports', 'gtv'];
-      list = channels.filter(c => kw.some(k => c.name.toLowerCase().includes(k)));
+    if (activeTab === 'favorites') {
+      list = favorites;
+    } else if (activeTab === 'fifa' || activeTab === 'sports') {
+      // Use the pre-compiled global static lists without extra clientside pruning
+      list = channels;
     } else if (activeTab === 'news') {
       const kw = ['news', 'somoy', 'jamuna', 'ekattor', 'independent', 'bbc', 'cnn', 'al jazeera'];
       list = channels.filter(c => kw.some(k => c.name.toLowerCase().includes(k)));
     }
-    if (debouncedSearch) list = list.filter(c => c.name.toLowerCase().includes(debouncedSearch.toLowerCase()));
+    if (debouncedSearch) {
+      list = list.filter(c => c.name.toLowerCase().includes(debouncedSearch.toLowerCase()));
+    }
     setFilteredChannels(list);
   }, [debouncedSearch, channels, favorites, activeTab]);
 
@@ -1284,7 +1331,7 @@ export default function App() {
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-zinc-800 rounded-full cursor-pointer">
             <Menu className="w-6 h-6 text-zinc-100"/>
           </button>
-          <div className="flex items-center space-x-1.5 cursor-pointer" onClick={() => setCurrentChannel(null)}>
+          <div className="flex items-center space-x-1.5 cursor-pointer" onClick={() => { setCurrentChannel(null); if (window.innerWidth > 1024) setIsSidebarOpen(true); }}>
             <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center border border-zinc-800">
               <img src="/icon.svg" alt="Logo" className="w-full h-full object-contain p-1" />
             </div>
@@ -1478,7 +1525,7 @@ export default function App() {
                         channel={channel}
                         isDead={deadChannels.has(channel.url)}
                         isFavorite={favorites.some(f => f.url === channel.url)}
-                        onClick={() => { setCurrentChannel(channel); setIsMiniPlayer(false); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                        onClick={() => { setCurrentChannel(channel); setIsSidebarOpen(false); setIsMiniPlayer(false); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}
                         onToggleFavorite={(e) => toggleFavorite(channel, e)}
                         countryName={formatCountryName(channel.country || selectedCountry)}
                         t={t}
@@ -1508,7 +1555,7 @@ export default function App() {
                   {/* 16:9 Video Player - Sticky on mobile for simultaneous chat */}
                   <div 
                     ref={videoContainerRef}
-                    className={`w-full bg-black group overflow-hidden ${isMiniPlayer ? 'aspect-video rounded-xl border-2 border-indigo-500/50 shadow-2xl relative pointer-events-auto cursor-pointer' : `sticky sm:relative top-14 sm:top-0 z-[40] sm:z-10 ${isCssFullscreen ? 'fixed inset-0 z-[99999] h-[100dvh]' : `relative ${isFullscreen ? '' : 'aspect-video rounded-none lg:rounded-xl shadow-lg'}`}`}`}
+                    className={`w-full bg-black group overflow-hidden ${isMiniPlayer ? 'aspect-video rounded-xl border-2 border-indigo-500/50 shadow-2xl relative pointer-events-auto cursor-pointer' : `sticky top-0 lg:top-4 z-[40] ${isCssFullscreen ? 'fixed inset-0 z-[99999] h-[100dvh]' : `relative ${isFullscreen ? '' : 'aspect-video rounded-none lg:rounded-xl shadow-lg'}`}`}`}
                     onMouseMove={handleMouseMoveControls}
                     onMouseLeave={handleMouseLeaveVideo}
                     onMouseEnter={handleMouseEnterVideo}
@@ -1533,15 +1580,15 @@ export default function App() {
                       <AnimatePresence>
                         {showControls && (
                           <motion.div 
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            className="absolute inset-0 z-[45] flex items-center justify-center bg-transparent lg:hidden"
-                            onClick={(e) => {
-                              if (e.target === e.currentTarget) {
-                                handleContainerClick(e);
-                              }
-                            }}
+                             initial={{ opacity: 0, scale: 0.9 }}
+                             animate={{ opacity: 1, scale: 1 }}
+                             exit={{ opacity: 0, scale: 0.9 }}
+                             className="absolute inset-x-0 top-0 bottom-16 z-30 flex items-center justify-center bg-transparent lg:hidden"
+                             onClick={(e) => {
+                               if (e.target === e.currentTarget) {
+                                 handleContainerClick(e);
+                               }
+                             }}
                           >
                             <button 
                               onClick={(e) => { e.stopPropagation(); handlePlayToggle(e); }}
@@ -1559,7 +1606,7 @@ export default function App() {
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="absolute top-4 right-4 z-[45] flex items-center space-x-2 lg:hidden"
+                            className="absolute top-4 right-4 z-50 flex items-center space-x-2 lg:hidden"
                           >
                             <button 
                               onClick={handlePiPClick}
@@ -1607,7 +1654,7 @@ export default function App() {
                   />
 
                   {/* Player Controls Overlay */}
-                  <div className={`absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-24 pb-2 px-3 sm:px-4 flex flex-col justify-end transition-opacity duration-500 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                  <div className={`absolute bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-24 pb-2 px-3 sm:px-4 flex flex-col justify-end transition-opacity duration-500 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                      <div className="relative z-10 w-full flex flex-col" onClick={e => e.stopPropagation()}>
                      <div className="w-full h-1 sm:h-1.5 bg-zinc-600/60 cursor-pointer relative group/bar mb-2.5 sm:mb-3">
                         <div className="absolute top-0 left-0 h-full w-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>
@@ -1705,13 +1752,31 @@ export default function App() {
 
                 {/* Mobile Chat - Below Video, Above Info */}
                 {!isMiniPlayer && (
-                   <div className="lg:hidden border-b border-zinc-800 bg-[#0f0f0f] flex flex-col h-[350px] sm:h-[450px]">
+                  !isChatExpanded ? (
+                    <div 
+                      onClick={() => setIsChatExpanded(true)}
+                      className="lg:hidden border-b border-zinc-805 bg-[#121212] hover:bg-zinc-800/80 px-4 py-3 flex items-center justify-between cursor-pointer transition-all shrink-0"
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <MessageSquare className="w-4 h-4 text-blue-400" />
+                        <span className="font-bold text-xs text-zinc-100 uppercase tracking-wider">{t.chatTitle}</span>
+                        <span className="flex items-center px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-500 border border-red-600/20 font-bold">LIVE</span>
+                      </div>
+                      <span className="text-xs text-blue-500 font-bold">Click to Join Chat 💬</span>
+                    </div>
+                  ) : (
+                    <div className="lg:hidden border-b border-zinc-800 bg-[#0f0f0f] flex flex-col h-[350px] sm:h-[450px]">
                   <div className="p-3 bg-[#121212] border-b border-zinc-800 flex items-center justify-between shrink-0">
                     <span className="font-bold text-xs text-zinc-100 flex items-center gap-2 uppercase tracking-wider">
                       {t.chatTitle} 
                       <span className="flex items-center px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-500 border border-red-600/20">LIVE</span>
                     </span>
-                    <button className="p-1 hover:bg-zinc-800 rounded text-zinc-500"><MoreVertical className="w-4 h-4" /></button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setIsChatExpanded(false); }}
+                      className="px-2.5 py-1 text-[11px] bg-zinc-850 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-md border border-zinc-700 cursor-pointer"
+                    >
+                      Collapse ✕
+                    </button>
                   </div>
                   
                   <div ref={chatScrollRefMobile} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-none bg-black/10">
@@ -1761,6 +1826,7 @@ export default function App() {
                     </div>
                   )}
                 </div>
+                  )
                 )}
 
                 {/* Video Info & Actions */}
@@ -1803,17 +1869,39 @@ export default function App() {
               {!isMiniPlayer && (
                 <div className="w-full lg:w-[350px] xl:w-[420px] px-0 lg:px-0 flex-shrink-0 flex flex-col">
                   {/* Embedded Sidebar Chat - DESKTOP ONLY */}
-                  <div className="hidden lg:flex border border-zinc-800 rounded-none sm:rounded-2xl overflow-hidden bg-[#0f0f0f] flex-col h-[500px] lg:h-[600px] shadow-2xl mb-6 shrink-0">
-                    <div className="p-3 bg-[#121212] border-b border-zinc-800 flex items-center justify-between shrink-0">
-                      <span className="font-bold text-sm text-zinc-100 flex items-center gap-2">
-                        {t.chatTitle} 
-                        <span className="flex items-center px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-500 border border-red-600/20">LIVE</span>
-                      </span>
-                      <div className="flex items-center space-x-1">
-                        <Settings className="w-3.5 h-3.5 text-zinc-500" />
-                        <MoreVertical className="w-3.5 h-3.5 text-zinc-500" />
+                  {!isChatExpanded ? (
+                    <div 
+                      onClick={() => setIsChatExpanded(true)}
+                      className="hidden lg:flex border border-zinc-800 hover:border-zinc-700/80 rounded-2xl p-4 bg-[#121212] hover:bg-zinc-800/40 items-center justify-between cursor-pointer transition-all mb-6 shrink-0"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <MessageSquare className="w-5 h-5 text-blue-500" />
+                        <div className="text-left">
+                          <span className="font-bold text-sm text-zinc-100 flex items-center gap-2">
+                            {t.chatTitle} 
+                            <span className="flex items-center px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-500 border border-red-600/20 font-bold">LIVE</span>
+                          </span>
+                          <p className="text-[10px] text-zinc-550 font-medium">Click to expand live chat discussion</p>
+                        </div>
                       </div>
+                      <span className="text-xs text-blue-500 font-bold px-2.5 py-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 whitespace-nowrap">Open Chat 💬</span>
                     </div>
+                  ) : (
+                    <div className="hidden lg:flex border border-zinc-800 rounded-none sm:rounded-2xl overflow-hidden bg-[#0f0f0f] flex-col h-[500px] lg:h-[600px] shadow-2xl mb-6 shrink-0">
+                      <div className="p-3 bg-[#121212] border-b border-zinc-800 flex items-center justify-between shrink-0">
+                        <span className="font-bold text-sm text-zinc-100 flex items-center gap-2">
+                          {t.chatTitle} 
+                          <span className="flex items-center px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-500 border border-red-600/20">LIVE</span>
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setIsChatExpanded(false); }}
+                            className="px-2.5 py-1 text-[11px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold rounded-md border border-zinc-750 cursor-pointer"
+                          >
+                            Collapse ✕
+                          </button>
+                        </div>
+                      </div>
                     
                     <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-700 bg-black/20">
                       <AnimatePresence initial={false}>
@@ -1852,6 +1940,7 @@ export default function App() {
                       )}
                     </div>
                   </div>
+                )}
 
                 <div className="px-4 lg:px-0">
                   <div className="flex items-center space-x-2 mb-4 overflow-x-auto pb-2 scrollbar-none">
@@ -1865,7 +1954,7 @@ export default function App() {
                     {sortedFilteredChannels.filter(c => c.url !== currentChannel.url).slice(0, 20).map(c => {
                       const isDead = deadChannels.has(c.url);
                       return (
-                      <div key={c.url} className={`flex space-x-2.5 cursor-pointer group ${isDead ? 'opacity-40 grayscale' : ''}`} onClick={() => { setCurrentChannel(c); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                      <div key={c.url} className={`flex space-x-2.5 cursor-pointer group ${isDead ? 'opacity-40 grayscale' : ''}`} onClick={() => { setCurrentChannel(c); setIsSidebarOpen(false); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                         <div className="w-40 sm:w-40 aspect-video bg-zinc-900 rounded-xl flex items-center justify-center relative overflow-hidden shrink-0 border border-zinc-800 group-hover:border-zinc-700">
                            <ChannelLogo channel={c} className="w-full h-full" />
                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10"></div>

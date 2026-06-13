@@ -335,6 +335,13 @@ async function startServer() {
     const server1Path = path.join(process.cwd(), 'iptv-master', 'server1_streams.json');
     
     try {
+      if (country === 'fifa') {
+        const fifaPath = path.join(process.cwd(), 'public', 'static-api', 'fifa.json');
+        if (fs.existsSync(fifaPath)) {
+          return res.json(JSON.parse(fs.readFileSync(fifaPath, 'utf-8')));
+        }
+      }
+
       const channels: any[] = [];
 
       if (source === '1') {
@@ -347,7 +354,8 @@ async function startServer() {
                 name: ch.name,
                 url: ch.url,
                 logo: ch.logo || "",
-                source: 'server1'
+                source: 'server1',
+                country: country
               });
             });
           }
@@ -372,7 +380,8 @@ async function startServer() {
                   name: currentItem.name,
                   url: line,
                   logo: currentItem.logo || "",
-                  source: 'global'
+                  source: 'global',
+                  country: country
                 });
                 currentItem = {};
               }

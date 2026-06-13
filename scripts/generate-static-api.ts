@@ -77,13 +77,36 @@ async function run() {
     }
 
     // Generate Special Categories
-    const fifaKeywords = ['fifa', 'world cup', 'plus', 'star', 'sports', 'cricket', 'football', 'beout', 'bein', 'espn', 'tsports', 'gtv'];
+    const fifaKeywords = [
+      'fifa', 'world cup', 'worldcup', 'copa américa', 'copa america', 'euro 202', 'euro202', 'live football', 
+      'live match', 'live tournament', 'fifaplus', 'fifa plus'
+    ];
+    const sportsKeywords = [
+      'sport', 'sports', 'cricket', 'football', 'soccer', 'tennis', 'espn', 'bein', 'realsport', 'beout',
+      'tsports', 't_sports', 'gtv', 'gazi', 'sony ten', 'sony sports', 'ten sports', 'willow', 'supersport',
+      'astro super', 'eurosport', 'bt sport', 'tnt sport', 'pvs', 'directv', 'fox sport', 'dstv', 'kwese',
+      'polsat', 'canal+', 'canal plus', 'arena sport', 'novasports', 'ad sports', 'dubai sports', 'ssc',
+      'alkass', 'jazera', 'cctv5', 'cctv-5', 'rai sport', 'tvp sport', 'la1', 'la 1', 'tf1', 'm6', 'w9',
+      'abc sports', 'cbssports', 'nbc sports', 'caze', 'coze', 'cazetv', 'pishow', 'bwtv', 'olympics',
+      'wfaf', 'match tv', 'fanatiz', 'optus', 'sky sport', 'willow sports', 'willow cricket'
+    ];
+
     const fifaChannels = allChannels.filter(ch => 
       fifaKeywords.some(kw => ch.name.toLowerCase().includes(kw))
     );
-    fs.writeFileSync(path.join(OUTPUT_DIR, 'fifa.json'), JSON.stringify(fifaChannels));
-    console.log('Generated fifa.json');
+    const sportsChannels = allChannels.filter(ch =>
+      sportsKeywords.some(kw => ch.name.toLowerCase().includes(kw))
+    );
 
+    fs.writeFileSync(path.join(OUTPUT_DIR, 'fifa.json'), JSON.stringify(fifaChannels));
+    console.log(`Generated fifa.json with ${fifaChannels.length} channels`);
+
+    fs.writeFileSync(path.join(OUTPUT_DIR, 'sports.json'), JSON.stringify(sportsChannels));
+    console.log(`Generated sports.json with ${sportsChannels.length} channels`);
+
+    // Generate Universal Search Index
+    fs.writeFileSync(path.join(OUTPUT_DIR, 'search-index.json'), JSON.stringify(allChannels));
+    console.log('Generated search-index.json with ' + allChannels.length + ' channels.');
 
     console.log(`Generated ${countries.length} country channel files.`);
 
