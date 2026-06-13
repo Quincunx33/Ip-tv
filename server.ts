@@ -200,6 +200,36 @@ async function startServer() {
     }
   });
 
+  app.get('/api/image-proxy', (req, res) => {
+    const urlStr = req.query.url as string;
+    if (!urlStr) return res.status(400).send('URL required');
+    
+    // Some basic validation
+    if (!urlStr.startsWith('http')) {
+      return res.status(400).send('Invalid URL');
+    }
+
+    const client = urlStr.startsWith('https') ? https : http;
+    const reqProxy = client.get(urlStr, { 
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' } 
+    }, (proxyRes) => {
+      // Forward status code and content-type
+      if (proxyRes.statusCode) {
+        res.status(proxyRes.statusCode);
+      }
+      if (proxyRes.headers['content-type']) {
+        res.setHeader('Content-Type', proxyRes.headers['content-type']);
+      }
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      proxyRes.pipe(res);
+    });
+    
+    reqProxy.on('error', (err) => {
+      console.error('Image proxy error:', err.message);
+      res.status(500).send('Error proxying image');
+    });
+  });
+
   // Add the API routes
   app.get('/api/channels', (req, res) => {
     const streamsDir = path.join(process.cwd(), 'iptv-master', 'streams');
@@ -212,44 +242,66 @@ async function startServer() {
       const countries = files.map(f => f.replace('.m3u', ''));
       res.json(countries);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
   });
 
   app.get('/api/channels/:country', (req, res) => {
     const country = req.params.country;
+    const source = req.query.source === '2' ? '2' : '1'; // Default to Server 1
     const filePath = path.join(process.cwd(), 'iptv-master', 'streams', `${country}.m3u`);
+    const server1Path = path.join(process.cwd(), 'iptv-master', 'server1_streams.json');
     
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Not found' });
-    }
-
     try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const lines = content.split('\n');
-      const channels = [];
-      
-      let currentChannel: any = {};
-      for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (line.startsWith('#EXTINF:')) {
-              const parts = line.split(',');
-              if (parts.length > 1) {
-                  currentChannel.name = parts[parts.length - 1].trim();
-              } else {
-                  currentChannel.name = 'Unknown';
-              }
-          } else if (line.startsWith('http')) {
-              if (currentChannel.name) {
-                  currentChannel.url = line;
-                  channels.push({ ...currentChannel });
-                  currentChannel = {};
-              }
+      const channels: any[] = [];
+
+      if (source === '1') {
+        // Load Server 1 Channels
+        if (fs.existsSync(server1Path)) {
+          const server1Data = JSON.parse(fs.readFileSync(server1Path, 'utf-8'));
+          if (server1Data[country]) {
+            server1Data[country].forEach((ch: any) => {
+              channels.push({
+                name: ch.name,
+                url: ch.url,
+                logo: ch.logo || "",
+                source: 'server1'
+              });
+            });
           }
+        }
+      } else {
+        // Load File Channels (Server 2)
+        if (fs.existsSync(filePath)) {
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const lines = content.split('\n');
+          
+          let currentItem: any = {};
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('#EXTINF:')) {
+              const parts = line.split(',');
+              currentItem.name = parts.length > 1 ? parts[parts.length - 1].trim() : 'Unknown';
+              const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+              if (logoMatch) currentItem.logo = logoMatch[1];
+            } else if (line.startsWith('http')) {
+              if (currentItem.name) {
+                channels.push({
+                  name: currentItem.name,
+                  url: line,
+                  logo: currentItem.logo || "",
+                  source: 'global'
+                });
+                currentItem = {};
+              }
+            }
+          }
+        }
       }
+      
       res.json(channels);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
   });
 

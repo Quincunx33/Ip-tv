@@ -1,0 +1,83 @@
+{
+  "al": [
+    {"name": "CNA", "url": "https://live1.mediadesk.al/cnatvlive.m3u8"},
+    {"name": "Ora News", "url": "https://live1.mediadesk.al/oranews.m3u8"},
+    {"name": "Tropoja", "url": "https://live.prostream.al/al/smil:tropojatv.smil/playlist.m3u8"}
+  ],
+  "at": [
+    {"name": "Servus TV Ⓖ", "url": "https://rbmn-live.akamaized.net/hls/live/2002825/geoSTVATweb/master.m3u8"}
+  ],
+  "bd": [
+    {"name": "ASH TV", "url": "https://vods2.aynaott.com/gseriesDrama/tracks-v1a1/mono.ts.m3u8"},
+    {"name": "Atn Bangla", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1722/output/1722-audio_113522_eng=113200-video=1692000.m3u8"},
+    {"name": "Bangla Vision TV", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1715/output/1715-audio_113452_eng=113200-video=1692000.m3u8"},
+    {"name": "Channel 24", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1703/output/1703-audio_113332_eng=113200-video=1692000.m3u8"},
+    {"name": "DD Bangla", "url": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/7ff57cc9046b4c188b51a0d506f36e7f/index_3.m3u8"},
+    {"name": "Deepto TV", "url": "https://byphdgllyk.gpcdn.net/hls/deeptotv/0_1/index.m3u8"},
+    {"name": "Deepto TV (Alt)", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1711/output/index.m3u8"},
+    {"name": "Ekattor TV", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1705/output/1705.m3u8"},
+    {"name": "Enter 10 Bangla", "url": "https://live-bangla.akamaized.net/liveabr/pub-iobanglakp3sff/live_720p/chunks.m3u8"},
+    {"name": "Enter10 Bangla HD", "url": "https://live-bangla.akamaized.net/liveabr/pub-iobanglakp3sff/live_240p/chunks.m3u8"},
+    {"name": "Independent TV", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1704/output/1704-audio_113342_eng=113200-video=1692000.m3u8"},
+    {"name": "Jumuna TV", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1701/output/1701-audio_113312_eng=113200-video=1692000.m3u8"},
+    {"name": "Kolkata TV", "url": "https://cdn.ottlive.co.in/kolkatatv/index.m3u8"},
+    {"name": "Maasranga", "url": "https://bozztv.com/rongo/rongo-Maasranga/index.m3u8"},
+    {"name": "NK", "url": "https://amg01218-republictvfast-amg01218c1-samsung-in-1918.playouts.now.amagi.tv/playlist/amg01218-republictvfast-rbangla-samsungin/playlist.m3u8"},
+    {"name": "News18 Bangla", "url": "https://amg01448-samsungin-news18bangla-samsungin-ad-qy.amagi.tv/playlist/amg01448-samsungin-news18bangla-samsungin/playlist.m3u8"},
+    {"name": "Orange Bangla TV", "url": "https://cdn-4.pishow.tv/live/1499/master.m3u8"},
+    {"name": "R Plus Gold", "url": "https://cdn-4.pishow.tv/live/1231/1231_1.m3u8"},
+    {"name": "Somoy TV", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1702/output/1702.m3u8"},
+    {"name": "Star News", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1710/output/1710-audio_113402_eng=113200-video=3224800.m3u8"},
+    {"name": "ZEE BANGLA", "url": "https://yupptvcatchupire.yuppcdn.net/preview/zeebangla/2500.m3u8"},
+    {"name": "Zee 24 Ghanta", "url": "https://d2dsoyvkr33m05.cloudfront.net/index_1.m3u8"},
+    {"name": "G-Series", "url": "https://vods2.aynaott.com/gseriesDrama/index.m3u8"},
+    {"name": "BTV", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1709/output/index.m3u8"},
+    {"name": "Bangla Vision", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1715/output/index.m3u8"},
+    {"name": "Channel I HD", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1723/output/index.m3u8"},
+    {"name": "DBC News", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1728/output/index.m3u8"}
+  ],
+  "in": [
+    {"name": "ABP Ananda", "url": "https://cdn-uw2-prod.tsv2.amagi.tv/linear/amg01412-xiaomiasia-abpananda-xiaomi/playlist.m3u8"},
+    {"name": "DD National", "url": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/40492a64c1db4a1385ba1a397d357d3a/index_3.m3u8"},
+    {"name": "Dangal TV", "url": "https://live-dangal.akamaized.net/liveabr/pub-iodang10p4al/live_720p/chunks.m3u8"},
+    {"name": "E24", "url": "https://amg13643-amg13643c2-amgplt0016.playout.now3.amagi.tv/ts-eu-w1-n2/playlist/amg13643-amg13643c2-amgplt0016/playlist.m3u8"},
+    {"name": "Manoranjan TV", "url": "https://cdn-1.pishow.tv/live/1013/master.m3u8"},
+    {"name": "9X JHAKAAS", "url": "https://wiselp.wiseplayout.com/9X_Jhakaas/master.m3u8"},
+    {"name": "PTC Chakde", "url": "https://cdn-1.pishow.tv/live/449/master.m3u8"},
+    {"name": "YRF Music", "url": "https://amg01412-xiaomiasia-yrfmusic-xiaomi-1rmk2.amagi.tv/playlist/amg01412-xiaomiasia-yrfmusic-xiaomi/playlist.m3u8"},
+    {"name": "ABP News", "url": "https://amg01412-xiaomiasia-abpnews-xiaomi-szg3x.amagi.tv/ts-eu-w1-n2/playlist/amg01412-xiaomiasia-abpnews-xiaomi/playlist.m3u8"},
+    {"name": "Aaj Tak HD", "url": "https://aajtaklive-amd.akamaized.net/hls/live/2014416/aajtak/aajtaklive/live_404p/chunks.m3u8"},
+    {"name": "CNN News18", "url": "https://n18syndication.akamaized.net/bpk-tv/CNN_News18_NW18_MOB/output01/index.m3u8"},
+    {"name": "Republic TV", "url": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/2e31d831f08640ff92f65003bdc89991/index.m3u8"},
+    {"name": "ZEE News", "url": "https://dknttpxmr0dwf.cloudfront.net/index_2.m3u8"}
+  ],
+  "us": [
+    {"name": "CBS News", "url": "https://cbsnews.akamaized.net/hls/live/2020607/cbsnlineup_8/master.m3u8"},
+    {"name": "ABC News Channel", "url": "https://abc-news-dmd-streams-1.akamaized.net/out/v1/701126012d044971b3fa89406a440133/index_6.m3u8"}
+  ],
+  "uk": [
+    {"name": "QVC Beauty", "url": "https://qvcuk-live.akamaized.net/hls/live/2097112/qby/3/3.m3u8"},
+    {"name": "MovieSphere", "url": "https://moviesphereuk-samsunguk.amagi.tv/playlist.m3u8"}
+  ],
+  "ae": [
+    {"name": "Sky News Arabia", "url": "https://stream.skynewsarabia.com/hls/sna.m3u8"},
+    {"name": "MBC Bollywood", "url": "https://shls-mbcbollywood-prod-dub.shahid.net/out/v1/a79c9d7ef2a64a54a64d5c4567b3462a/index.m3u8"}
+  ],
+  "tr": [
+    {"name": "TRT World", "url": "https://tv-trtworld.medya.trt.com.tr/master_480.m3u8"},
+    {"name": "TRT Haber", "url": "https://tv-trthaber.medya.trt.com.tr/master.m3u8"}
+  ],
+  "int": [
+     {"name": "Bloomberg Asia", "url": "https://liveprodapnortheast.global.ssl.fastly.net/ap1/Channel-APTVqvs-AWS-tokyo-1/Source-APTVqvs-1000-1_live.m3u8"},
+     {"name": "DW News", "url": "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8"},
+     {"name": "RT News", "url": "https://rt-glb.rttv.com/live/rtnews/playlist_1600Kb.m3u8"},
+     {"name": "Al Jazeera", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1721/output/index.m3u8"}
+  ],
+  "fifa": [
+     {"name": "Coze TV FIFA World Cup 2026", "url": "https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/1080p-vtt/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/a/a7/FIFA_Logo.svg"},
+     {"name": "Caze TV 1", "url": "https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/Caze_TV.m3u8"},
+     {"name": "beIN SPORTS XTRA", "url": "https://bein-esp-xumo.amagi.tv/playlistR720P.m3u8"},
+     {"name": "beIN Sports 1", "url": "https://1nyaler.streamhostingcdn.top/stream/23/index.m3u8"},
+     {"name": "Fox News (AU)", "url": "https://fox-foxnewsnow-samsungus.amagi.tv/playlist720p.m3u8"}
+  ]
+}

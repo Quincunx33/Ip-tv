@@ -1,6 +1,6 @@
 {
   "name": "IPTV Player",
-  "description": "A premium high-performance IPTV player to stream sports, live feeds, and television channels globally.",
+  "description": "A premium luxury bilingual IPTV player with multiple server source support, featuring high-quality primary stream sources.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

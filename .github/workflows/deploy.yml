@@ -1,0 +1,52 @@
+# IPTV Player Full-Stack CI
+# This workflow performs a full test compilation and build check on every push or pull request to master/main.
+
+name: IPTV Player Full-Stack CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Lint
+        run: npm run lint
+
+      - name: Build Full-Stack App
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      # If you want to deploy to a full-stack platform like Render:
+      # 1. Go to Render dashboard -> your Web Service -> copy the "Deploy Hook" URL.
+      # 2. Add it as a GitHub Secret named RENDER_DEPLOY_HOOK.
+      - name: Deploy to Render Service
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "Triggering Render deploy hook..."
+            curl -X GET "$RENDER_DEPLOY_HOOK"
+          else
+            echo "Skipping Render deploy hook because RENDER_DEPLOY_HOOK secret is not set."
+          fi
