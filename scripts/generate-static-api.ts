@@ -92,8 +92,20 @@ async function run() {
     ];
 
     const fifaChannels = allChannels.filter(ch => 
-      fifaKeywords.some(kw => ch.name.toLowerCase().includes(kw))
+      fifaKeywords.some(kw => ch.name.toLowerCase().includes(kw)) || ch.name.toLowerCase().includes('bein sports 1')
     );
+    fifaChannels.sort((a, b) => {
+      const isA_beIn1 = a.name.toLowerCase().includes('bein sports 1');
+      const isB_beIn1 = b.name.toLowerCase().includes('bein sports 1');
+      if (isA_beIn1 && !isB_beIn1) return -1;
+      if (!isA_beIn1 && isB_beIn1) return 1;
+
+      const priorityKeywords = ['fifa', 'world cup', 'plus', 'star'];
+      const aPriority = priorityKeywords.some(k => a.name.toLowerCase().includes(k)) ? 0 : 1;
+      const bPriority = priorityKeywords.some(k => b.name.toLowerCase().includes(k)) ? 0 : 1;
+      if (aPriority !== bPriority) return aPriority - bPriority;
+      return a.name.localeCompare(b.name);
+    });
     const sportsChannels = allChannels.filter(ch =>
       sportsKeywords.some(kw => ch.name.toLowerCase().includes(kw))
     );

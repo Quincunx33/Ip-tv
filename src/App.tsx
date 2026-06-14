@@ -883,6 +883,11 @@ export default function App() {
     if (activeTab === 'fifa') {
       const priorityKeywords = ['fifa', 'world cup', 'plus', 'star'];
       sorted.sort((a, b) => {
+        const isA_beIn1 = a.name.toLowerCase().includes('bein sports 1');
+        const isB_beIn1 = b.name.toLowerCase().includes('bein sports 1');
+        if (isA_beIn1 && !isB_beIn1) return -1;
+        if (!isA_beIn1 && isB_beIn1) return 1;
+
         const aPriority = priorityKeywords.some(k => a.name.toLowerCase().includes(k)) ? 0 : 1;
         const bPriority = priorityKeywords.some(k => b.name.toLowerCase().includes(k)) ? 0 : 1;
         if (aPriority !== bPriority) return aPriority - bPriority;

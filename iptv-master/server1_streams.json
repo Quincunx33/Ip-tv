@@ -74,13 +74,17 @@
      {"name": "Al Jazeera", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1721/output/index.m3u8"}
   ],
   "fifa": [
-     {"name": "Coze TV FIFA World Cup 2026", "url": "https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/1080p-vtt/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/a/a7/FIFA_Logo.svg"},
-     {"name": "Caze TV 1", "url": "https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/Caze_TV.m3u8"},
-     {"name": "T Sports HD (FIFA/Football)", "url": "https://tvsen7.aynaott.com/tsportsfhd/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/e/e0/T_Sports_logo.jpg"},
-     {"name": "beIN SPORTS XTRA", "url": "https://bein-esp-xumo.amagi.tv/playlistR720P.m3u8"},
-     {"name": "beIN Sports 1", "url": "https://1nyaler.streamhostingcdn.top/stream/23/index.m3u8"},
-     {"name": "Sony Sports Ten 1 HD", "url": "https://sl.vodep39240327.workers.dev/channel/SONY%20TEN%201%20HD.m3u8"},
-     {"name": "Sony Sports Ten 2 HD", "url": "https://sl.vodep39240327.workers.dev/channel/SONY%20TEN%202%20HD.m3u8"},
-     {"name": "Star Sports 2 HD", "url": "https://tvsen7.aynaott.com/ssport2hd/index.m3u8"}
+     {"name": "T Sports HD (FIFA BD)", "url": "https://tvsen7.aynaott.com/tsportsfhd/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/e/e0/T_Sports_logo.jpg"},
+     {"name": "FOX Sports (FIFA USA)", "url": "https://d1jzu95oc8fgt3.cloudfront.net/FOX_Sports.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/1/15/Fox_Sports_logo.svg"},
+     {"name": "Telemundo Deportes Florida (FIFA USA Latin)", "url": "https://nbcu-telemundoflorida-firetv.amagi.tv/playlist.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/3/3a/Telemundo_logo.svg"},
+     {"name": "BBC One (FIFA UK)", "url": "https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_one_scotland_hd/mobile_wifi_main_hd_abr_v2.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/4/41/BBC_One_logo_2021.svg"},
+     {"name": "TF1 HD (FIFA France)", "url": "https://viamotionhsi.netplus.ch/live/eds/tf1hd/browser-HLS8/tf1hd.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/1/18/Logo_TF1_2013.svg"},
+     {"name": "Coze TV (Caze TV FIFA World Cup 2026)", "url": "https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/1080p-vtt/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/a/a7/FIFA_Logo.svg"},
+     {"name": "Caze TV Brazil (FIFA)", "url": "https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/Caze_TV.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/a/a7/FIFA_Logo.svg"},
+     {"name": "beIN SPORTS XTRA (FIFA)", "url": "https://bein-esp-xumo.amagi.tv/playlistR720P.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/BeIN_Sports_logo.svg"},
+     {"name": "beIN Sports 1 (FIFA)", "url": "https://1nyaler.streamhostingcdn.top/stream/23/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/BeIN_Sports_logo.svg"},
+     {"name": "Sony Sports Ten 1 HD (FIFA)", "url": "https://sl.vodep39240327.workers.dev/channel/SONY%20TEN%201%20HD.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/8/87/Sony_Sports_Network_logo.png"},
+     {"name": "Sony Sports Ten 2 HD (FIFA)", "url": "https://sl.vodep39240327.workers.dev/channel/SONY%20TEN%202%20HD.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/8/87/Sony_Sports_Network_logo.png"},
+     {"name": "Star Sports 2 HD (FIFA)", "url": "https://tvsen7.aynaott.com/ssport2hd/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/5/52/Star_Sports_logo.svg"}
   ]
 }
