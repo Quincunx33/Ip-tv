@@ -1148,6 +1148,65 @@ export default function App() {
     };
   }, []);
 
+  // Initialize baseline history entry state with depth 0 on mount
+  useEffect(() => {
+    try {
+      if (!window.history.state || !window.history.state.isStreamTube) {
+        window.history.replaceState({ depth: 0, isStreamTube: true }, '');
+      }
+    } catch (e) {
+      console.warn("History API is restricted or not supported in this environment:", e);
+    }
+  }, []);
+
+  // Monitor open overlay counts and sync window history
+  useEffect(() => {
+    try {
+      const hasPlayer = currentChannel !== null;
+      const hasModal = isCountryModalOpen;
+      const hasMobileSidebar = isSidebarOpen && window.innerWidth < 1024;
+
+      let activeCount = 0;
+      if (hasPlayer) activeCount++;
+      if (hasModal) activeCount++;
+      if (hasMobileSidebar) activeCount++;
+
+      const currentDepth = window.history.state?.depth || 0;
+
+      if (activeCount > currentDepth) {
+        // User opened a new overlay; push a new entry to browser history
+        window.history.pushState({ depth: currentDepth + 1, isStreamTube: true }, '');
+      } else if (activeCount < currentDepth) {
+        // User closed an overlay manually in UI; go back in window history to stay in sync
+        window.history.back();
+      }
+    } catch (e) {
+      console.warn("History sync failed:", e);
+    }
+  }, [currentChannel, isCountryModalOpen, isSidebarOpen]);
+
+  // Handle hardware / browser back button click (popstate)
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      // Close the most recently opened overlay sequential to match the popped history entry
+      if (isCountryModalOpen) {
+        setIsCountryModalOpen(false);
+      } else if (isSidebarOpen && window.innerWidth < 1024) {
+        setIsSidebarOpen(false);
+      } else if (currentChannel !== null) {
+        setCurrentChannel(null);
+        if (window.innerWidth > 1024) {
+          setIsSidebarOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isCountryModalOpen, isSidebarOpen, currentChannel]);
+
   const handleMouseMoveControls = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
