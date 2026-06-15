@@ -107,7 +107,10 @@ const TRANSLATIONS = {
     chatPlaceholder: "Say something...",
     playbackError: "Stream Offline or Blocked",
     retry: "Retry Connection",
-    fifa: "FIFA World Cup"
+    fifa: "FIFA World Cup",
+    noInternet: "No Internet Connection",
+    noInternetDesc: "Please check your network cables or Wi-Fi connection. We didn't mark this channel as dead because of your local internet issue.",
+    retryConnection: "Retry Connection"
   },
   bn: {
     title: "স্ট্রিমটিউব",
@@ -131,7 +134,10 @@ const TRANSLATIONS = {
     chatPlaceholder: "চ্যাটে কিছু লিখুন...",
     playbackError: "স্ট্রিম অফলাইন বা ব্লক করা হয়েছে",
     retry: "পুনরায় চেষ্টা করুন",
-    fifa: "ফিফা ওয়ার্ল্ড কাপ"
+    fifa: "ফিফা ওয়ার্ল্ড কাপ",
+    noInternet: "ইন্টারনেট সংযোগ নেই",
+    noInternetDesc: "আপনার ইন্টারনেট সংযোগ বা ওয়াই-ফাই চেক করে পুনরায় চেষ্টা করুন। লোকাল নেটওয়ার্ক সমস্যার কারণে এই চ্যানেলটিকে ডেড বা অফলাইন চিহ্নিত করা হয়নি।",
+    retryConnection: "পুনরায় চেষ্টা করুন"
   }
 };
 
@@ -416,6 +422,20 @@ const SidebarContent = React.memo(({
   );
 });
 
+const checkIsInternetConnected = async (): Promise<boolean> => {
+  if (!navigator.onLine) return false;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const response = await fetch('api/health', { signal: controller.signal, cache: 'no-store' })
+      .catch(() => fetch('static-api/channels.json', { signal: controller.signal, cache: 'no-store' }));
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch (e) {
+    return false;
+  }
+};
+
 export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isAppInstalled, setIsAppInstalled] = useState<boolean>(false);
@@ -587,6 +607,7 @@ export default function App() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [errorMsg, setErrorMsg] = useState(false);
+  const [playerError, setPlayerError] = useState<'none' | 'no-internet' | 'stream-error'>('none');
   const [streamMode, setStreamMode] = useState<'proxy' | 'direct'>('direct');
   const [lang, setLang] = useState<'en' | 'bn'>('en');
   const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'sports' | 'news' | 'fifa'>('all');
@@ -1122,6 +1143,7 @@ export default function App() {
     setSelectedServer(0);
     setQualityLevels([]);
     setShowQualityMenu(false);
+    setPlayerError('none');
   }, [currentChannel]);
 
   useEffect(() => {
@@ -1132,7 +1154,15 @@ export default function App() {
       } catch (e) {
         console.warn(e);
       }
+      setPlayerError('none');
       setErrorMsg(false);
+      
+      if (!navigator.onLine) {
+        setPlayerError('no-internet');
+        setIsBuffering(false);
+        return;
+      }
+      
       setIsBuffering(true);
       
       const streamUrl = currentChannel.urls && currentChannel.urls[selectedServer] 
@@ -1181,25 +1211,39 @@ export default function App() {
             setCurrentQuality(data.level);
           }
         });
-        hls.on(Hls.Events.ERROR, (event, data) => {
+        hls.on(Hls.Events.ERROR, async (event, data) => {
           if (data.fatal) {
             if (streamMode === 'proxy') setStreamMode('direct');
             else { 
-              setErrorMsg(true); 
               setIsBuffering(false); 
-              setDeadChannels(prev => new Set(prev).add(currentChannel.url));
               hls.destroy(); 
+              
+              const isConnected = await checkIsInternetConnected();
+              if (!isConnected) {
+                setPlayerError('no-internet');
+              } else {
+                setPlayerError('stream-error');
+                setErrorMsg(true); 
+                setDeadChannels(prev => new Set(prev).add(currentChannel.url));
+              }
             }
           }
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = targetUrl;
-        video.onerror = () => {
+        video.onerror = async () => {
           if (streamMode === 'proxy') setStreamMode('direct');
           else {
-            setErrorMsg(true);
             setIsBuffering(false);
-            setDeadChannels(prev => new Set(prev).add(currentChannel.url));
+            
+            const isConnected = await checkIsInternetConnected();
+            if (!isConnected) {
+              setPlayerError('no-internet');
+            } else {
+              setPlayerError('stream-error');
+              setErrorMsg(true);
+              setDeadChannels(prev => new Set(prev).add(currentChannel.url));
+            }
           }
         };
         video.play().catch(() => {});
@@ -1900,9 +1944,37 @@ export default function App() {
                     </div>
                   )}
 
-                  {errorMsg && (
-                    <div className="absolute inset-0 z-30 flex flex-col justify-center items-center bg-zinc-950 px-6 text-center">
-                      <TvIcon className="w-12 h-12 text-zinc-700 mb-4" />
+                  {playerError === 'no-internet' && (
+                    <div className="absolute inset-0 z-30 flex flex-col justify-center items-center bg-zinc-950 px-6 text-center animate-fade-in">
+                      <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-full mb-4">
+                        <Globe className="w-12 h-12 text-red-500 animate-pulse" />
+                      </div>
+                      <p className="text-white font-black text-xl mb-2">{t.noInternet}</p>
+                      <p className="text-zinc-400 text-sm max-w-md leading-relaxed mb-6 font-medium">
+                        {t.noInternetDesc}
+                      </p>
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setPlayerError('none');
+                          setIsBuffering(true);
+                          const prevCh = currentChannel;
+                          setCurrentChannel(null);
+                          setTimeout(() => setCurrentChannel(prevCh), 100);
+                        }} 
+                        className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-full cursor-pointer shadow-xl active:scale-95 transition-all text-sm font-sans flex items-center space-x-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        <span>{t.retryConnection}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {playerError === 'stream-error' && (
+                    <div className="absolute inset-0 z-30 flex flex-col justify-center items-center bg-zinc-950 px-6 text-center animate-fade-in">
+                      <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-full mb-4">
+                        <TvIcon className="w-12 h-12 text-zinc-500" />
+                      </div>
                       <p className="text-white font-bold text-lg mb-2">{t.playbackError}</p>
                       <button onClick={(e) => { e.stopPropagation(); setStreamMode(streamMode === 'proxy' ? 'direct' : 'proxy'); }} className="mt-4 px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-zinc-200 cursor-pointer shadow-lg active:scale-95 transition-transform">
                         Use {streamMode === 'proxy' ? t.directMode : t.proxyMode}
