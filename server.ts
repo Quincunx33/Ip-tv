@@ -306,6 +306,35 @@ async function startServer() {
         }
       }
 
+      // Sort matched results to prioritize exact matches, begins-with, and (new) tags
+      matched.sort((a, b) => {
+        const aLower = a.name.toLowerCase();
+        const bLower = b.name.toLowerCase();
+        const cleanQuery = query.replace(/[^a-z0-9]/g, '');
+        const cleanA = aLower.replace(/[^a-z0-9]/g, '');
+        const cleanB = bLower.replace(/[^a-z0-9]/g, '');
+
+        // 1. Exact alphanumeric match
+        const aExact = cleanA.includes(cleanQuery);
+        const bExact = cleanB.includes(cleanQuery);
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+
+        // 2. Starts with query
+        const aStarts = aLower.startsWith(query);
+        const bStarts = bLower.startsWith(query);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+
+        // 3. New tag priority
+        const aNew = aLower.includes('(new)');
+        const bNew = bLower.includes('(new)');
+        if (aNew && !bNew) return -1;
+        if (!aNew && bNew) return 1;
+
+        return a.name.localeCompare(b.name);
+      });
+
       res.json(matched.slice(0, 120)); // Return top matched channels
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
@@ -335,10 +364,10 @@ async function startServer() {
     const server1Path = path.join(process.cwd(), 'iptv-master', 'server1_streams.json');
     
     try {
-      if (country === 'fifa') {
-        const fifaPath = path.join(process.cwd(), 'public', 'static-api', 'fifa.json');
-        if (fs.existsSync(fifaPath)) {
-          return res.json(JSON.parse(fs.readFileSync(fifaPath, 'utf-8')));
+      if (country === 'fifa' || country === 'sports') {
+        const staticPath = path.join(process.cwd(), 'public', 'static-api', `${country}.json`);
+        if (fs.existsSync(staticPath)) {
+          return res.json(JSON.parse(fs.readFileSync(staticPath, 'utf-8')));
         }
       }
 

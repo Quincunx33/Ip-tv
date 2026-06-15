@@ -88,7 +88,8 @@ async function run() {
       'polsat', 'canal+', 'canal plus', 'arena sport', 'novasports', 'ad sports', 'dubai sports', 'ssc',
       'alkass', 'jazera', 'cctv5', 'cctv-5', 'rai sport', 'tvp sport', 'la1', 'la 1', 'tf1', 'm6', 'w9',
       'abc sports', 'cbssports', 'nbc sports', 'caze', 'coze', 'cazetv', 'pishow', 'bwtv', 'olympics',
-      'wfaf', 'match tv', 'fanatiz', 'optus', 'sky sport', 'willow sports', 'willow cricket'
+      'wfaf', 'match tv', 'fanatiz', 'optus', 'sky sport', 'willow sports', 'willow cricket',
+      'star sports', 'starsports', 'starsports1'
     ];
 
     const fifaChannels = allChannels.filter(ch => 
@@ -106,9 +107,59 @@ async function run() {
       if (aPriority !== bPriority) return aPriority - bPriority;
       return a.name.localeCompare(b.name);
     });
-    const sportsChannels = allChannels.filter(ch =>
+    const sportsChannelsRaw = allChannels.filter(ch =>
       sportsKeywords.some(kw => ch.name.toLowerCase().includes(kw))
     );
+
+    // Deduplicate sports channels by URL
+    const uniqueSportsMap = new Map<string, any>();
+    for (const ch of sportsChannelsRaw) {
+      const existing = uniqueSportsMap.get(ch.url);
+      if (!existing) {
+        uniqueSportsMap.set(ch.url, ch);
+      } else {
+        // If duplicate, keep the one with "(New)" or longer name
+        const currentIsNew = ch.name.toLowerCase().includes('(new)');
+        const existingIsNew = existing.name.toLowerCase().includes('(new)');
+        if (currentIsNew && !existingIsNew) {
+          uniqueSportsMap.set(ch.url, ch);
+        } else if (!existingIsNew && ch.name.length > existing.name.length) {
+          uniqueSportsMap.set(ch.url, ch);
+        }
+      }
+    }
+    const sportsChannels = Array.from(uniqueSportsMap.values());
+
+    // Premium sorting for the Sports section
+    sportsChannels.sort((a, b) => {
+      const aLower = a.name.toLowerCase();
+      const bLower = b.name.toLowerCase();
+
+      // 1. Prioritize "(New)" tags
+      const aNew = aLower.includes('(new)');
+      const bNew = bLower.includes('(new)');
+      if (aNew && !bNew) return -1;
+      if (!aNew && bNew) return 1;
+
+      // 2. Prioritize premium/highly popular sports networks
+      const priorityNetworks = [
+        'starsports', 'star sports', 'tsports', 't sports', 'gazi', 'gtv', 'sony ten', 'sony sports', 
+        'espn', 'bein', 'willow', 'supersport', 'sky sport', 'eurosport', 'fox sport', 'tnt sport', 'bt sport'
+      ];
+      const aPriorityIdx = priorityNetworks.findIndex(kw => aLower.includes(kw));
+      const bPriorityIdx = priorityNetworks.findIndex(kw => bLower.includes(kw));
+
+      if (aPriorityIdx > -1 && bPriorityIdx > -1) {
+        if (aPriorityIdx !== bPriorityIdx) return aPriorityIdx - bPriorityIdx;
+      } else if (aPriorityIdx > -1) {
+        return -1;
+      } else if (bPriorityIdx > -1) {
+        return 1;
+      }
+
+      // 3. Fallback to alphabetical sorting
+      return a.name.localeCompare(b.name);
+    });
 
     fs.writeFileSync(path.join(OUTPUT_DIR, 'fifa.json'), JSON.stringify(fifaChannels));
     console.log(`Generated fifa.json with ${fifaChannels.length} channels`);

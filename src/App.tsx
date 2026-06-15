@@ -525,6 +525,35 @@ export default function App() {
             ch.name.toLowerCase().includes(queryStr) || 
             (ch.country && ch.country.toLowerCase().includes(queryStr))
           );
+          
+          results.sort((a, b) => {
+            const aLower = a.name.toLowerCase();
+            const bLower = b.name.toLowerCase();
+            const cleanQuery = queryStr.replace(/[^a-z0-9]/g, '');
+            const cleanA = aLower.replace(/[^a-z0-9]/g, '');
+            const cleanB = bLower.replace(/[^a-z0-9]/g, '');
+
+            // 1. Exact alphanumeric match
+            const aExact = cleanA.includes(cleanQuery);
+            const bExact = cleanB.includes(cleanQuery);
+            if (aExact && !bExact) return -1;
+            if (!aExact && bExact) return 1;
+
+            // 2. Starts with query
+            const aStarts = aLower.startsWith(queryStr);
+            const bStarts = bLower.startsWith(queryStr);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+
+            // 3. New tag priority
+            const aNew = aLower.includes('(new)');
+            const bNew = bLower.includes('(new)');
+            if (aNew && !bNew) return -1;
+            if (!aNew && bNew) return 1;
+
+            return a.name.localeCompare(b.name);
+          });
+
           setUniversalSearchResults(results);
         } else {
           setUniversalSearchResults([]);
@@ -594,6 +623,31 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState<{id?: string, user: string, userPhoto?: string, text: string, time: string}[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatExpanded, setIsChatExpanded] = useState<boolean>(false);
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const chUrl = searchParams.get('ch');
+      const chName = searchParams.get('name') || searchParams.get('n');
+      const chLogo = searchParams.get('logo') || searchParams.get('l');
+      const chCountry = searchParams.get('country') || searchParams.get('c');
+
+      if (chUrl && chName) {
+        const deepChannel: Channel = {
+          name: chName,
+          url: chUrl,
+          logo: chLogo || undefined,
+          country: chCountry || undefined
+        };
+        setCurrentChannel(deepChannel);
+        setIsSidebarOpen(false);
+      }
+    } catch (e) {
+      console.error("Failed to parse deep link query parameters:", e);
+    }
+  }, []);
   
   const [baseLikes, setBaseLikes] = useState(0);
   const [baseDislikes, setBaseDislikes] = useState(0);
@@ -873,7 +927,17 @@ export default function App() {
     if (debouncedSearch) {
       list = list.filter(c => c.name.toLowerCase().includes(debouncedSearch.toLowerCase()));
     }
-    setFilteredChannels(list);
+    
+    // Deduplicate list by url and name to ensure no duplicate key/visual items
+    const seen = new Set<string>();
+    const uniqueList = list.filter(c => {
+      const key = `${c.url}-${c.name}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    setFilteredChannels(uniqueList);
   }, [debouncedSearch, channels, favorites, activeTab]);
 
   const sortedFilteredChannels = React.useMemo(() => {
@@ -1244,8 +1308,79 @@ export default function App() {
     }
   };
 
-  const handleCopyLink = (url: string) => {
-    navigator.clipboard.writeText(url);
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (err) {
+        console.warn('Modern Clipboard API failed, trying fallback:', err);
+      }
+    }
+
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.width = "2em";
+      textArea.style.height = "2em";
+      textArea.style.padding = "0";
+      textArea.style.border = "none";
+      textArea.style.outline = "none";
+      textArea.style.boxShadow = "none";
+      textArea.style.background = "transparent";
+
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return !!successful;
+    } catch (err) {
+      console.error('Fallback clipboard copy failed:', err);
+      return false;
+    }
+  };
+
+  const handleCopyLink = async (url: string) => {
+    const success = await copyToClipboard(url);
+    if (success) {
+      setToastMessage(lang === 'en' ? 'Link copied to clipboard!' : 'লিঙ্ক কপি করা হয়েছে!');
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  const handleShareChannel = async (channel: Channel, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    
+    // Dynamically use the current origin and path so it supports both localhost, Cloudflare, custom domains, or previews automatically
+    const baseUrl = `${window.location.origin}${window.location.pathname}`;
+
+    const params = new URLSearchParams();
+    params.set('ch', channel.url);
+    params.set('name', channel.name);
+    if (channel.logo) params.set('logo', channel.logo);
+    if (channel.country) params.set('country', channel.country);
+    
+    const shareUrl = `${baseUrl}?${params.toString()}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          url: shareUrl,
+        });
+      } catch (err) {
+        console.warn('Web Share API failed, falling back to clipboard copy:', err);
+        if (err instanceof Error && err.name !== 'AbortError') {
+          await handleCopyLink(shareUrl);
+        }
+      }
+    } else {
+      await handleCopyLink(shareUrl);
+    }
   };
 
   const handlePiPClick = async (e: React.MouseEvent) => {
@@ -1654,9 +1789,9 @@ export default function App() {
                     </div>
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 pb-10">
-                    {displayChannelsList.slice(0, visibleCount).map(channel => (
+                    {displayChannelsList.slice(0, visibleCount).map((channel, idx) => (
                       <ChannelCard 
-                        key={`${channel.url}-${channel.name}`}
+                        key={`${channel.url}-${channel.name}-${idx}`}
                         channel={channel}
                         isDead={deadChannels.has(channel.url)}
                         isFavorite={favorites.some(f => f.url === channel.url)}
@@ -1786,7 +1921,6 @@ export default function App() {
                     ref={videoRef}
                     className="w-full h-full object-contain pointer-events-none bg-black"
                     autoPlay playsInline
-                    {...{ autoPictureInPicture: true } as any}
                   />
 
                   {/* Player Controls Overlay */}
@@ -1995,6 +2129,10 @@ export default function App() {
                           <Bookmark className={`w-4 h-4 ${favorites.some(f => f.url === currentChannel.url) ? 'fill-white' : ''}`} />
                           <span className="text-sm font-semibold">{favorites.some(f => f.url === currentChannel.url) ? t.saved : t.save}</span>
                         </button>
+                        <button onClick={(e) => handleShareChannel(currentChannel, e)} className="flex items-center space-x-2 bg-zinc-800/80 hover:bg-zinc-700 px-4 py-2 rounded-full transition-colors shrink-0">
+                          <Share className="w-4 h-4 text-zinc-300" />
+                          <span className="text-sm font-semibold">{t.share}</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -2087,10 +2225,10 @@ export default function App() {
                   </div>
                   
                   <div className="space-y-3 mb-10">
-                    {sortedFilteredChannels.filter(c => c.url !== currentChannel.url).slice(0, 20).map(c => {
+                    {sortedFilteredChannels.filter(c => c.url !== currentChannel.url).slice(0, 20).map((c, idx) => {
                       const isDead = deadChannels.has(c.url);
                       return (
-                      <div key={c.url} className={`flex space-x-2.5 cursor-pointer group ${isDead ? 'opacity-40 grayscale' : ''}`} onClick={() => { setCurrentChannel(c); setIsSidebarOpen(false); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                      <div key={`${c.url}-${c.name}-${idx}`} className={`flex space-x-2.5 cursor-pointer group ${isDead ? 'opacity-40 grayscale' : ''}`} onClick={() => { setCurrentChannel(c); setIsSidebarOpen(false); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                         <div className="w-40 sm:w-40 aspect-video bg-zinc-900 rounded-xl flex items-center justify-center relative overflow-hidden shrink-0 border border-zinc-800 group-hover:border-zinc-700">
                            <ChannelLogo channel={c} className="w-full h-full" />
                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10"></div>
@@ -2236,6 +2374,21 @@ export default function App() {
           <span className="text-[10px] truncate max-w-[60px]">{formatCountryName(selectedCountry)}</span>
         </button>
       </div>
+
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[110] bg-indigo-600 text-white font-bold text-xs sm:text-sm px-6 py-3.5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-indigo-400/35 flex items-center space-x-2.5 backdrop-blur-md"
+          >
+            <Check className="w-4 h-4 text-white font-black shrink-0" strokeWidth={3} />
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

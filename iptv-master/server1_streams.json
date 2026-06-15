@@ -8,6 +8,7 @@
     {"name": "Servus TV Ⓖ", "url": "https://rbmn-live.akamaized.net/hls/live/2002825/geoSTVATweb/master.m3u8"}
   ],
   "bd": [
+    {"name": "STARSPORTS1 (New)", "url": "http://41.205.93.154/STARSPORTS1/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/5/52/Star_Sports_logo.svg"},
     {"name": "ASH TV", "url": "https://vods2.aynaott.com/gseriesDrama/tracks-v1a1/mono.ts.m3u8"},
     {"name": "Atn Bangla", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1722/output/1722-audio_113522_eng=113200-video=1692000.m3u8"},
     {"name": "Bangla Vision TV", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1715/output/1715-audio_113452_eng=113200-video=1692000.m3u8"},
@@ -37,6 +38,7 @@
     {"name": "DBC News", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1728/output/index.m3u8"}
   ],
   "in": [
+    {"name": "STARSPORTS1 (New)", "url": "http://41.205.93.154/STARSPORTS1/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/5/52/Star_Sports_logo.svg"},
     {"name": "ABP Ananda", "url": "https://cdn-uw2-prod.tsv2.amagi.tv/linear/amg01412-xiaomiasia-abpananda-xiaomi/playlist.m3u8"},
     {"name": "DD National", "url": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/40492a64c1db4a1385ba1a397d357d3a/index_3.m3u8"},
     {"name": "Dangal TV", "url": "https://live-dangal.akamaized.net/liveabr/pub-iodang10p4al/live_720p/chunks.m3u8"},
@@ -74,6 +76,7 @@
      {"name": "Al Jazeera", "url": "https://owrcovcrpy.gpcdn.net/bpk-tv/1721/output/index.m3u8"}
   ],
   "fifa": [
+     {"name": "STARSPORTS1 (New)", "url": "http://41.205.93.154/STARSPORTS1/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/5/52/Star_Sports_logo.svg"},
      {"name": "T Sports HD (FIFA BD)", "url": "https://tvsen7.aynaott.com/tsportsfhd/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/e/e0/T_Sports_logo.jpg"},
      {"name": "FOX Sports (FIFA USA)", "url": "https://d1jzu95oc8fgt3.cloudfront.net/FOX_Sports.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/1/15/Fox_Sports_logo.svg"},
      {"name": "Telemundo Deportes Florida (FIFA USA Latin)", "url": "https://nbcu-telemundoflorida-firetv.amagi.tv/playlist.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/3/3a/Telemundo_logo.svg"},
