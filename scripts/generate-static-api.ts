@@ -34,6 +34,7 @@ async function run() {
           const item = {
             name: ch.name,
             url: ch.url,
+            urls: ch.urls || undefined,
             logo: ch.logo || "",
             source: 'server1',
             country

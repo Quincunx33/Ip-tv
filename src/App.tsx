@@ -33,6 +33,30 @@ interface Channel {
   country?: string;
 }
 
+const SWUpdatePrompt = ({ onUpdate }: { onUpdate: () => void }) => {
+  return (
+    <motion.div 
+      initial={{ y: 50, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      className="fixed bottom-20 left-4 right-4 md:left-auto md:right-4 md:w-80 z-[100] bg-indigo-600 text-white p-4 rounded-xl shadow-2xl flex items-center justify-between border border-white/20"
+    >
+      <div className="flex items-center space-x-3">
+        <RefreshCw className="w-5 h-5 animate-spin-slow" />
+        <div>
+          <p className="text-sm font-bold">Update Available</p>
+          <p className="text-xs opacity-90">Refresh to get latest channels</p>
+        </div>
+      </div>
+      <button 
+        onClick={onUpdate}
+        className="bg-white text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-50 transition-colors"
+      >
+        Update Now
+      </button>
+    </motion.div>
+  );
+};
+
 const ChannelLogo = ({ channel, className = "", isAvatar = false }: { channel: Channel, className?: string, isAvatar?: boolean }) => {
   const [error, setError] = useState(false);
   
@@ -110,7 +134,10 @@ const TRANSLATIONS = {
     fifa: "FIFA World Cup",
     noInternet: "No Internet Connection",
     noInternetDesc: "Please check your network cables or Wi-Fi connection. We didn't mark this channel as dead because of your local internet issue.",
-    retryConnection: "Retry Connection"
+    retryConnection: "Retry Connection",
+    customProxy: "Custom Proxy",
+    customProxyPlaceholder: "e.g. https://myproxy.com/?url=",
+    customProxyDesc: "Enter a proxy URL that will be prefixed to the stream URL."
   },
   bn: {
     title: "স্ট্রিমটিউব",
@@ -137,7 +164,10 @@ const TRANSLATIONS = {
     fifa: "ফিফা ওয়ার্ল্ড কাপ",
     noInternet: "ইন্টারনেট সংযোগ নেই",
     noInternetDesc: "আপনার ইন্টারনেট সংযোগ বা ওয়াই-ফাই চেক করে পুনরায় চেষ্টা করুন। লোকাল নেটওয়ার্ক সমস্যার কারণে এই চ্যানেলটিকে ডেড বা অফলাইন চিহ্নিত করা হয়নি।",
-    retryConnection: "পুনরায় চেষ্টা করুন"
+    retryConnection: "পুনরায় চেষ্টা করুন",
+    customProxy: "কাস্টম প্রক্সি",
+    customProxyPlaceholder: "উদাঃ https://myproxy.com/?url=",
+    customProxyDesc: "একটি প্রক্সি URL লিখুন যা স্ট্রিম URL এর আগে যুক্ত হবে।"
   }
 };
 
@@ -275,7 +305,17 @@ const SidebarContent = React.memo(({
   setIsCountryModalOpen, 
   selectedCountry, 
   deferredPrompt, 
-  handleInstallApp 
+  handleInstallApp,
+  streamMode,
+  setStreamMode,
+  customProxyUrl,
+  setCustomProxyUrl,
+  proxyHost,
+  setProxyHost,
+  proxyPort,
+  setProxyPort,
+  proxyType,
+  setProxyType
 }: {
   isSidebarOpen: boolean,
   setIsSidebarOpen: (o: boolean) => void,
@@ -291,7 +331,17 @@ const SidebarContent = React.memo(({
   setIsCountryModalOpen: (o: boolean) => void,
   selectedCountry: string,
   deferredPrompt: any,
-  handleInstallApp: () => void
+  handleInstallApp: () => void,
+  streamMode: string,
+  setStreamMode: (m: any) => void,
+  customProxyUrl: string,
+  setCustomProxyUrl: (u: string) => void,
+  proxyHost: string,
+  setProxyHost: (h: string) => void,
+  proxyPort: string,
+  setProxyPort: (p: string) => void,
+  proxyType: string,
+  setProxyType: (t: any) => void
 }) => {
   const [isClearing, setIsClearing] = useState(false);
 
@@ -404,6 +454,68 @@ const SidebarContent = React.memo(({
         )}
 
         <div className="my-3 border-t border-zinc-800 pt-3">
+          <div className="px-6 mb-2 text-xs font-bold text-zinc-500 uppercase tracking-widest">{lang === 'en' ? 'Connection Settings' : 'কানেকশন সেটিংস'}</div>
+          <div className="px-3 space-y-2">
+            <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
+              <label className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-2">
+                {lang === 'en' ? 'Mode' : 'মোড'}
+              </label>
+              <div className="grid grid-cols-3 gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
+                <button onClick={() => setStreamMode('direct')} className={`py-1.5 text-[10px] font-bold rounded-md transition-all ${streamMode === 'direct' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                  {lang === 'en' ? 'Direct' : 'সরাসরি'}
+                </button>
+                <button onClick={() => setStreamMode('proxy')} className={`py-1.5 text-[10px] font-bold rounded-md transition-all ${streamMode === 'proxy' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                   {lang === 'en' ? 'App' : 'অ্যাপ'}
+                </button>
+                <button onClick={() => setStreamMode('custom')} className={`py-1.5 text-[10px] font-bold rounded-md transition-all ${streamMode === 'custom' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                   {lang === 'en' ? 'Custom' : 'নিজস্ব'}
+                </button>
+              </div>
+
+              {streamMode === 'custom' && (
+                <div className="mt-3 space-y-2 animate-in slide-in-from-top-1 duration-200">
+                  <div className="flex items-center bg-zinc-950 border border-zinc-800 rounded-lg p-0.5">
+                    <button onClick={() => setProxyType('socks5')} className={`flex-1 py-1 text-[9px] font-bold rounded transition-colors ${proxyType === 'socks5' ? 'bg-zinc-800 text-indigo-400' : 'text-zinc-600'}`}>SOCKS5</button>
+                    <button onClick={() => setProxyType('http')} className={`flex-1 py-1 text-[9px] font-bold rounded transition-colors ${proxyType === 'http' ? 'bg-zinc-800 text-indigo-400' : 'text-zinc-600'}`}>HTTP/S</button>
+                    <button onClick={() => setProxyType('url' as any)} className={`flex-1 py-1 text-[9px] font-bold rounded transition-colors ${proxyType === ('url' as any) ? 'bg-zinc-800 text-indigo-400' : 'text-zinc-600'}`}>URL</button>
+                  </div>
+
+                  {(proxyType as any) === 'url' ? (
+                    <input 
+                      type="text" 
+                      placeholder="https://proxy.com/?url="
+                      value={customProxyUrl}
+                      onChange={(e) => setCustomProxyUrl(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-[10px] text-white outline-none focus:border-indigo-500"
+                    />
+                  ) : (
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="IP / Host"
+                        value={proxyHost}
+                        onChange={(e) => setProxyHost(e.target.value)}
+                        className="flex-[3] bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-[10px] text-white outline-none focus:border-indigo-500"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Port"
+                        value={proxyPort}
+                        onChange={(e) => setProxyPort(e.target.value)}
+                        className="flex-1 bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 text-[10px] text-white outline-none focus:border-indigo-500 text-center"
+                      />
+                    </div>
+                  )}
+                  <p className="text-[9px] text-zinc-500 leading-tight italic">
+                    {lang === 'en' ? 'Add IP:Port proxy details here.' : 'এখানে আইপি এবং পোর্ট প্রক্সি তথ্য দিন।'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="my-3 border-t border-zinc-800 pt-3">
           <div className="px-6 mb-2 text-xs font-bold text-zinc-500 uppercase tracking-widest">{lang === 'en' ? 'System' : 'সিস্টেম'}</div>
           <div className="px-3">
             <button 
@@ -426,9 +538,9 @@ const checkIsInternetConnected = async (): Promise<boolean> => {
   if (!navigator.onLine) return false;
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-    const response = await fetch('api/health', { signal: controller.signal, cache: 'no-store' })
-      .catch(() => fetch('static-api/channels.json', { signal: controller.signal, cache: 'no-store' }));
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const response = await fetch('/api/health', { signal: controller.signal, cache: 'no-store' })
+      .catch(() => fetch('/static-api/channels.json', { signal: controller.signal, cache: 'no-store' }));
     clearTimeout(timeoutId);
     return response.ok;
   } catch (e) {
@@ -518,7 +630,7 @@ export default function App() {
       setIsSearchingGlobally(true);
       try {
         if (!searchIndexRef.current) {
-          const res = await fetch(`static-api/search-index.json`);
+          const res = await fetch(`/static-api/search-index.json`);
           if (res.ok) {
             searchIndexRef.current = await res.json();
           } else {
@@ -528,7 +640,7 @@ export default function App() {
               searchIndexRef.current = await fallbackRes.json();
             } else {
               // Direct fallback (Express backend proxy)
-              const apiRes = await fetch(`api/search?q=${encodeURIComponent(debouncedSearch)}`);
+              const apiRes = await fetch(`/api/search?q=${encodeURIComponent(debouncedSearch)}`);
               if (apiRes.ok) {
                 const data = await apiRes.json();
                 setUniversalSearchResults(data);
@@ -581,7 +693,7 @@ export default function App() {
       } catch (err) {
         console.error("Global search index failed, falling back to API:", err);
         try {
-          const apiRes = await fetch(`api/search?q=${encodeURIComponent(debouncedSearch)}`);
+          const apiRes = await fetch(`/api/search?q=${encodeURIComponent(debouncedSearch)}`);
           if (apiRes.ok) {
             const data = await apiRes.json();
             setUniversalSearchResults(data);
@@ -608,8 +720,14 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [errorMsg, setErrorMsg] = useState(false);
   const [playerError, setPlayerError] = useState<'none' | 'no-internet' | 'stream-error'>('none');
-  const [streamMode, setStreamMode] = useState<'proxy' | 'direct'>('direct');
+  const [streamMode, setStreamMode] = useState<'proxy' | 'direct' | 'custom'>('direct');
+  const [customProxyUrl, setCustomProxyUrl] = useState<string>('');
+  const [proxyHost, setProxyHost] = useState<string>('');
+  const [proxyPort, setProxyPort] = useState<string>('');
+  const [proxyType, setProxyType] = useState<'socks5' | 'http'>('socks5');
   const [lang, setLang] = useState<'en' | 'bn'>('en');
+  const [validationStatus, setValidationStatus] = useState<'checking' | 'direct' | 'fallback-local' | 'fallback-public' | 'failed'>('checking');
+  const [validationDetails, setValidationDetails] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'sports' | 'news' | 'fifa'>('all');
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [isClosingMiniPlayer, setIsClosingMiniPlayer] = useState(false);
@@ -669,6 +787,46 @@ export default function App() {
       console.error("Failed to parse deep link query parameters:", e);
     }
   }, []);
+
+  // Hydrate deep-linked channels with multiple server configurations from the global catalog
+  useEffect(() => {
+    if (!currentChannel) return;
+    
+    const hydrateChannel = async () => {
+      // If the active channel already has multiple backup servers or urls, no need to override
+      if (currentChannel.urls && currentChannel.urls.length > 1) return;
+      
+      try {
+        const res = await fetch('/static-api/search-index.json');
+        if (!res.ok) return;
+        const indexList: Channel[] = await res.json();
+        
+        // Find match by comparing URL or Channel Name (case-insensitive)
+        const match = indexList.find(ch => 
+          (ch.url && ch.url === currentChannel.url) || 
+          (ch.name && currentChannel.name && ch.name.toLowerCase() === currentChannel.name.toLowerCase()) ||
+          (ch.urls && ch.urls.includes(currentChannel.url))
+        );
+        
+        if (match && match.urls && match.urls.length > 0) {
+          console.log(`Deep Hydration found a catalog match for: ${currentChannel.name}. Injecting backup servers!`, match.urls);
+          setCurrentChannel(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              urls: match.urls,
+              logo: prev.logo || match.logo,
+              country: prev.country || match.country
+            };
+          });
+        }
+      } catch (err) {
+        console.warn("Deep link catalog hydration failed:", err);
+      }
+    };
+    
+    hydrateChannel();
+  }, [currentChannel?.name, currentChannel?.url]);
   
   const [baseLikes, setBaseLikes] = useState(0);
   const [baseDislikes, setBaseDislikes] = useState(0);
@@ -680,8 +838,38 @@ export default function App() {
   const [qualityLevels, setQualityLevels] = useState<{ id: number, label: string }[]>([]);
   const [currentQuality, setCurrentQuality] = useState<number>(-1);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
 
   const t = TRANSLATIONS[lang];
+
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg) {
+          setRegistration(reg);
+          if (reg.waiting) setUpdateAvailable(true);
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            newWorker?.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                setUpdateAvailable(true);
+              }
+            });
+          });
+        }
+      });
+    }
+  }, []);
+
+  const handleUpdateApp = () => {
+    if (registration?.waiting) {
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+    window.location.reload();
+  };
 
   // Listen for PWA installation prompt and online/offline status
   useEffect(() => {
@@ -856,9 +1044,56 @@ export default function App() {
         if (saved) setFavorites(JSON.parse(saved));
         const savedDead = localStorage.getItem('iptv_dead_channels');
         if (savedDead) setDeadChannels(new Set(JSON.parse(savedDead)));
+        const savedMode = localStorage.getItem('iptv_stream_mode');
+        if (savedMode === 'proxy' || savedMode === 'direct' || savedMode === 'custom') setStreamMode(savedMode as any);
+        const savedProxy = localStorage.getItem('iptv_custom_proxy');
+        if (savedProxy) setCustomProxyUrl(savedProxy);
+        const savedHost = localStorage.getItem('iptv_proxy_host');
+        if (savedHost) setProxyHost(savedHost);
+        const savedPort = localStorage.getItem('iptv_proxy_port');
+        if (savedPort) setProxyPort(savedPort);
+        const savedType = localStorage.getItem('iptv_proxy_type');
+        if (savedType === 'socks5' || savedType === 'http') setProxyType(savedType);
       } catch { }
     }
   }, [user]);
+
+  // Sync Media Session API for system controls and background PiP support
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentChannel) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentChannel.name,
+        artist: 'StreamTube Live',
+        album: currentChannel.country || 'Global',
+        artwork: [
+          { src: currentChannel.logo || 'icon.svg', sizes: '96x96', type: 'image/png' },
+          { src: currentChannel.logo || 'icon.svg', sizes: '128x128', type: 'image/png' },
+          { src: currentChannel.logo || 'icon.svg', sizes: '192x192', type: 'image/png' },
+          { src: currentChannel.logo || 'icon.svg', sizes: '256x256', type: 'image/png' },
+          { src: currentChannel.logo || 'icon.svg', sizes: '384x384', type: 'image/png' },
+          { src: currentChannel.logo || 'icon.svg', sizes: '512x512', type: 'image/png' },
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        videoRef.current?.play().catch(() => {});
+        setIsPlaying(true);
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        videoRef.current?.pause();
+        setIsPlaying(false);
+      });
+      navigator.mediaSession.setActionHandler('stop', () => {
+        setCurrentChannel(null);
+      });
+
+      // Try to enable PiP action handler if supported
+      try {
+        // @ts-ignore
+        navigator.mediaSession.setActionHandler('enterpictureinpicture', handlePiPClick);
+      } catch (e) {}
+    }
+  }, [currentChannel]);
 
   // Combined Sync effect to avoid multiple writes
   useEffect(() => {
@@ -866,15 +1101,25 @@ export default function App() {
       const docRef = doc(db, 'users', user.uid);
       setDoc(docRef, { 
         favorites, 
-        deadChannels: [...deadChannels] 
+        deadChannels: [...deadChannels],
+        streamMode,
+        customProxyUrl,
+        proxyHost,
+        proxyPort,
+        proxyType
       }, { merge: true }).catch(err => {
         handleFirestoreError(err, 'WRITE', `users/${user.uid}`);
       });
     } else {
       localStorage.setItem('iptv_favorites', JSON.stringify(favorites));
       localStorage.setItem('iptv_dead_channels', JSON.stringify([...deadChannels]));
+      localStorage.setItem('iptv_stream_mode', streamMode);
+      localStorage.setItem('iptv_custom_proxy', customProxyUrl);
+      localStorage.setItem('iptv_proxy_host', proxyHost);
+      localStorage.setItem('iptv_proxy_port', proxyPort);
+      localStorage.setItem('iptv_proxy_type', proxyType);
     }
-  }, [favorites, deadChannels, user]);
+  }, [favorites, deadChannels, streamMode, customProxyUrl, proxyHost, proxyPort, proxyType, user]);
 
   useEffect(() => {
     if (currentChannel) {
@@ -890,14 +1135,14 @@ export default function App() {
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        let res = await fetch('api/channels');
+        let res = await fetch('/api/channels');
         if (!res.ok) throw new Error('Not found');
         const data = await res.json();
         setCountries(data);
       } catch (err) {
         // Fallback for GitHub Pages (Static Hosting)
         try {
-          const res = await fetch('static-api/channels.json');
+          const res = await fetch('/static-api/channels.json');
           const data = await res.json();
           setCountries(data);
         } catch (e) {
@@ -914,14 +1159,14 @@ export default function App() {
       setLoading(true);
       const fetchId = activeTab === 'fifa' ? 'fifa' : activeTab === 'sports' ? 'sports' : selectedCountry;
       try {
-        let res = await fetch(`api/channels/${fetchId}?source=${serverSource}`);
+        let res = await fetch(`/api/channels/${fetchId}?source=${serverSource}`);
         if (!res.ok) throw new Error('Not found');
         const data = await res.json();
         setChannels(data);
       } catch (err) {
         // Fallback for GitHub Pages
         try {
-          const res = await fetch(`static-api/${fetchId}.json`);
+          const res = await fetch(`/static-api/${fetchId}.json`);
           const data = await res.json();
           setChannels(data);
         } catch (e) {
@@ -946,7 +1191,19 @@ export default function App() {
       list = channels.filter(c => kw.some(k => c.name.toLowerCase().includes(k)));
     }
     if (debouncedSearch) {
-      list = list.filter(c => c.name.toLowerCase().includes(debouncedSearch.toLowerCase()));
+      const query = debouncedSearch.toLowerCase().trim();
+      if (query.startsWith('@') && query.length >= 2) {
+        const countryCode = query.substring(1);
+        list = list.filter(c => c.country?.toLowerCase() === countryCode);
+      } else {
+        // Support searching by country code without @ as well if specifically requested or if it's a 2-char match
+        const countryMatch = query.length === 2 ? list.filter(c => c.country?.toLowerCase() === query) : [];
+        if (countryMatch.length > 0) {
+          list = countryMatch;
+        } else {
+          list = list.filter(c => c.name.toLowerCase().includes(query));
+        }
+      }
     }
     
     // Deduplicate list by url and name to ensure no duplicate key/visual items
@@ -1143,10 +1400,12 @@ export default function App() {
     setSelectedServer(0);
     setQualityLevels([]);
     setShowQualityMenu(false);
+    setShowSettingsMenu(false);
     setPlayerError('none');
   }, [currentChannel]);
 
   useEffect(() => {
+    let active = true;
     if (currentChannel && videoRef.current) {
       const video = videoRef.current;
       try {
@@ -1164,57 +1423,176 @@ export default function App() {
       }
       
       setIsBuffering(true);
-      
-      const streamUrl = currentChannel.urls && currentChannel.urls[selectedServer] 
-        ? currentChannel.urls[selectedServer] 
-        : currentChannel.url;
+      setValidationStatus('checking');
+      setValidationDetails(lang === 'en' ? 'Checking stream reachability...' : 'স্ট্রিমের স্থিতি পরীক্ষা করা হচ্ছে...');
 
-      // Auto-upgrade simple HTTP URLs to HTTPS on secure pages to avoid Mixed Content block by browsers
-      const isHttpsPage = window.location.protocol === 'https:';
-      const upgradedUrl = (isHttpsPage && streamUrl.startsWith('http:')) 
-        ? streamUrl.replace('http:', 'https:') 
-        : streamUrl;
+      const runLoader = async () => {
+        const streamUrl = currentChannel.urls && currentChannel.urls[selectedServer] 
+          ? currentChannel.urls[selectedServer] 
+          : currentChannel.url;
 
-      const targetUrl = streamMode === 'proxy' 
-        ? `api/proxy?url=${encodeURIComponent(upgradedUrl)}` : upgradedUrl;
-      
-      if (Hls.isSupported()) {
-        if (hlsRef.current) hlsRef.current.destroy();
-        const hls = new Hls({ 
-          maxBufferLength: 10, 
-          maxMaxBufferLength: 30,
-          enableWorker: true, 
-          lowLatencyMode: true,
-          backBufferLength: 30,
-          progressive: true,
-          fragLoadingTimeOut: 20000,
-          manifestLoadingTimeOut: 20000
-        });
-        hlsRef.current = hls;
-        hls.loadSource(targetUrl);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-          setQualityLevels([
-            { id: -1, label: 'Auto' },
-            ...hls.levels.map((level, index) => ({
-              id: index,
-              label: level.height ? `${level.height}p` : `Level ${index}`
-            }))
-          ]);
-          setCurrentQuality(hls.currentLevel);
-          video.play().then(() => { setIsPlaying(true); setIsBuffering(false); }).catch(() => {});
-        });
-        hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
-          if (hls.autoLevelEnabled) {
-            setCurrentQuality(-1);
-          } else {
-            setCurrentQuality(data.level);
+        const isHttpsPage = window.location.protocol === 'https:';
+        
+        let targetUrl = streamUrl;
+        let finalMode: 'direct' | 'local-proxy' | 'public-proxy' | 'alternative' = 'direct';
+        let status: 'direct' | 'fallback-local' | 'fallback-public' | 'failed' = 'direct';
+        let details = '';
+
+        // Helper function to fetch verify the endpoint in real-time
+        const checkDirectReachability = async (url: string): Promise<{ ok: boolean; reason?: 'CORS' | 'mixed-content' | 'timeout' | 'error' }> => {
+          if (isHttpsPage && url.startsWith('http:')) {
+            return { ok: false, reason: 'mixed-content' };
           }
-        });
-        hls.on(Hls.Events.ERROR, async (event, data) => {
-          if (data.fatal) {
-            if (streamMode === 'proxy') setStreamMode('direct');
-            else { 
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const res = await fetch(url, {
+              method: 'GET',
+              mode: 'cors',
+              headers: { 'Range': 'bytes=0-10' },
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            return { ok: res.status >= 200 && res.status < 400 };
+          } catch (e: any) {
+            if (e.name === 'AbortError') return { ok: false, reason: 'timeout' };
+            return { ok: false, reason: 'CORS' };
+          }
+        };
+
+        // If 'proxy' or 'custom' mode is selected, default immediately to that proxy. Otherwise, check direct connectivity
+        if (streamMode === 'custom') {
+          if (customProxyUrl) {
+            targetUrl = `${customProxyUrl}${encodeURIComponent(streamUrl)}`;
+          } else if (proxyHost && proxyPort) {
+            targetUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}&proxyHost=${proxyHost}&proxyPort=${proxyPort}&proxyType=${proxyType}`;
+          }
+          finalMode = 'alternative';
+          status = 'fallback-public';
+          details = lang === 'en' ? 'Routed via your custom proxy server.' : 'আপনার নিজস্ব কাস্টম প্রক্সির মাধ্যমে সংযোগ রাউট করা হয়েছে।';
+        } else if (streamMode === 'proxy') {
+          targetUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}`;
+          finalMode = 'local-proxy';
+          status = 'fallback-local';
+          details = lang === 'en' ? 'Manually routed via secure App Server Proxy.' : 'অ্যাপ সার্ভার প্রক্সির মাধ্যমে সংযোগ রাউট করা হয়েছে।';
+        } else {
+          let directCheck = await checkDirectReachability(streamUrl);
+          
+          if (directCheck.ok) {
+            targetUrl = streamUrl;
+            finalMode = 'direct';
+            status = 'direct';
+            details = lang === 'en' ? 'Direct connection successful (lightning fast ⚡)' : 'সরাসরি সংযোগ সফল (চমৎকার গতি ⚡)';
+          } else {
+            const reason = directCheck.reason || 'error';
+            let reasonMsg = reason === 'mixed-content' 
+              ? (lang === 'en' ? 'Mixed content block: HTTP stream on HTTPS page' : 'মিশ্র কনটেন্ট ব্লক: HTTPS পেজে HTTP স্ট্রিম')
+              : reason === 'CORS'
+              ? (lang === 'en' ? 'CORS restriction or network block' : 'CORS নিয়মাবলী বা নেটওয়ার্ক ব্লক')
+              : (lang === 'en' ? 'Stream offline or connection timeout' : 'স্ট্রিম অফলাইন বা সংযোগের সময় শেষ');
+
+            console.warn(`Direct stream test failed for ${streamUrl}. Reason: ${reason}. Activating fallback sequence...`);
+
+            // Fallback A: Try HTTPS upgrade first if it was a mixed-content block
+            let solvedByHttps = false;
+            if (reason === 'mixed-content') {
+              const upgradedHttpsUrl = streamUrl.replace('http:', 'https:');
+              const upgradedCheck = await checkDirectReachability(upgradedHttpsUrl);
+              if (upgradedCheck.ok) {
+                targetUrl = upgradedHttpsUrl;
+                finalMode = 'direct';
+                status = 'direct';
+                details = lang === 'en' ? 'HTTP upgraded to HTTPS (Direct playback ok 🔒)' : 'HTTP টিকে HTTPS-এ আপগ্রেড করা হয়েছে (ডাইরেক্ট প্লেব্যাক সফল 🔒)';
+                solvedByHttps = true;
+              }
+            }
+
+            if (!solvedByHttps) {
+              // Fallback B: Secure Local Express Proxy (Our powerful server-side bypass)
+              let useLocalProxy = false;
+              try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 1200);
+                const proxyRes = await fetch('/api/health', { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (proxyRes.ok) useLocalProxy = true;
+              } catch {
+                useLocalProxy = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+              }
+
+              if (useLocalProxy) {
+                targetUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}`;
+                finalMode = 'local-proxy';
+                status = 'fallback-local';
+                details = `${reasonMsg}. ` + (lang === 'en' ? 'Auto-routed via secure App Server Proxy.' : 'অ্যাপ সার্ভার প্রক্সির মাধ্যমে অটো-রাউট করা হয়েছে।');
+              } else {
+                // Fallback C: Public Known CORS Proxies (e.g. corsproxy.io)
+                const publicCorsProxy = `https://corsproxy.io/?url=${encodeURIComponent(streamUrl)}`;
+                targetUrl = publicCorsProxy;
+                finalMode = 'public-proxy';
+                status = 'fallback-public';
+                details = `${reasonMsg}. ` + (lang === 'en' ? 'Static Host: Routed via corsproxy.io bypass.' : 'স্ট্যাটিক হোস্ট: corsproxy.io এর মাধ্যমে অটো-রাউট করা হয়েছে।');
+              }
+            }
+          }
+        }
+
+        if (!active) return;
+        setValidationStatus(status);
+        setValidationDetails(details);
+        
+        if (Hls.isSupported()) {
+          if (hlsRef.current) hlsRef.current.destroy();
+          const hls = new Hls({ 
+            maxBufferLength: 10, 
+            maxMaxBufferLength: 30,
+            enableWorker: true, 
+            lowLatencyMode: true,
+            backBufferLength: 30,
+            progressive: true,
+            fragLoadingTimeOut: 20000,
+            manifestLoadingTimeOut: 20000
+          });
+          hlsRef.current = hls;
+          hls.loadSource(targetUrl);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+            if (!active) return;
+            setQualityLevels([
+              { id: -1, label: 'Auto' },
+              ...hls.levels.map((level, index) => ({
+                id: index,
+                label: level.height ? `${level.height}p` : `Level ${index}`
+              }))
+            ]);
+            setCurrentQuality(hls.currentLevel);
+            video.play()
+              .then(() => {
+                if (active) {
+                  setIsPlaying(true);
+                  setIsBuffering(false);
+                }
+              })
+              .catch((err) => {
+                console.warn("Autoplay blocked or play failed:", err);
+                if (active) {
+                  setIsPlaying(false);
+                  setIsBuffering(false);
+                  setShowControls(true);
+                }
+              });
+          });
+          hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
+            if (!active) return;
+            if (hls.autoLevelEnabled) {
+              setCurrentQuality(-1);
+            } else {
+              setCurrentQuality(data.level);
+            }
+          });
+          hls.on(Hls.Events.ERROR, async (event, data) => {
+            if (data.fatal) {
+              if (!active) return;
               setIsBuffering(false); 
               hls.destroy(); 
               
@@ -1227,13 +1605,11 @@ export default function App() {
                 setDeadChannels(prev => new Set(prev).add(currentChannel.url));
               }
             }
-          }
-        });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = targetUrl;
-        video.onerror = async () => {
-          if (streamMode === 'proxy') setStreamMode('direct');
-          else {
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = targetUrl;
+          video.onerror = async () => {
+            if (!active) return;
             setIsBuffering(false);
             
             const isConnected = await checkIsInternetConnected();
@@ -1244,12 +1620,36 @@ export default function App() {
               setErrorMsg(true);
               setDeadChannels(prev => new Set(prev).add(currentChannel.url));
             }
-          }
-        };
-        video.play().catch(() => {});
-      }
+          };
+          video.play()
+            .then(() => {
+              if (active) {
+                setIsPlaying(true);
+                setIsBuffering(false);
+              }
+            })
+            .catch((err) => {
+              console.warn("Native Autoplay blocked or play failed:", err);
+              if (active) {
+                setIsPlaying(false);
+                setIsBuffering(false);
+                setShowControls(true);
+              }
+            });
+        }
+      };
+
+      runLoader();
+      
+      return () => {
+        active = false;
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+          hlsRef.current = null;
+        }
+      };
     }
-  }, [currentChannel, streamMode, selectedServer]);
+  }, [currentChannel, streamMode, customProxyUrl, selectedServer]);
 
   useEffect(() => {
     const fn = () => setIsFullscreen(!!(document.fullscreenElement || (document as any).webkitFullscreenElement));
@@ -1771,6 +2171,16 @@ export default function App() {
                     selectedCountry={selectedCountry}
                     deferredPrompt={deferredPrompt}
                     handleInstallApp={handleInstallApp}
+                    streamMode={streamMode}
+                    setStreamMode={setStreamMode}
+                    customProxyUrl={customProxyUrl}
+                    setCustomProxyUrl={setCustomProxyUrl}
+                    proxyHost={proxyHost}
+                    setProxyHost={setProxyHost}
+                    proxyPort={proxyPort}
+                    setProxyPort={setProxyPort}
+                    proxyType={proxyType}
+                    setProxyType={setProxyType}
                   />
                 </motion.div>
              </>
@@ -1889,15 +2299,15 @@ export default function App() {
                     )}
 
                     {!isMiniPlayer && (
-                       /* Centered Controls for Mobile (Play/Pause) & Mobile PiP Button */
+                       /* Centered Controls (Play/Pause) & PiP Button */
                      <>
                       <AnimatePresence>
-                        {showControls && (
+                        {(showControls || !isPlaying) && (
                           <motion.div 
                              initial={{ opacity: 0, scale: 0.9 }}
                              animate={{ opacity: 1, scale: 1 }}
                              exit={{ opacity: 0, scale: 0.9 }}
-                             className="absolute inset-x-0 top-0 bottom-16 z-30 flex items-center justify-center bg-transparent lg:hidden"
+                             className="absolute inset-x-0 top-0 bottom-16 z-30 flex items-center justify-center bg-transparent"
                              onClick={(e) => {
                                if (e.target === e.currentTarget) {
                                  handleContainerClick(e);
@@ -1906,9 +2316,9 @@ export default function App() {
                           >
                             <button 
                               onClick={(e) => { e.stopPropagation(); handlePlayToggle(e); }}
-                              className="w-20 h-20 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white cursor-pointer active:scale-90 transition-transform shadow-2xl border border-white/20"
+                              className="w-16 h-16 sm:w-20 sm:h-20 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white cursor-pointer active:scale-90 transition-transform shadow-2xl border border-white/10 hover:bg-black/60 hover:border-white/20"
                             >
-                              {isPlaying ? <Pause className="w-10 h-10 fill-current text-white"/> : <Play className="w-10 h-10 fill-current ml-1 text-white" />}
+                              {isPlaying ? <Pause className="w-8 h-8 sm:w-10 sm:h-10 fill-current text-white"/> : <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-current ml-1 text-white" />}
                             </button>
                           </motion.div>
                         )}
@@ -1920,14 +2330,14 @@ export default function App() {
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="absolute top-4 right-4 z-50 flex items-center space-x-2 lg:hidden"
+                            className="absolute top-4 right-4 z-50 flex items-center space-x-2"
                           >
                             <button 
                               onClick={handlePiPClick}
-                              className="p-2.5 bg-black/60 backdrop-blur-md rounded-full text-white cursor-pointer hover:bg-black/80 active:scale-95 transition-all shadow-md border border-white/15"
-                              title="Picture in Picture / Miniplayer"
+                              className="p-2 bg-black/60 backdrop-blur-md rounded-full text-white cursor-pointer hover:bg-black/80 active:scale-95 transition-all shadow-md border border-white/15"
+                              title="Picture in Picture"
                             >
-                              <PictureInPicture className="w-5 h-5 text-zinc-100" />
+                              <PictureInPicture className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-100" />
                             </button>
                           </motion.div>
                         )}
@@ -1939,8 +2349,8 @@ export default function App() {
 
                   {isBuffering && (
                     <div className="absolute inset-0 z-[25] flex flex-col justify-center items-center pointer-events-none bg-black/40">
-                      <div className="w-16 h-16 border-4 border-white/10 border-t-blue-500 rounded-full animate-spin shadow-[0_0_30px_rgba(59,130,246,0.4)]"></div>
-                      <div className="mt-6 text-white text-xs font-bold tracking-[0.3em] animate-pulse drop-shadow-lg">LOADING STREAM...</div>
+                      <div className="w-16 h-16 border-4 border-white/10 border-t-indigo-500 rounded-full animate-spin shadow-[0_0_30px_rgba(99,102,241,0.4)]"></div>
+                      <div className="mt-6 text-white text-xs font-bold tracking-[0.3em] animate-pulse drop-shadow-lg font-mono">LOADING STREAM...</div>
                     </div>
                   )}
 
@@ -1989,10 +2399,15 @@ export default function App() {
                     </div>
                   )}
 
+
+
                   <video
                     ref={videoRef}
-                    className="w-full h-full object-contain pointer-events-none bg-black"
-                    autoPlay playsInline
+                    className="w-full h-full object-contain pointer-events-auto bg-black"
+                    autoPlay 
+                    playsInline 
+                    webkit-playsinline="true"
+                    aria-label="Video Player"
                   />
 
                   {/* Player Controls Overlay */}
@@ -2032,53 +2447,92 @@ export default function App() {
                              {isMiniPlayer ? <Maximize className="w-5 h-5 sm:w-6 sm:h-6" /> : <Minimize className="w-5 h-5 sm:w-6 sm:h-6" />}
                            </button>
 
-                           {qualityLevels.length > 1 && (
-                             <div className="relative">
-                               <button 
-                                 onClick={() => setShowQualityMenu(!showQualityMenu)}
-                                 className="hover:opacity-80 p-1 cursor-pointer flex items-center space-x-1"
-                                 title="Change Quality"
-                               >
-                                 <Settings className="w-5 h-5" />
-                                 {currentQuality !== -1 && (
-                                   <span className="text-[10px] bg-indigo-600 px-1 rounded font-bold">
-                                     {qualityLevels.find(q => q.id === currentQuality)?.label}
-                                   </span>
-                                 )}
-                               </button>
-                               
-                               <AnimatePresence>
-                                 {showQualityMenu && (
-                                   <motion.div 
-                                     initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                                     exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                                     className="absolute bottom-full right-0 mb-2 bg-[#1a1a1a] border border-zinc-800 rounded-xl overflow-hidden shadow-2xl min-w-[120px] z-[60]"
-                                   >
-                                     <div className="p-2 border-b border-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-widest px-3">Quality</div>
-                                     <div className="py-1 max-h-[250px] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 font-sans">
-                                       {qualityLevels.map((level) => (
-                                         <button
-                                           key={level.id}
-                                           onClick={() => {
-                                             if (hlsRef.current) {
-                                               hlsRef.current.currentLevel = level.id;
-                                               setCurrentQuality(level.id);
-                                             }
-                                             setShowQualityMenu(false);
-                                           }}
-                                           className={`w-full text-left px-4 py-2 text-xs font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-between ${currentQuality === level.id ? 'text-indigo-400 bg-indigo-600/10' : 'text-zinc-300'}`}
-                                         >
-                                           <span>{level.label}</span>
-                                           {currentQuality === level.id && <Check className="w-3 h-3" />}
-                                         </button>
-                                       ))}
+                           <div className="relative" onClick={(e) => e.stopPropagation()}>
+                             <button 
+                               onClick={() => { setShowSettingsMenu(!showSettingsMenu); }}
+                               className="hover:opacity-80 p-1 cursor-pointer flex items-center space-x-1"
+                               title="Settings"
+                             >
+                               <Settings className="w-5 h-5 animate-[spin_10s_linear_infinite]" />
+                               {currentQuality !== -1 && qualityLevels.length > 1 && (
+                                 <span className="text-[10px] bg-indigo-600 px-1 rounded font-bold">
+                                   {qualityLevels.find(q => q.id === currentQuality)?.label}
+                                 </span>
+                               )}
+                             </button>
+                             
+                             <AnimatePresence>
+                               {showSettingsMenu && (
+                                 <motion.div 
+                                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                   animate={{ opacity: 1, y: 0, scale: 1 }}
+                                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                   className="absolute bottom-full right-0 mb-3 bg-[#111112]/95 backdrop-blur-md border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl min-w-[245px] max-w-[280px] z-[100] font-sans p-3 text-left"
+                                 >
+                                   <div className="text-xs font-black text-zinc-100 mb-3 border-b border-zinc-900 pb-2 flex items-center justify-between">
+                                      <span>{lang === 'en' ? 'PLAYER CONFIG' : 'প্লেয়ার কনফিগারেশন'}</span>
+                                      <span className="text-[9px] bg-zinc-800 px-1.5 py-0.5 text-zinc-400 rounded-full font-mono">v2.2</span>
+                                   </div>
+                                   
+                                   {/* Section 1: Backup Server Selector */}
+                                   {currentChannel && currentChannel.urls && currentChannel.urls.length > 1 && (
+                                     <div className="mb-3.5 pt-1">
+                                       <label className="text-[10px] uppercase font-black text-zinc-400 tracking-wider block mb-1.5">
+                                         {lang === 'en' ? 'Stream Server / Feed' : 'সার্ভার বা ব্যাকআপ ফিড'}
+                                       </label>
+                                       <div className="space-y-1 max-h-[110px] overflow-y-auto scrollbar-thin">
+                                         {currentChannel.urls.map((url, index) => (
+                                           <button
+                                             key={index}
+                                             onClick={() => {
+                                               setSelectedServer(index);
+                                               setPlayerError('none');
+                                               setIsBuffering(true);
+                                             }}
+                                             className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${selectedServer === index ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-600/20' : 'bg-zinc-900/40 hover:bg-zinc-800 text-zinc-300'}`}
+                                           >
+                                             <span>{lang === 'en' ? `Server ${index + 1}` : `সার্ভার ${index + 1}`}</span>
+                                             {index === 0 && <span className="text-[8px] opacity-60 ml-1">({lang === 'en' ? 'Primary' : 'প্রধান'})</span>}
+                                             {selectedServer === index && <Check className="w-3.5 h-3.5 text-indigo-400" />}
+                                           </button>
+                                         ))}
+                                       </div>
                                      </div>
-                                   </motion.div>
-                                 )}
-                               </AnimatePresence>
-                             </div>
-                           )}
+                                   )}
+                                   {/* Section 2: Video Quality selector */}
+                                   {qualityLevels.length > 1 && (
+                                     <div className={`${currentChannel && currentChannel.urls && currentChannel.urls.length > 1 ? 'border-t border-zinc-900 mt-3 pt-3' : ''}`}>
+                                       <label className="text-[10px] uppercase font-black text-zinc-400 tracking-wider block mb-1.5">
+                                         {lang === 'en' ? 'Quality' : 'ভিডিও কোয়ালিটি'}
+                                       </label>
+                                       <div className="grid grid-cols-2 gap-1 max-h-[110px] overflow-y-auto scrollbar-thin">
+                                         {qualityLevels.map((level) => (
+                                           <button
+                                             key={level.id}
+                                             onClick={() => {
+                                               if (hlsRef.current) {
+                                                 hlsRef.current.currentLevel = level.id;
+                                                 setCurrentQuality(level.id);
+                                               }
+                                             }}
+                                             className={`text-center px-1.5 py-1 text-[10px] font-bold rounded-lg hover:bg-zinc-800/80 transition-all cursor-pointer border ${currentQuality === level.id ? 'text-indigo-400 border-indigo-500/30 bg-indigo-500/10' : 'text-zinc-400 border-transparent bg-zinc-900/20'}`}
+                                           >
+                                             {level.label}
+                                           </button>
+                                         ))}
+                                       </div>
+                                     </div>
+                                   )}
+                                   
+                                   {/* Status Info */}
+                                   <div className="mt-3.5 border-t border-zinc-900 pt-2 text-[8px] font-mono text-zinc-500 flex justify-between">
+                                      <span>MODE: {streamMode.toUpperCase()}</span>
+                                      <span>SRV: {selectedServer + 1} / {currentChannel?.urls?.length || 1}</span>
+                                   </div>
+                                 </motion.div>
+                               )}
+                             </AnimatePresence>
+                           </div>
 
                            <button onClick={handlePiPClick} className="hover:opacity-80 p-1 cursor-pointer" title="Picture in Picture">
                              <PictureInPicture className="w-5 h-5" />
@@ -2174,7 +2628,46 @@ export default function App() {
                 {/* Video Info & Actions */}
                 {!isMiniPlayer && (
                   <div className="mt-4 px-4 sm:px-0 mb-6">
-                    <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">{currentChannel.name}</h1>
+                    <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{currentChannel.name}</h1>
+                    
+                    {/* Connection Diagnostics Panel */}
+                    <div className="mb-4 flex flex-wrap gap-2.5 items-center">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono border ${
+                        validationStatus === 'checking' 
+                          ? 'bg-zinc-800 text-zinc-400 border-zinc-700 animate-pulse'
+                          : validationStatus === 'direct'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          : validationStatus === 'fallback-local'
+                          ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                          : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          validationStatus === 'checking' 
+                            ? 'bg-zinc-500 animate-pulse'
+                            : validationStatus === 'direct'
+                            ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse'
+                            : validationStatus === 'fallback-local'
+                            ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)] animate-pulse'
+                            : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)] animate-pulse'
+                        }`}></span>
+                        <span>{
+                          validationStatus === 'checking' 
+                            ? (lang === 'en' ? 'Verifying Stream' : 'ফিড যাচাই করা হচ্ছে')
+                            : validationStatus === 'direct'
+                            ? (lang === 'en' ? 'Direct Connection' : 'সরাসরি সংযোগ')
+                            : validationStatus === 'fallback-local'
+                            ? (lang === 'en' ? 'App Server Proxy' : 'অ্যাপ সার্ভার প্রক্সি')
+                            : (lang === 'en' ? 'CORS Router Proxy' : 'সিওআরএস রাউটার প্রক্সি')
+                        }</span>
+                      </span>
+
+                      {validationDetails && (
+                        <p className="text-[11px] text-zinc-400 font-medium tracking-tight">
+                          {validationDetails}
+                        </p>
+                      )}
+                    </div>
+
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-blue-700 flex-shrink-0 flex items-center justify-center border border-white/10 shadow-lg pointer-events-none">
@@ -2428,6 +2921,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Bottom Navigation for Mobile */}
+      {updateAvailable && <SWUpdatePrompt onUpdate={handleUpdateApp} />}
       <div className="lg:hidden h-16 border-t border-zinc-800 bg-[#0f0f0f] flex items-center justify-around px-2 pb-safe shrink-0 z-50">
         <button onClick={() => { setActiveTab('all'); setCurrentChannel(null); }} className={`flex flex-col items-center justify-center space-y-1 p-2 transition-colors ${activeTab === 'all' && !currentChannel ? 'text-white font-bold' : 'text-zinc-500'}`}>
           <Home className={`w-5 h-5 ${activeTab === 'all' && !currentChannel ? 'fill-current' : ''}`} />

@@ -85,9 +85,10 @@
      {"name": "Coze TV (Caze TV FIFA World Cup 2026)", "url": "https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/1080p-vtt/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/a/a7/FIFA_Logo.svg"},
      {"name": "Caze TV Brazil (FIFA)", "url": "https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/Caze_TV.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/a/a7/FIFA_Logo.svg"},
      {"name": "beIN SPORTS XTRA (FIFA)", "url": "https://bein-esp-xumo.amagi.tv/playlistR720P.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/BeIN_Sports_logo.svg"},
-     {"name": "beIN Sports 1 (FIFA)", "url": "https://1nyaler.streamhostingcdn.top/stream/23/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/BeIN_Sports_logo.svg"},
+     {"name": "beIN Sports 1 (FIFA)", "url": "https://1nyaler.streamhostingcdn.top/stream/23/index.m3u8", "urls": ["https://1nyaler.streamhostingcdn.top/stream/23/index.m3u8", "https://ctrl.laotv.la/live/Bsport1/index.m3u8", "https://bein-esp-xumo.amagi.tv/playlistR720P.m3u8"], "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/BeIN_Sports_logo.svg"},
+     {"name": "beIN Sports 2 (FIFA Premium)", "url": "https://ctrl.laotv.la/live/Bsport2/index.m3u8", "urls": ["https://ctrl.laotv.la/live/Bsport2/index.m3u8", "https://1nyaler.streamhostingcdn.top/stream/24/index.m3u8"], "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/BeIN_Sports_logo.svg"},
      {"name": "Sony Sports Ten 1 HD (FIFA)", "url": "https://sl.vodep39240327.workers.dev/channel/SONY%20TEN%201%20HD.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/8/87/Sony_Sports_Network_logo.png"},
      {"name": "Sony Sports Ten 2 HD (FIFA)", "url": "https://sl.vodep39240327.workers.dev/channel/SONY%20TEN%202%20HD.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/8/87/Sony_Sports_Network_logo.png"},
-     {"name": "Star Sports 2 HD (FIFA)", "url": "https://tvsen7.aynaott.com/ssport2hd/index.m3u8", "logo": "https://upload.wikimedia.org/wikipedia/commons/5/52/Star_Sports_logo.svg"}
+     {"name": "Star Sports 2 HD (FIFA)", "url": "https://tvsen7.aynaott.com/ssport2hd/index.m3u8", "urls": ["https://tvsen7.aynaott.com/ssport2hd/index.m3u8", "https://tvsen12.aynaott.com/ssport2hd/index.m3u8", "https://tvsen14.aynaott.com/ssport2hd/index.m3u8"], "logo": "https://upload.wikimedia.org/wikipedia/commons/5/52/Star_Sports_logo.svg"}
   ]
 }

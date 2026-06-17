@@ -21,6 +21,10 @@ interface FetchEvent extends Event {
   respondWith(response: Promise<Response> | Response): void;
 }
 
+interface MessageEvent extends Event {
+  data: any;
+}
+
 interface Clients {
   claim(): Promise<void>;
 }
@@ -34,6 +38,7 @@ interface WebWorkerGlobalScope {
   addEventListener(type: "install", listener: (event: ExtendableEvent) => void): void;
   addEventListener(type: "activate", listener: (event: ExtendableEvent) => void): void;
   addEventListener(type: "fetch", listener: (event: FetchEvent) => void): void;
+  addEventListener(type: "message", listener: (event: MessageEvent) => void): void;
 }
 
 const sw = self as unknown as WebWorkerGlobalScope;
@@ -92,6 +97,12 @@ sw.addEventListener("activate", (event: ExtendableEvent) => {
   );
 });
 
+sw.addEventListener('message', (event: MessageEvent) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    sw.skipWaiting();
+  }
+});
+
 const isStaticAsset = (url: string): boolean => {
   const fileExtensions: string[] = [".js", ".css", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2"];
   return fileExtensions.some((ext: string) => url.includes(ext));
@@ -144,21 +155,18 @@ sw.addEventListener("fetch", (event: FetchEvent) => {
     return;
   }
 
-  // Strategy 2: Cache-First with Network Dynamic Fallback for static assets
+  // Strategy 2: Stale-While-Revalidate for static assets
   if (isStaticAsset(url)) {
     event.respondWith(
-      caches.match(request).then((cachedResponse: Response | undefined) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(request).then((networkResponse: Response) => {
-          if (networkResponse.status === 200) {
-            const responseClone: Response = networkResponse.clone();
-            caches.open(CACHE_NAME_STATIC).then((cache: Cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return networkResponse;
+      caches.open(CACHE_NAME_STATIC).then((cache: Cache) => {
+        return cache.match(request).then((cachedResponse: Response | undefined) => {
+          const fetchPromise: Promise<Response> = fetch(request).then((networkResponse: Response) => {
+            if (networkResponse.status === 200) {
+              cache.put(request, networkResponse.clone());
+            }
+            return networkResponse;
+          });
+          return cachedResponse || fetchPromise;
         });
       })
     );

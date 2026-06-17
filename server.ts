@@ -5,6 +5,10 @@ import { createServer as createViteServer } from "vite";
 import http from "http";
 import https from "https";
 
+import { SocksProxyAgent } from "socks-proxy-agent";
+import { HttpProxyAgent } from "http-proxy-agent";
+import { HttpsProxyAgent } from "https-proxy-agent";
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -22,22 +26,40 @@ async function startServer() {
     }
   };
 
+  // API routes go here FIRST
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", time: new Date().toISOString() });
+  });
+
   app.get('/api/proxy', async (req, res) => {
     const originalTargetUrl = req.query.url as string;
     if (!originalTargetUrl) return res.status(400).send('URL required');
 
+    const proxyHost = req.query.proxyHost as string;
+    const proxyPort = req.query.proxyPort as string;
+    const proxyType = req.query.proxyType as string || 'socks5';
+
+    let agent: any = null;
+    if (proxyHost && proxyPort) {
+      const proxyUrl = `${proxyType}://${proxyHost}:${proxyPort}`;
+      try {
+        if (proxyType === 'socks5') {
+          agent = new SocksProxyAgent(proxyUrl);
+        } else if (proxyType === 'http') {
+          agent = originalTargetUrl.startsWith('https') ? new HttpsProxyAgent(proxyUrl) : new HttpProxyAgent(proxyUrl);
+        }
+      } catch (err) {
+        console.error("Agent creation failed", err);
+      }
+    }
+
     // List of reliable tvsen subdomains to try in fallback sequence
     const subdomainsToTry = ['tvsen12', 'tvsen14', 'tvsen11', 'tvsen15', 'tvsen5', 'tvsen7', 'tvsen6', 'tvsen13'];
 
-    const getResHeaders = (headers: http.IncomingHttpHeaders) => ({
-      'User-Agent': 'VLC/3.0.9 LibVLC/3.0.9',
-      'Accept': '*/*',
-      ...('origin' in headers ? { 'Origin': headers.origin as string } : {}),
-      ...('referer' in headers ? { 'Referer': headers.referer as string } : {})
-    });
-
     // Helper to make a request to a URL and verify if it's working (status 200)
-    const tryRequest = (urlStr: string): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; resStream: http.IncomingMessage } | null> => {
+    const tryRequest = (urlStr: string, depth = 0): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; resStream: http.IncomingMessage; finalUrl: string } | null> => {
+      if (depth > 5) return Promise.resolve(null); // Max redirects
+
       return new Promise((resolve) => {
         let isResolved = false;
         const client = urlStr.startsWith('https') ? https : http;
@@ -49,23 +71,43 @@ async function startServer() {
         } catch {}
 
         const options = {
+          agent: agent,
           headers: {
             'User-Agent': 'VLC/3.0.9 LibVLC/3.0.9',
             'Accept': '*/*',
-            ...(targetOrigin ? { 'Origin': targetOrigin, 'Referer': targetOrigin + '/' } : {})
+            'Referer': urlStr,
+            ...('range' in req.headers ? { 'Range': req.headers.range as string } : {}),
+            ...('accept-language' in req.headers ? { 'Accept-Language': req.headers['accept-language'] as string } : {}),
+            ...(targetOrigin ? { 'Origin': targetOrigin } : {})
           }
         };
 
-        const clientReq = client.get(urlStr, options, (clientRes) => {
+        const clientReq = client.get(urlStr, options, async (clientRes) => {
           isResolved = true;
+          
+          // Handle Redirects
+          if ([301, 302, 307, 308].includes(clientRes.statusCode || 0) && clientRes.headers.location) {
+            let redirectUrl = clientRes.headers.location;
+            if (!redirectUrl.startsWith('http')) {
+              const u = new URL(urlStr);
+              redirectUrl = u.origin + (redirectUrl.startsWith('/') ? '' : '/') + redirectUrl;
+            }
+            clientRes.destroy();
+            const nextResult = await tryRequest(redirectUrl, depth + 1);
+            resolve(nextResult);
+            return;
+          }
+
           resolve({ 
             statusCode: clientRes.statusCode || 200, 
             headers: clientRes.headers, 
-            resStream: clientRes 
+            resStream: clientRes,
+            finalUrl: urlStr
           });
         });
 
-        clientReq.on('error', () => {
+        clientReq.on('error', (e) => {
+          console.error(`Proxy request error for ${urlStr}:`, e.message);
           if (!isResolved) {
             isResolved = true;
             resolve(null);
@@ -78,7 +120,7 @@ async function startServer() {
             clientReq.destroy();
             resolve(null);
           }
-        }, 5000); // 5s timeout per attempt
+        }, 8000); // 8s timeout per attempt
       });
     };
 
@@ -139,18 +181,36 @@ async function startServer() {
       return res.status(502).send('Error connecting to target stream host');
     }
 
-    const { statusCode, headers, resStream } = result;
+    const { statusCode, headers, resStream, finalUrl } = result;
 
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+    
     if (headers['content-type']) {
       res.setHeader('Content-Type', headers['content-type']);
     }
+    if (headers['content-range']) {
+      res.setHeader('Content-Range', headers['content-range']);
+      res.status(206);
+    } else {
+      res.status(statusCode || 200);
+    }
+    if (headers['accept-ranges']) {
+      res.setHeader('Accept-Ranges', headers['accept-ranges']);
+    }
 
-    const isM3u8 = targetUrl.includes('.m3u8');
-    const ct = headers['content-type'] || '';
+    const isM3u8 = targetUrl.toLowerCase().includes('.m3u8') || 
+                   (headers['content-type'] && (
+                     headers['content-type'].includes('mpegurl') || 
+                     headers['content-type'].includes('x-mpegURL') || 
+                     headers['content-type'].includes('application/vnd.apple.mpegurl')
+                   ));
     
-    if (isM3u8 || ct.includes('mpegurl') || ct.includes('x-mpegURL') || ct.includes('appl.mpegurl')) {
+    const proxyParams = proxyHost && proxyPort ? `&proxyHost=${proxyHost}&proxyPort=${proxyPort}&proxyType=${proxyType}` : '';
+
+    if (isM3u8) {
       let body = '';
       resStream.on('data', chunk => body += chunk);
       resStream.on('end', () => {
@@ -164,27 +224,29 @@ async function startServer() {
               let absoluteUrl = trimmed;
               try {
                 if (!trimmed.startsWith('http')) {
-                  const urlObj = new URL(targetUrl);
+                  const urlObj = new URL(finalUrl);
                   const basePath = urlObj.pathname.substring(0, urlObj.pathname.lastIndexOf('/') + 1);
                   absoluteUrl = urlObj.origin + basePath + trimmed;
                 }
-                return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}`;
+                // Avoid double proxying if something is already proxied
+                if (absoluteUrl.includes('/api/proxy?url=')) return line;
+                return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}${proxyParams}`;
               } catch (e) {
                 return line;
               }
            }
            
-           // Rewrite embedded URIs
+           // Rewrite embedded URIs (like EXT-X-KEY)
            if (trimmed.startsWith('#EXT-X-')) {
              return line.replace(/URI="([^"]+)"/g, (match, p1) => {
                try {
                  let absoluteUrl = p1;
                  if (!p1.startsWith('http')) {
-                   const urlObj = new URL(targetUrl);
+                   const urlObj = new URL(finalUrl);
                    const basePath = urlObj.pathname.substring(0, urlObj.pathname.lastIndexOf('/') + 1);
                    absoluteUrl = urlObj.origin + basePath + p1;
                  }
-                 return `URI="/api/proxy?url=${encodeURIComponent(absoluteUrl)}"`;
+                 return `URI="/api/proxy?url=${encodeURIComponent(absoluteUrl)}${proxyParams}"`;
                } catch (e) {
                  return match;
                }
@@ -196,6 +258,8 @@ async function startServer() {
          res.send(rewritten);
       });
     } else {
+      // For video segments (.ts, .aac, etc), pipe directly but ensure proper headers
+      if (headers['content-length']) res.setHeader('Content-Length', headers['content-length']);
       resStream.pipe(res);
     }
   });
