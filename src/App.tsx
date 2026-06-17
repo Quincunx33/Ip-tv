@@ -1196,13 +1196,11 @@ export default function App() {
         const countryCode = query.substring(1);
         list = list.filter(c => c.country?.toLowerCase() === countryCode);
       } else {
-        // Support searching by country code without @ as well if specifically requested or if it's a 2-char match
-        const countryMatch = query.length === 2 ? list.filter(c => c.country?.toLowerCase() === query) : [];
-        if (countryMatch.length > 0) {
-          list = countryMatch;
-        } else {
-          list = list.filter(c => c.name.toLowerCase().includes(query));
-        }
+        // Standard name search. We can also include country check but name should be primary.
+        list = list.filter(c => 
+          c.name.toLowerCase().includes(query) || 
+          (c.country && c.country.toLowerCase() === query)
+        );
       }
     }
     

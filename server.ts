@@ -72,10 +72,12 @@ async function startServer() {
 
         const options = {
           agent: agent,
+          timeout: 15000,
           headers: {
             'User-Agent': 'VLC/3.0.9 LibVLC/3.0.9',
             'Accept': '*/*',
             'Referer': urlStr,
+            'Connection': 'keep-alive',
             ...('range' in req.headers ? { 'Range': req.headers.range as string } : {}),
             ...('accept-language' in req.headers ? { 'Accept-Language': req.headers['accept-language'] as string } : {}),
             ...(targetOrigin ? { 'Origin': targetOrigin } : {})
@@ -104,6 +106,14 @@ async function startServer() {
             resStream: clientRes,
             finalUrl: urlStr
           });
+        });
+
+        clientReq.on('timeout', () => {
+          if (!isResolved) {
+            isResolved = true;
+            clientReq.destroy();
+            resolve(null);
+          }
         });
 
         clientReq.on('error', (e) => {
