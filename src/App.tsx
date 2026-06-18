@@ -948,8 +948,8 @@ export default function App() {
         }
         
         // Secondary sort: Server 1 channels first
-        if (a.source === 'server1' && b.source !== 'server1') return -1;
-        if (a.source !== 'server1' && b.source === 'server1') return 1;
+        if (a.source === '1' && b.source !== '1') return -1;
+        if (a.source !== '1' && b.source === '1') return 1;
         
         // Tertiary sort: Alphabetical
         return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });

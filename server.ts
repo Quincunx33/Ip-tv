@@ -582,7 +582,7 @@ async function startServer() {
               name: ch.name,
               url: ch.url,
               logo: ch.logo || "",
-              source: ch.source === 'global' ? '2' : '1',
+              source: (ch.source === '2' || ch.source === 'global') ? '2' : '1',
               country: country
             });
           });

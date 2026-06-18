@@ -36,7 +36,7 @@ async function run() {
             url: ch.url,
             urls: ch.urls || undefined,
             logo: ch.logo || "",
-            source: 'server1',
+            source: '1',
             country
           };
           countryChannels.push(item);
@@ -63,7 +63,7 @@ async function run() {
                 name: currentItem.name,
                 url: tLine,
                 logo: currentItem.logo || "",
-                source: 'global',
+                source: '2',
                 country
               };
               countryChannels.push(item);
@@ -73,6 +73,9 @@ async function run() {
           }
         }
       }
+
+      // Sort country channels alphabetically by name
+      countryChannels.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
       fs.writeFileSync(path.join(OUTPUT_DIR, `${country}.json`), JSON.stringify(countryChannels));
     }
