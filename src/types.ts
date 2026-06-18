@@ -45,4 +45,6 @@ export interface SidebarProps {
   setIsServer2Enabled: (v: boolean) => void;
   isServer3Enabled: boolean;
   setIsServer3Enabled: (v: boolean) => void;
+  serverSource: string;
+  setServerSource: (s: any) => void;
 }

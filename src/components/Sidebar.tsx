@@ -45,7 +45,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   isServer2Enabled,
   setIsServer2Enabled,
   isServer3Enabled,
-  setIsServer3Enabled
+  setIsServer3Enabled,
+  serverSource,
+  setServerSource
 }) => {
   const [isClearing, setIsClearing] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
@@ -196,18 +198,21 @@ const Sidebar: React.FC<SidebarProps> = ({
           
           <div className="space-y-2">
             {/* Server 1 Toggle */}
-            <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+            <div 
+              onClick={() => {if(isServer1Enabled) setServerSource('1');}}
+              className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${serverSource === '1' ? 'bg-indigo-600/10 border-indigo-500/30 ring-1 ring-indigo-500/20' : 'bg-white/5 border-white/5 hover:bg-white/[0.08]'}`}
+            >
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-zinc-800 rounded-lg flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-white">S1</span>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${serverSource === '1' ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
+                  <span className="text-[10px] font-bold">S1</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white">Server 1</span>
+                  <span className={`text-xs font-bold ${serverSource === '1' ? 'text-indigo-400' : 'text-white'}`}>Server 1</span>
                   <span className="text-[9px] text-zinc-500">M3U Feed 1</span>
                 </div>
               </div>
               <button 
-                onClick={() => setIsServer1Enabled(!isServer1Enabled)}
+                onClick={(e) => { e.stopPropagation(); setIsServer1Enabled(!isServer1Enabled); }}
                 className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isServer1Enabled ? 'bg-indigo-600' : 'bg-zinc-700'}`}
               >
                 <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isServer1Enabled ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -215,40 +220,46 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* Server 2 Toggle */}
-            <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+            <div 
+              onClick={() => {if(isServer2Enabled) setServerSource('2');}}
+              className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${serverSource === '2' ? 'bg-indigo-600/10 border-indigo-500/30 ring-1 ring-indigo-500/20' : 'bg-white/5 border-white/5 hover:bg-white/[0.08]'}`}
+            >
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-zinc-800 rounded-lg flex items-center justify-center">
-                   <span className="text-[10px] font-bold text-white">S2</span>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${serverSource === '2' ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
+                   <span className="text-[10px] font-bold">S2</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white">Server 2</span>
+                  <span className={`text-xs font-bold ${serverSource === '2' ? 'text-indigo-400' : 'text-white'}`}>Server 2</span>
                   <span className="text-[9px] text-zinc-500">M3U Feed 2</span>
                 </div>
               </div>
               <button 
-                onClick={() => setIsServer2Enabled(!isServer2Enabled)}
+                onClick={(e) => { e.stopPropagation(); setIsServer2Enabled(!isServer2Enabled); }}
                 className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isServer2Enabled ? 'bg-indigo-600' : 'bg-zinc-700'}`}
               >
                 <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isServer2Enabled ? 'translate-x-5' : 'translate-x-0'}`} />
               </button>
             </div>
 
-            {/* Server 3 Toggle (Latest) */}
-            <div className="flex items-center justify-between p-3 bg-indigo-600/10 rounded-xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5">
+            {/* Server 3 Toggle (Latest / Dedicated) */}
+            <div 
+              onClick={() => {if(isServer3Enabled) setServerSource('3');}}
+              className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${serverSource === '3' ? 'bg-teal-500/10 border-teal-500/30 ring-1 ring-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white/5 border-white/5 hover:bg-white/[0.08]'}`}
+            >
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-indigo-950 rounded-lg flex items-center justify-center border border-indigo-500/30">
-                   <span className="text-[10px] font-bold text-indigo-400">S3</span>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${serverSource === '3' ? 'bg-teal-500 text-black border-teal-400' : 'bg-zinc-800 text-zinc-400 border-zinc-700/50'}`}>
+                   <span className="text-[10px] font-black">S3</span>
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center space-x-1">
-                    <span className="text-xs font-bold text-white">Server 3</span>
-                    <span className="px-1 py-0.2 bg-teal-500/20 text-teal-400 text-[8px] font-black uppercase tracking-wider rounded">Latest</span>
+                    <span className={`text-xs font-bold ${serverSource === '3' ? 'text-teal-400' : 'text-white'}`}>Dedicated S3</span>
+                    <span className="px-1 py-0.2 bg-indigo-500/20 text-indigo-400 text-[7px] font-black uppercase tracking-wider rounded border border-indigo-500/10">Ultra</span>
                   </div>
-                  <span className="text-[9px] text-zinc-400">Stable Feed 3</span>
+                  <span className="text-[9px] text-zinc-500 uppercase tracking-tighter font-black">Stable Optimized</span>
                 </div>
               </div>
               <button 
-                onClick={() => setIsServer3Enabled(!isServer3Enabled)}
+                onClick={(e) => { e.stopPropagation(); setIsServer3Enabled(!isServer3Enabled); }}
                 className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isServer3Enabled ? 'bg-teal-500' : 'bg-zinc-700'}`}
               >
                 <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isServer3Enabled ? 'translate-x-5' : 'translate-x-0'}`} />

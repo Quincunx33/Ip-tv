@@ -50,7 +50,7 @@ const SWUpdatePrompt = ({ onUpdate }: { onUpdate: () => void }) => {
   );
 };
 
-const ChannelLogo = ({ channel, className = "", isAvatar = false }: { channel: Channel, className?: string, isAvatar?: boolean }) => {
+const ChannelLogo = React.memo(({ channel, className = "", isAvatar = false }: { channel: Channel, className?: string, isAvatar?: boolean }) => {
   const [error, setError] = useState(false);
   
   // Deterministic background color based on name
@@ -66,7 +66,7 @@ const ChannelLogo = ({ channel, className = "", isAvatar = false }: { channel: C
     return colors[Math.abs(hash) % colors.length];
   };
 
-  const bgColor = getBgColor(channel.name);
+  const bgColor = React.useMemo(() => getBgColor(channel.name), [channel.name]);
 
   if (channel.logo && !error) {
     const isHttp = channel.logo.startsWith('http:');
@@ -99,7 +99,7 @@ const ChannelLogo = ({ channel, className = "", isAvatar = false }: { channel: C
       )}
     </div>
   );
-};
+});
 
 const TRANSLATIONS = {
   en: {
@@ -184,8 +184,8 @@ const ChannelCard = React.memo(({
 }: { 
   channel: Channel, 
   isDead: boolean, 
-  onClick: () => void, 
-  onToggleFavorite: (e: React.MouseEvent) => void, 
+  onClick: (channel: Channel) => void, 
+  onToggleFavorite: (channel: Channel, e: React.MouseEvent) => void, 
   isFavorite: boolean, 
   countryName: string, 
   t: any 
@@ -195,14 +195,14 @@ const ChannelCard = React.memo(({
   return (
     <div 
       className={`flex flex-col cursor-pointer group transition-all duration-300 ${isDead ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100' : ''}`} 
-      onClick={onClick}
+      onClick={() => onClick(channel)}
     >
       <div className="w-full aspect-video bg-zinc-900 rounded-xl overflow-hidden relative mb-2.5 shadow-sm border border-zinc-800/60 group-hover:border-zinc-700 transition-all duration-300 flex items-center justify-center">
          <ChannelLogo channel={channel} className="w-full h-full" />
          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300">
            <Play className="w-12 h-12 text-white/80 scale-90 group-hover:scale-100 transition-transform" fill="currentColor" />
          </div>
-         <div className="absolute bottom-1.5 right-1.5 bg-black/80 px-1.5 py-0.5 rounded textxs font-bold font-mono tracking-wider text-white shadow-sm flex items-center space-x-1.5">
+         <div className="absolute bottom-1.5 right-1.5 bg-black/80 px-1.5 py-0.5 rounded text-xs font-bold font-mono tracking-wider text-white shadow-sm flex items-center space-x-1.5">
            <span className={`w-1.5 h-1.5 rounded-full ${isDead ? 'bg-zinc-500' : 'bg-red-600 animate-pulse'}`}></span>
            <span className="text-[10px]">{isDead ? 'OFFLINE' : t.live}</span>
          </div>
@@ -235,7 +235,7 @@ const ChannelCard = React.memo(({
             <div className="text-[11px] text-zinc-500 mt-0.5 flex items-center justify-between w-full">
               <span>{viewers}K {t.watching}</span>
               <button 
-                onClick={onToggleFavorite} 
+                onClick={(e) => onToggleFavorite(channel, e)} 
                 className={`p-1 hover:bg-zinc-800 rounded-full transition-colors z-10 ${isFavorite ? 'text-red-500' : 'hover:text-white'}`} 
                 title={t.save}
               >
@@ -268,6 +268,39 @@ export default function App() {
   const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
   const [showInstallPopup, setShowInstallPopup] = useState<boolean>(false);
   const [deviceOS, setDeviceOS] = useState<'Android' | 'iOS' | 'Windows' | 'Mac' | 'Device'>('Device');
+
+  const [isServer1Enabled, setIsServer1Enabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('isServer1Enabled');
+    return saved !== null ? saved === 'true' : false;
+  });
+  const [isServer2Enabled, setIsServer2Enabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('isServer2Enabled');
+    return saved !== null ? saved === 'true' : false;
+  });
+  const [isServer3Enabled, setIsServer3Enabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('isServer3Enabled');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [serverSource, setServerSource] = useState<'1' | '2' | '3'>('1');
+
+  useEffect(() => {
+    localStorage.setItem('isServer1Enabled', String(isServer1Enabled));
+    localStorage.setItem('isServer2Enabled', String(isServer2Enabled));
+    localStorage.setItem('isServer3Enabled', String(isServer3Enabled));
+  }, [isServer1Enabled, isServer2Enabled, isServer3Enabled]);
+
+  useEffect(() => {
+    if (serverSource === '1' && !isServer1Enabled) {
+      if (isServer2Enabled) setServerSource('2');
+      else if (isServer3Enabled) setServerSource('3');
+    } else if (serverSource === '2' && !isServer2Enabled) {
+      if (isServer1Enabled) setServerSource('1');
+      else if (isServer3Enabled) setServerSource('3');
+    } else if (serverSource === '3' && !isServer3Enabled) {
+      if (isServer1Enabled) setServerSource('1');
+      else if (isServer2Enabled) setServerSource('2');
+    }
+  }, [isServer1Enabled, isServer2Enabled, isServer3Enabled, serverSource]);
 
   const [countries, setCountries] = useState<string[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('bd');
@@ -359,7 +392,7 @@ export default function App() {
                 const data: Channel[] = await apiRes.json();
                 const filteredData = data.filter((ch: Channel) => {
                   const s = ch.source || '1';
-                  const isEnabled = s === '1' ? isServer1Enabled : isServer2Enabled;
+                  const isEnabled = s === '1' ? isServer1Enabled : s === '2' ? isServer2Enabled : isServer3Enabled;
                   return isEnabled || ch.name.toLowerCase().includes('bein sports 1');
                 });
                 setUniversalSearchResults(filteredData);
@@ -379,7 +412,7 @@ export default function App() {
 
           const filteredResults = results.filter(ch => {
             const s = ch.source || '1';
-            const isEnabled = s === '1' ? isServer1Enabled : isServer2Enabled;
+            const isEnabled = s === '1' ? isServer1Enabled : s === '2' ? isServer2Enabled : isServer3Enabled;
             return isEnabled || ch.name.toLowerCase().includes('bein sports 1');
           });
           
@@ -423,7 +456,7 @@ export default function App() {
               const data: Channel[] = await apiRes.json();
               const filteredData = data.filter((ch: Channel) => {
                 const s = ch.source || '1';
-                const isEnabled = s === '1' ? isServer1Enabled : isServer2Enabled;
+                const isEnabled = s === '1' ? isServer1Enabled : s === '2' ? isServer2Enabled : isServer3Enabled;
                 return isEnabled || ch.name.toLowerCase().includes('bein sports 1');
               });
               setUniversalSearchResults(filteredData);
@@ -438,7 +471,7 @@ export default function App() {
       }
     };
     searchGlobally();
-  }, [debouncedSearch]);
+  }, [debouncedSearch, isServer1Enabled, isServer2Enabled, isServer3Enabled]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -467,24 +500,7 @@ export default function App() {
   const [userAgent, setUserAgent] = useState<string>('');
   const [referer, setReferer] = useState<string>('');
   const [lang, setLang] = useState<'en' | 'bn'>('en');
-  const [isServer1Enabled, setIsServer1Enabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('isServer1Enabled');
-    return saved !== null ? saved === 'true' : false;
-  });
-  const [isServer2Enabled, setIsServer2Enabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('isServer2Enabled');
-    return saved !== null ? saved === 'true' : false;
-  });
-  const [isServer3Enabled, setIsServer3Enabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('isServer3Enabled');
-    return saved !== null ? saved === 'true' : true;
-  });
 
-  useEffect(() => {
-    localStorage.setItem('isServer1Enabled', String(isServer1Enabled));
-    localStorage.setItem('isServer2Enabled', String(isServer2Enabled));
-    localStorage.setItem('isServer3Enabled', String(isServer3Enabled));
-  }, [isServer1Enabled, isServer2Enabled, isServer3Enabled]);
 
   const [validationStatus, setValidationStatus] = useState<'checking' | 'direct' | 'fallback-local' | 'fallback-public' | 'failed'>('checking');
   const [validationDetails, setValidationDetails] = useState<string>('');
@@ -589,7 +605,6 @@ export default function App() {
   const [userInteraction, setUserInteraction] = useState<'like' | 'dislike' | null>(null);
 
   const [selectedServer, setSelectedServer] = useState(0);
-  const [serverSource, setServerSource] = useState<'1' | '2'>('1');
 
   const [qualityLevels, setQualityLevels] = useState<{ id: number, label: string }[]>([]);
   const [currentQuality, setCurrentQuality] = useState<number>(-1);
@@ -884,6 +899,9 @@ export default function App() {
     });
 
     const finalFilteredList = uniqueList.filter(c => {
+      if (activeTab === 'all') {
+        return c.source === serverSource;
+      }
       if (c.source === '1' && isServer1Enabled) return true;
       if (c.source === '2' && isServer2Enabled) return true;
       if (c.source === '3' && isServer3Enabled) return true;
@@ -896,7 +914,7 @@ export default function App() {
     });
 
     setFilteredChannels(finalFilteredList);
-  }, [debouncedSearch, channels, favorites, activeTab, isServer1Enabled, isServer2Enabled, isServer3Enabled]);
+  }, [debouncedSearch, channels, favorites, activeTab, isServer1Enabled, isServer2Enabled, isServer3Enabled, serverSource]);
 
   const sortedFilteredChannels = React.useMemo(() => {
     let sorted = [...filteredChannels];
@@ -940,6 +958,8 @@ export default function App() {
     return sorted;
   }, [filteredChannels, deadChannels, activeTab]);
 
+  const favoriteUrls = React.useMemo(() => new Set(favorites.map(f => f.url)), [favorites]);
+
   const displayChannelsList = React.useMemo(() => {
     if (debouncedSearch && universalSearchResults.length > 0) {
       return universalSearchResults;
@@ -948,27 +968,28 @@ export default function App() {
   }, [debouncedSearch, universalSearchResults, sortedFilteredChannels]);
 
   useEffect(() => {
-    setVisibleCount(50);
+    setVisibleCount(60);
     if (scrollContainerRef.current) {
        scrollContainerRef.current.scrollTop = 0;
     }
-  }, [selectedCountry, activeTab, searchQuery]);
+  }, [selectedCountry, activeTab, debouncedSearch, serverSource]);
 
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
 
     observerRef.current = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) {
-        setVisibleCount(prev => prev + 50);
+        // Increase jump to reduce recalculation frequency
+        setVisibleCount(prev => prev + 100);
       }
-    }, { threshold: 0.1 });
+    }, { threshold: 0, rootMargin: '400px' });
 
     if (loadMoreTriggerRef.current) {
       observerRef.current.observe(loadMoreTriggerRef.current);
     }
 
     return () => observerRef.current?.disconnect();
-  }, [sortedFilteredChannels, visibleCount]);
+  }, [displayChannelsList.length]);
 
 
 
@@ -1503,14 +1524,25 @@ export default function App() {
     setShowControls(true);
   };
 
-  const toggleFavorite = (channel: Channel, e: React.MouseEvent) => {
+  const toggleFavorite = React.useCallback((channel: Channel, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (favorites.some(f => f.url === channel.url)) {
-      setFavorites(favorites.filter(f => f.url !== channel.url));
-    } else {
-      setFavorites([...favorites, channel]);
+    setFavorites(prev => {
+      if (prev.some(f => f.url === channel.url)) {
+        return prev.filter(f => f.url !== channel.url);
+      } else {
+        return [...prev, channel];
+      }
+    });
+  }, []);
+
+  const handleCardClick = React.useCallback((channel: Channel) => {
+    setCurrentChannel(channel);
+    setIsSidebarOpen(false);
+    setIsMiniPlayer(false);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  };
+  }, []);
 
   const copyToClipboard = async (text: string): Promise<boolean> => {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1889,6 +1921,8 @@ export default function App() {
                   setIsServer2Enabled={setIsServer2Enabled}
                   isServer3Enabled={isServer3Enabled}
                   setIsServer3Enabled={setIsServer3Enabled}
+                  serverSource={serverSource}
+                  setServerSource={setServerSource}
                 />
                 </motion.div>
              </>
@@ -1916,7 +1950,7 @@ export default function App() {
                  <span className="text-sm font-medium text-zinc-500 hidden sm:block">{displayChannelsList.length} {t.views.replace('views', 'streams')}</span>
               </div>
 
-              {activeTab === 'all' && (isServer1Enabled || isServer2Enabled) && (
+              {activeTab === 'all' && (isServer1Enabled || isServer2Enabled || isServer3Enabled) && (
                 <div className="flex space-x-2 mb-6">
                   {isServer1Enabled && (
                     <button 
@@ -1932,6 +1966,14 @@ export default function App() {
                       className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${serverSource === '2' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
                     >
                       Server 2
+                    </button>
+                  )}
+                  {isServer3Enabled && (
+                    <button 
+                      onClick={() => setServerSource('3')}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${serverSource === '3' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                    >
+                      Server 3 (Dedicated)
                     </button>
                   )}
                 </div>
@@ -1960,9 +2002,9 @@ export default function App() {
                         key={`${channel.url}-${channel.name}-${idx}`}
                         channel={channel}
                         isDead={deadChannels.has(channel.url)}
-                        isFavorite={favorites.some(f => f.url === channel.url)}
-                        onClick={() => { setCurrentChannel(channel); setIsSidebarOpen(false); setIsMiniPlayer(false); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                        onToggleFavorite={(e) => toggleFavorite(channel, e)}
+                        isFavorite={favoriteUrls.has(channel.url)}
+                        onClick={handleCardClick}
+                        onToggleFavorite={toggleFavorite}
                         countryName={formatCountryName(channel.country || selectedCountry)}
                         t={t}
                       />
@@ -2451,7 +2493,7 @@ export default function App() {
                     {sortedFilteredChannels.filter(c => c.url !== currentChannel.url).slice(0, 20).map((c, idx) => {
                       const isDead = deadChannels.has(c.url);
                       return (
-                      <div key={`${c.url}-${c.name}-${idx}`} className={`flex space-x-2.5 cursor-pointer group ${isDead ? 'opacity-40 grayscale' : ''}`} onClick={() => { setCurrentChannel(c); setIsSidebarOpen(false); scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                      <div key={`${c.url}-${c.name}-${idx}`} className={`flex space-x-2.5 cursor-pointer group ${isDead ? 'opacity-40 grayscale' : ''}`} onClick={() => handleCardClick(c)}>
                         <div className="w-40 sm:w-40 aspect-video bg-zinc-900 rounded-xl flex items-center justify-center relative overflow-hidden shrink-0 border border-zinc-800 group-hover:border-zinc-700">
                            <ChannelLogo channel={c} className="w-full h-full" />
                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10"></div>
