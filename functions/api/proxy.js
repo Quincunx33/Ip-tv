@@ -1,3 +1,16 @@
+const resolvedSubdomains = {};
+const subdomainsToTry = ['tvsen12', 'tvsen14', 'tvsen11', 'tvsen15', 'tvsen5', 'tvsen7', 'tvsen6', 'tvsen13'];
+
+function getChannelKey(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    const parts = u.pathname.split('/');
+    return parts.find(p => p && p.trim() !== '') || '';
+  } catch {
+    return '';
+  }
+}
+
 export async function onRequest(context) {
   const { request } = context;
   const url = new URL(request.url);
@@ -19,25 +32,96 @@ export async function onRequest(context) {
   }
 
   try {
-    const headers = new Headers(request.headers);
-    headers.set('User-Agent', 'VLC/3.0.9 LibVLC/3.0.9');
-    headers.set('Referer', targetUrl);
-    
-    // Remove headers that might cause issues with target server
-    headers.delete('host');
-    headers.delete('cf-connecting-ip');
-    headers.delete('cf-worker');
-    headers.delete('cf-ray');
-    headers.delete('cf-visitor');
+    const userAgentParam = url.searchParams.get('userAgent');
+    const refererParam = url.searchParams.get('referer');
+    const proxyParams = (userAgentParam ? `&userAgent=${encodeURIComponent(userAgentParam)}` : '') + 
+                        (refererParam ? `&referer=${encodeURIComponent(refererParam)}` : '');
 
-    const response = await fetch(targetUrl, {
-      method: request.method,
-      headers: headers,
-      redirect: 'follow',
-    });
+    // Construct a safe, clean set of request headers (avoiding browser security/fetch flags)
+    const headers = new Headers();
+    headers.set('User-Agent', userAgentParam || 'VLC/3.0.9 LibVLC/3.0.9');
+    headers.set('Accept', '*/*');
+    headers.set('Connection', 'keep-alive');
+    
+    if (refererParam) {
+      headers.set('Referer', refererParam);
+    }
+
+    // Forward safe standard headers if they exist in original request
+    const rangeHeader = request.headers.get('range');
+    if (rangeHeader) {
+      headers.set('Range', rangeHeader);
+    }
+
+    const acceptLang = request.headers.get('accept-language');
+    if (acceptLang) {
+      headers.set('Accept-Language', acceptLang);
+    }
+
+    let response = null;
+    let finalTargetUrl = targetUrl;
+    const isAynaott = targetUrl.includes('aynaott.com');
+    const channelKey = getChannelKey(targetUrl);
+
+    if (isAynaott && channelKey && resolvedSubdomains[channelKey]) {
+      try {
+        const u = new URL(targetUrl);
+        u.host = resolvedSubdomains[channelKey];
+        finalTargetUrl = u.toString();
+      } catch {}
+    }
+
+    // Try initial request
+    try {
+      response = await fetch(finalTargetUrl, {
+        method: request.method,
+        headers: headers,
+        redirect: 'follow',
+      });
+    } catch (e) {
+      response = null;
+    }
+
+    // If it fails or returns 404 or 403, and it's aynaott, resolve and auto-fall-back!
+    if (isAynaott && channelKey && (!response || response.status === 404 || response.status === 403)) {
+      console.log(`Smart Cloudflare proxy adjusting dead subdomain for channel: ${channelKey}`);
+      let resolvedUrl = '';
+      
+      for (const subdomain of subdomainsToTry) {
+        try {
+          const u = new URL(targetUrl);
+          u.host = `${subdomain}.aynaott.com`;
+          const testUrl = u.toString();
+          
+          const testResponse = await fetch(testUrl, {
+            method: request.method,
+            headers: headers,
+            redirect: 'follow',
+          });
+          
+          if (testResponse && testResponse.status === 200) {
+            console.log(`Successfully auto-resolved ${channelKey} to ${subdomain}.aynaott.com in Cloudflare Worker`);
+            resolvedSubdomains[channelKey] = `${subdomain}.aynaott.com`;
+            resolvedUrl = testUrl;
+            response = testResponse;
+            break;
+          }
+        } catch (err) {
+          console.error(`Cloudflare subdomain ${subdomain} test error:`, err);
+        }
+      }
+
+      if (resolvedUrl) {
+        finalTargetUrl = resolvedUrl;
+      }
+    }
+
+    if (!response) {
+      return new Response('Error connecting to target stream host', { status: 502 });
+    }
 
     const contentType = response.headers.get('content-type') || '';
-    const isM3u8 = targetUrl.toLowerCase().includes('.m3u8') || 
+    const isM3u8 = finalTargetUrl.toLowerCase().includes('.m3u8') || 
                    contentType.includes('mpegurl') || 
                    contentType.includes('x-mpegURL');
 
@@ -58,12 +142,12 @@ export async function onRequest(context) {
                try {
                  let absoluteUrl = p1;
                  if (!p1.startsWith('http')) {
-                   const urlObj = new URL(targetUrl);
+                   const urlObj = new URL(finalTargetUrl);
                    const basePath = urlObj.pathname.substring(0, urlObj.pathname.lastIndexOf('/') + 1);
                    absoluteUrl = urlObj.origin + basePath + p1;
                  }
                  if (absoluteUrl.includes('/api/proxy?url=')) return match;
-                 return `URI="/api/proxy?url=${encodeURIComponent(absoluteUrl)}"`;
+                 return `URI="/api/proxy?url=${encodeURIComponent(absoluteUrl)}${proxyParams}"`;
                } catch (e) { return match; }
              });
           }
@@ -73,12 +157,12 @@ export async function onRequest(context) {
         let absoluteUrl = trimmed;
         try {
           if (!trimmed.startsWith('http')) {
-            const urlObj = new URL(targetUrl);
+            const urlObj = new URL(finalTargetUrl);
             const basePath = urlObj.pathname.substring(0, urlObj.pathname.lastIndexOf('/') + 1);
             absoluteUrl = urlObj.origin + basePath + trimmed;
           }
           if (absoluteUrl.includes('/api/proxy?url=')) return line;
-          return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}`;
+          return `/api/proxy?url=${encodeURIComponent(absoluteUrl)}${proxyParams}`;
         } catch (e) {
           return line;
         }

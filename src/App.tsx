@@ -5,15 +5,17 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Hls from 'hls.js';
+import mpegts from 'mpegts.js';
+import * as dashjs from 'dashjs';
 import { Play, Pause, Search, Menu, Tv, Globe, X, Volume2, VolumeX, RefreshCw, Copy, Check, ChevronDown, 
   Star, Heart, Languages, LayoutGrid, List, Flame, Radio, Bookmark, Tv2, Maximize, Minimize, 
   SkipForward, SkipBack, Expand, AppWindow, Tv2 as TvIcon, MoreVertical, Send, ThumbsUp, ThumbsDown, 
-  Share, Users, MessageSquare, Home, Compass, Settings, Clock, Cast, Bell, PictureInPicture, LogIn, LogOut, User
+  Share, Users, MessageSquare, Home, Compass, Settings, Clock, Cast, Bell, PictureInPicture
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { auth, db, signInWithGoogle, logout } from './firebase';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { doc, getDoc, setDoc, onSnapshot, collection, query, where, orderBy, addDoc, serverTimestamp, limit, deleteDoc } from 'firebase/firestore';
+import Sidebar from './components/Sidebar';
+import { Channel } from './types';
+import { getCountryFlag, formatCountryName } from './utils';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -22,15 +24,6 @@ interface BeforeInstallPromptEvent extends Event {
     platform: string;
   }>;
   prompt(): Promise<void>;
-}
-
-interface Channel {
-  name: string;
-  url: string;
-  urls?: string[];
-  logo?: string;
-  source?: string;
-  country?: string;
 }
 
 const SWUpdatePrompt = ({ onUpdate }: { onUpdate: () => void }) => {
@@ -171,41 +164,6 @@ const TRANSLATIONS = {
   }
 };
 
-const getCountryFlag = (code: string) => {
-  if (!code || code.length !== 2) return '🌐';
-  const flags: Record<string, string> = {
-    bd: '🇧🇩', in: '🇮🇳', us: '🇺🇸', ca: '🇨🇦', gb: '🇬🇧', de: '🇩🇪',
-    fr: '🇫🇷', es: '🇪🇸', it: '🇮🇹', au: '🇦🇺', jp: '🇯🇵', kr: '🇰🇷',
-    br: '🇧🇷', ar: '🇦🇷', mx: '🇲🇽', za: '🇿🇦', tr: '🇹🇷', cn: '🇨🇳', pk: '🇵🇰',
-    uk: '🇬🇧'
-  };
-  const lower = code.toLowerCase();
-  if (flags[lower]) return flags[lower];
-  try {
-    const codePoints = lower
-      .split('')
-      .map(char => 127397 + char.charCodeAt(0));
-    return String.fromCodePoint(...codePoints);
-  } catch (e) {
-    return '🌐';
-  }
-};
-
-const formatCountryName = (filename: string) => {
-  try {
-    const parts = filename.split('_');
-    const code = parts[0].toUpperCase();
-    let name = code;
-    if (typeof Intl !== 'undefined' && Intl.DisplayNames) {
-      const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-      name = regionNames.of(code) || code;
-    }
-    return name;
-  } catch (e) {
-    return filename.toUpperCase();
-  }
-};
-
 const getDeterministicViewers = (name: string) => {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -252,7 +210,7 @@ const ChannelCard = React.memo(({
       <div className="flex space-x-3 px-1">
          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-600 to-blue-700 border border-white/10 flex items-center justify-center shrink-0 shadow-lg pointer-events-none">
             <div className="relative">
-              <User className="w-5 h-5 text-white" />
+              <Tv className="w-5 h-5 text-white" />
               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-[#0f0f0f] flex items-center justify-center">
                 <Check className="w-2 h-2 text-white" strokeWidth={5} />
               </div>
@@ -285,250 +243,6 @@ const ChannelCard = React.memo(({
               </button>
             </div>
          </div>
-      </div>
-    </div>
-  );
-});
-
-const SidebarContent = React.memo(({ 
-  isSidebarOpen, 
-  setIsSidebarOpen, 
-  setActiveTab, 
-  activeTab, 
-  setCurrentChannel, 
-  currentChannel, 
-  t, 
-  lang, 
-  user, 
-  logout, 
-  handleLogin, 
-  setIsCountryModalOpen, 
-  selectedCountry, 
-  deferredPrompt, 
-  handleInstallApp,
-  streamMode,
-  setStreamMode,
-  customProxyUrl,
-  setCustomProxyUrl,
-  proxyHost,
-  setProxyHost,
-  proxyPort,
-  setProxyPort,
-  proxyType,
-  setProxyType
-}: {
-  isSidebarOpen: boolean,
-  setIsSidebarOpen: (o: boolean) => void,
-  setActiveTab: (t: any) => void,
-  activeTab: string,
-  setCurrentChannel: (c: any) => void,
-  currentChannel: any,
-  t: any,
-  lang: string,
-  user: any,
-  logout: () => void,
-  handleLogin: () => void,
-  setIsCountryModalOpen: (o: boolean) => void,
-  selectedCountry: string,
-  deferredPrompt: any,
-  handleInstallApp: () => void,
-  streamMode: string,
-  setStreamMode: (m: any) => void,
-  customProxyUrl: string,
-  setCustomProxyUrl: (u: string) => void,
-  proxyHost: string,
-  setProxyHost: (h: string) => void,
-  proxyPort: string,
-  setProxyPort: (p: string) => void,
-  proxyType: string,
-  setProxyType: (t: any) => void
-}) => {
-  const [isClearing, setIsClearing] = useState(false);
-
-  const clearAppCache = async () => {
-    setIsClearing(true);
-    try {
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (const registration of registrations) {
-          await registration.unregister();
-        }
-      }
-      if ('caches' in window) {
-        const cacheKeys = await caches.keys();
-        for (const key of cacheKeys) {
-          await caches.delete(key);
-        }
-      }
-      localStorage.clear();
-      sessionStorage.clear();
-    } catch (err) {
-      console.error('Failed to clear cache:', err);
-    }
-    window.location.reload();
-  };
-
-  return (
-    <div className="flex flex-col h-full bg-[#0f0f0f] w-64 text-zinc-200">
-      <div className="hidden lg:flex items-center px-4 h-14 shrink-0 justify-between">
-        <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-zinc-800 rounded-full cursor-pointer lg:hidden">
-          <Menu className="w-6 h-6" />
-        </button>
-      </div>
-      
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 py-3">
-        <div className="px-3 space-y-1">
-          <button onClick={() => { setActiveTab('all'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'all' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
-            <Home className={`w-5 h-5 ${activeTab === 'all' && !currentChannel ? 'fill-current' : ''}`} />
-            <span className="text-sm">{t.home}</span>
-          </button>
-          
-          <button onClick={() => { setActiveTab('sports'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'sports' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
-            <Flame className={`w-5 h-5 ${activeTab === 'sports' && !currentChannel ? 'fill-current' : ''}`} />
-            <span className="text-sm">{t.sports}</span>
-          </button>
-          
-          <button onClick={() => { setActiveTab('fifa'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'fifa' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
-            <Globe className={`w-5 h-5 ${activeTab === 'fifa' && !currentChannel ? 'text-indigo-500' : ''}`} />
-            <span className="text-sm font-bold text-indigo-400">{t.fifa}</span>
-          </button>
-
-          <button onClick={() => { setActiveTab('news'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'news' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
-            <Radio className="w-5 h-5" />
-            <span className="text-sm">{t.news}</span>
-          </button>
-        </div>
-
-        <div className="my-3 border-t border-zinc-800 pt-3">
-          <div className="px-6 mb-2 text-base font-bold text-white flex items-center">{lang==='en'?'You':'আপনি'}</div>
-          <div className="px-3 space-y-1">
-            <button onClick={() => { setActiveTab('favorites'); setCurrentChannel(null); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg cursor-pointer ${activeTab === 'favorites' && !currentChannel ? 'bg-zinc-800 font-bold text-white' : 'hover:bg-zinc-800'}`}>
-              <Bookmark className={`w-5 h-5 ${activeTab === 'favorites' && !currentChannel ? 'fill-current' : ''}`} />
-              <span className="text-sm">{t.favorites}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="my-3 border-t border-zinc-800 pt-3">
-          <div className="px-3 space-y-1">
-            {user ? (
-              <button onClick={() => logout()} className="w-full flex items-center space-x-4 px-3 py-2.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg cursor-pointer">
-                {user.photoURL ? <img src={user.photoURL} alt="User" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full" /> : <LogOut className="w-5 h-5" />}
-                <span className="text-sm truncate">Logout ({user.displayName || user.email})</span>
-              </button>
-            ) : (
-              <button onClick={handleLogin} className="w-full flex items-center space-x-4 px-3 py-2.5 hover:bg-zinc-800 text-indigo-400 hover:text-indigo-300 rounded-lg cursor-pointer">
-                <LogIn className="w-5 h-5" />
-                <span className="text-sm">Sign in with Google</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="my-3 border-t border-zinc-800 pt-3">
-          <div className="px-6 mb-2 text-base font-bold text-white">{t.explore}</div>
-          <div className="px-3 space-y-1">
-            <button onClick={() => {setIsCountryModalOpen(true); if(window.innerWidth < 1024) setIsSidebarOpen(false);}} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-zinc-800 cursor-pointer">
-              <div className="flex items-center space-x-4">
-                <Globe className="w-5 h-5" />
-                <span className="text-sm truncate max-w-[120px]">{formatCountryName(selectedCountry)}</span>
-              </div>
-              <ChevronDown className="w-4 h-4 text-zinc-400" />
-            </button>
-          </div>
-        </div>
-
-        {deferredPrompt && (
-          <div className="my-3 border-t border-zinc-800 pt-3">
-            <div className="px-6 mb-2 text-sm font-bold text-teal-400 uppercase tracking-widest">{lang === 'en' ? 'Get the App' : 'অ্যাপ ইন্সটল করুন'}</div>
-            <div className="px-3">
-              <button 
-                onClick={handleInstallApp}
-                className="w-full flex items-center space-x-3 px-3 py-2.5 bg-teal-600/10 text-teal-300 hover:bg-teal-600/20 border border-teal-500/20 rounded-lg cursor-pointer transition-all active:scale-95 duration-150"
-              >
-                <AppWindow className="w-5 h-5 text-teal-400" />
-                <span className="text-xs font-bold uppercase tracking-wider">{lang === 'en' ? 'Install App' : 'ইন্সটল করুন'}</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="my-3 border-t border-zinc-800 pt-3">
-          <div className="px-6 mb-2 text-xs font-bold text-zinc-500 uppercase tracking-widest">{lang === 'en' ? 'Connection Settings' : 'কানেকশন সেটিংস'}</div>
-          <div className="px-3 space-y-2">
-            <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
-              <label className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-2">
-                {lang === 'en' ? 'Mode' : 'মোড'}
-              </label>
-              <div className="grid grid-cols-3 gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
-                <button onClick={() => setStreamMode('direct')} className={`py-1.5 text-[10px] font-bold rounded-md transition-all ${streamMode === 'direct' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                  {lang === 'en' ? 'Direct' : 'সরাসরি'}
-                </button>
-                <button onClick={() => setStreamMode('proxy')} className={`py-1.5 text-[10px] font-bold rounded-md transition-all ${streamMode === 'proxy' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                   {lang === 'en' ? 'App' : 'অ্যাপ'}
-                </button>
-                <button onClick={() => setStreamMode('custom')} className={`py-1.5 text-[10px] font-bold rounded-md transition-all ${streamMode === 'custom' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                   {lang === 'en' ? 'Custom' : 'নিজস্ব'}
-                </button>
-              </div>
-
-              {streamMode === 'custom' && (
-                <div className="mt-3 space-y-2 animate-in slide-in-from-top-1 duration-200">
-                  <div className="flex items-center bg-zinc-950 border border-zinc-800 rounded-lg p-0.5">
-                    <button onClick={() => setProxyType('socks5')} className={`flex-1 py-1 text-[9px] font-bold rounded transition-colors ${proxyType === 'socks5' ? 'bg-zinc-800 text-indigo-400' : 'text-zinc-600'}`}>SOCKS5</button>
-                    <button onClick={() => setProxyType('http')} className={`flex-1 py-1 text-[9px] font-bold rounded transition-colors ${proxyType === 'http' ? 'bg-zinc-800 text-indigo-400' : 'text-zinc-600'}`}>HTTP/S</button>
-                    <button onClick={() => setProxyType('url' as any)} className={`flex-1 py-1 text-[9px] font-bold rounded transition-colors ${proxyType === ('url' as any) ? 'bg-zinc-800 text-indigo-400' : 'text-zinc-600'}`}>URL</button>
-                  </div>
-
-                  {(proxyType as any) === 'url' ? (
-                    <input 
-                      type="text" 
-                      placeholder="https://proxy.com/?url="
-                      value={customProxyUrl}
-                      onChange={(e) => setCustomProxyUrl(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-[10px] text-white outline-none focus:border-indigo-500"
-                    />
-                  ) : (
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="IP / Host"
-                        value={proxyHost}
-                        onChange={(e) => setProxyHost(e.target.value)}
-                        className="flex-[3] bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-[10px] text-white outline-none focus:border-indigo-500"
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Port"
-                        value={proxyPort}
-                        onChange={(e) => setProxyPort(e.target.value)}
-                        className="flex-1 bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 text-[10px] text-white outline-none focus:border-indigo-500 text-center"
-                      />
-                    </div>
-                  )}
-                  <p className="text-[9px] text-zinc-500 leading-tight italic">
-                    {lang === 'en' ? 'Add IP:Port proxy details here.' : 'এখানে আইপি এবং পোর্ট প্রক্সি তথ্য দিন।'}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="my-3 border-t border-zinc-800 pt-3">
-          <div className="px-6 mb-2 text-xs font-bold text-zinc-500 uppercase tracking-widest">{lang === 'en' ? 'System' : 'সিস্টেম'}</div>
-          <div className="px-3">
-            <button 
-              onClick={clearAppCache}
-              disabled={isClearing}
-              className="w-full flex items-center space-x-4 px-3 py-2.5 rounded-lg text-zinc-400 hover:bg-red-950/20 hover:text-red-400 border border-transparent hover:border-red-900/30 font-medium transition-all duration-200 cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={`w-5 h-5 ${isClearing ? 'animate-spin text-red-500' : ''}`} />
-              <span className="text-sm">{isClearing ? (lang === 'en' ? 'Clearing...' : 'পরিষ্কার ও রিলোড হচ্ছে...') : (lang === 'en' ? 'Force Refresh / Clear Cache' : 'ক্যাশ বাফার মুছুন (পুনরায় লোড)')}</span>
-            </button>
-          </div>
-        </div>
-
       </div>
     </div>
   );
@@ -642,8 +356,13 @@ export default function App() {
               // Direct fallback (Express backend proxy)
               const apiRes = await fetch(`/api/search?q=${encodeURIComponent(debouncedSearch)}`);
               if (apiRes.ok) {
-                const data = await apiRes.json();
-                setUniversalSearchResults(data);
+                const data: Channel[] = await apiRes.json();
+                const filteredData = data.filter((ch: Channel) => {
+                  const s = ch.source || '1';
+                  const isEnabled = s === '1' ? isServer1Enabled : isServer2Enabled;
+                  return isEnabled || ch.name.toLowerCase().includes('bein sports 1');
+                });
+                setUniversalSearchResults(filteredData);
                 setIsSearchingGlobally(false);
                 return;
               }
@@ -657,8 +376,14 @@ export default function App() {
             ch.name.toLowerCase().includes(queryStr) || 
             (ch.country && ch.country.toLowerCase().includes(queryStr))
           );
+
+          const filteredResults = results.filter(ch => {
+            const s = ch.source || '1';
+            const isEnabled = s === '1' ? isServer1Enabled : isServer2Enabled;
+            return isEnabled || ch.name.toLowerCase().includes('bein sports 1');
+          });
           
-          results.sort((a, b) => {
+          filteredResults.sort((a, b) => {
             const aLower = a.name.toLowerCase();
             const bLower = b.name.toLowerCase();
             const cleanQuery = queryStr.replace(/[^a-z0-9]/g, '');
@@ -686,23 +411,28 @@ export default function App() {
             return a.name.localeCompare(b.name);
           });
 
-          setUniversalSearchResults(results);
+          setUniversalSearchResults(filteredResults);
         } else {
           setUniversalSearchResults([]);
         }
       } catch (err) {
         console.error("Global search index failed, falling back to API:", err);
-        try {
-          const apiRes = await fetch(`/api/search?q=${encodeURIComponent(debouncedSearch)}`);
-          if (apiRes.ok) {
-            const data = await apiRes.json();
-            setUniversalSearchResults(data);
-          } else {
+          try {
+            const apiRes = await fetch(`/api/search?q=${encodeURIComponent(debouncedSearch)}`);
+            if (apiRes.ok) {
+              const data: Channel[] = await apiRes.json();
+              const filteredData = data.filter((ch: Channel) => {
+                const s = ch.source || '1';
+                const isEnabled = s === '1' ? isServer1Enabled : isServer2Enabled;
+                return isEnabled || ch.name.toLowerCase().includes('bein sports 1');
+              });
+              setUniversalSearchResults(filteredData);
+            } else {
+              setUniversalSearchResults([]);
+            }
+          } catch (e) {
             setUniversalSearchResults([]);
           }
-        } catch (e) {
-          setUniversalSearchResults([]);
-        }
       } finally {
         setIsSearchingGlobally(false);
       }
@@ -720,20 +450,50 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [errorMsg, setErrorMsg] = useState(false);
   const [playerError, setPlayerError] = useState<'none' | 'no-internet' | 'stream-error'>('none');
+  const [playerDiagnostics, setPlayerDiagnostics] = useState<{
+    originalUrl: string;
+    resolvedUrl: string;
+    format: string;
+    mode: string;
+    time: string;
+  } | null>(null);
+  const [copiedErrorUrl, setCopiedErrorUrl] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [streamMode, setStreamMode] = useState<'proxy' | 'direct' | 'custom'>('direct');
   const [customProxyUrl, setCustomProxyUrl] = useState<string>('');
   const [proxyHost, setProxyHost] = useState<string>('');
   const [proxyPort, setProxyPort] = useState<string>('');
-  const [proxyType, setProxyType] = useState<'socks5' | 'http'>('socks5');
+  const [proxyType, setProxyType] = useState<'socks5' | 'http' | 'url'>('socks5');
+  const [userAgent, setUserAgent] = useState<string>('');
+  const [referer, setReferer] = useState<string>('');
   const [lang, setLang] = useState<'en' | 'bn'>('en');
+  const [isServer1Enabled, setIsServer1Enabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('isServer1Enabled');
+    return saved !== null ? saved === 'true' : false;
+  });
+  const [isServer2Enabled, setIsServer2Enabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('isServer2Enabled');
+    return saved !== null ? saved === 'true' : false;
+  });
+  const [isServer3Enabled, setIsServer3Enabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('isServer3Enabled');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('isServer1Enabled', String(isServer1Enabled));
+    localStorage.setItem('isServer2Enabled', String(isServer2Enabled));
+    localStorage.setItem('isServer3Enabled', String(isServer3Enabled));
+  }, [isServer1Enabled, isServer2Enabled, isServer3Enabled]);
+
   const [validationStatus, setValidationStatus] = useState<'checking' | 'direct' | 'fallback-local' | 'fallback-public' | 'failed'>('checking');
   const [validationDetails, setValidationDetails] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'sports' | 'news' | 'fifa'>('all');
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [isClosingMiniPlayer, setIsClosingMiniPlayer] = useState(false);
 
-  const [user, loadingAuth] = useAuthState(auth);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const user = null;
+  const loadingAuth = false;
   const [favorites, setFavorites] = useState<Channel[]>([]);
   const [deadChannels, setDeadChannels] = useState<Set<string>>(new Set());
 
@@ -754,14 +514,10 @@ export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const dashRef = useRef<any>(null);
+  const mpegtsRef = useRef<any>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
-  const chatScrollRefMobile = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  const [chatMessages, setChatMessages] = useState<{id?: string, user: string, userPhoto?: string, text: string, time: string}[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [isChatExpanded, setIsChatExpanded] = useState<boolean>(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -949,17 +705,6 @@ export default function App() {
     setDeferredPrompt(null);
   };
 
-  const handleFirestoreError = (error: any, operation: string, path: string) => {
-    const errInfo = {
-      error: error?.message || String(error),
-      operation,
-      path,
-      uid: user?.uid,
-      time: new Date().toISOString()
-    };
-    console.error('Firestore Error:', JSON.stringify(errInfo));
-  };
-
   useEffect(() => {
     if (currentChannel) {
       // Create a deterministic base like/dislike count
@@ -967,96 +712,36 @@ export default function App() {
       setBaseLikes(Math.floor(seed * 2.5) % 15000 + 500);
       setBaseDislikes(Math.floor(seed * 0.3) % 500);
       setUserInteraction(null);
-      
-      const safeChannelId = btoa(currentChannel.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-      
-      if (user) {
-        const intRef = doc(db, 'users', user.uid, 'interactions', safeChannelId);
-        getDoc(intRef).then(d => {
-          if (d.exists()) {
-             setUserInteraction(d.data().type);
-          }
-        });
-      }
-      
-      // Load Chat Messages
-      const q = query(collection(db, 'messages'), where('channelId', '==', safeChannelId), limit(100));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const msgs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data() as any}));
-        msgs.sort((a,b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
-        setChatMessages(msgs.map(m => ({
-           id: m.id,
-           user: m.userName,
-           userPhoto: m.userPhoto,
-           text: m.text,
-           time: m.createdAt ? new Date(m.createdAt.toMillis()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
-        })));
-      }, (error) => {
-        handleFirestoreError(error, 'LIST', 'messages');
-      });
-      return () => unsubscribe();
     }
-  }, [currentChannel, user]);
+  }, [currentChannel]);
 
-  const handleInteraction = async (type: 'like' | 'dislike') => {
-     if (!user) {
-        handleLogin();
-        return;
-     }
+  const handleInteraction = (type: 'like' | 'dislike') => {
      if (!currentChannel) return;
-     const safeChannelId = btoa(currentChannel.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-     const intRef = doc(db, 'users', user.uid, 'interactions', safeChannelId);
-     
      if (userInteraction === type) {
-        await deleteDoc(intRef);
         setUserInteraction(null);
      } else {
-        await setDoc(intRef, { channelId: safeChannelId, type });
         setUserInteraction(type);
      }
   };
 
   useEffect(() => {
-    if (user) {
-      const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.favorites) {
-            // Prevent redundant state updates if they are already deep equal
-            if (JSON.stringify(data.favorites) !== JSON.stringify(favorites)) {
-              setFavorites(data.favorites);
-            }
-          }
-          if (data.deadChannels) {
-            const newDead = new Set<string>(data.deadChannels);
-            if (newDead.size !== deadChannels.size || ![...newDead].every(url => deadChannels.has(url))) {
-               setDeadChannels(newDead);
-            }
-          }
-        }
-      }, (error) => {
-        handleFirestoreError(error, 'GET', `users/${user.uid}`);
-      });
-      return unsubscribe;
-    } else {
-      try {
-        const saved = localStorage.getItem('iptv_favorites');
-        if (saved) setFavorites(JSON.parse(saved));
-        const savedDead = localStorage.getItem('iptv_dead_channels');
-        if (savedDead) setDeadChannels(new Set(JSON.parse(savedDead)));
-        const savedMode = localStorage.getItem('iptv_stream_mode');
-        if (savedMode === 'proxy' || savedMode === 'direct' || savedMode === 'custom') setStreamMode(savedMode as any);
-        const savedProxy = localStorage.getItem('iptv_custom_proxy');
-        if (savedProxy) setCustomProxyUrl(savedProxy);
-        const savedHost = localStorage.getItem('iptv_proxy_host');
-        if (savedHost) setProxyHost(savedHost);
-        const savedPort = localStorage.getItem('iptv_proxy_port');
-        if (savedPort) setProxyPort(savedPort);
-        const savedType = localStorage.getItem('iptv_proxy_type');
-        if (savedType === 'socks5' || savedType === 'http') setProxyType(savedType);
-      } catch { }
-    }
-  }, [user]);
+    try {
+      const saved = localStorage.getItem('iptv_favorites');
+      if (saved) setFavorites(JSON.parse(saved));
+      const savedDead = localStorage.getItem('iptv_dead_channels');
+      if (savedDead) setDeadChannels(new Set(JSON.parse(savedDead)));
+      const savedMode = localStorage.getItem('iptv_stream_mode');
+      if (savedMode === 'proxy' || savedMode === 'direct' || savedMode === 'custom') setStreamMode(savedMode as any);
+      const savedProxy = localStorage.getItem('iptv_custom_proxy');
+      if (savedProxy) setCustomProxyUrl(savedProxy);
+      const savedHost = localStorage.getItem('iptv_proxy_host');
+      if (savedHost) setProxyHost(savedHost);
+      const savedPort = localStorage.getItem('iptv_proxy_port');
+      if (savedPort) setProxyPort(savedPort);
+      const savedType = localStorage.getItem('iptv_proxy_type');
+      if (savedType === 'socks5' || savedType === 'http') setProxyType(savedType);
+    } catch { }
+  }, []);
 
   // Sync Media Session API for system controls and background PiP support
   useEffect(() => {
@@ -1097,29 +782,14 @@ export default function App() {
 
   // Combined Sync effect to avoid multiple writes
   useEffect(() => {
-    if (user) {
-      const docRef = doc(db, 'users', user.uid);
-      setDoc(docRef, { 
-        favorites, 
-        deadChannels: [...deadChannels],
-        streamMode,
-        customProxyUrl,
-        proxyHost,
-        proxyPort,
-        proxyType
-      }, { merge: true }).catch(err => {
-        handleFirestoreError(err, 'WRITE', `users/${user.uid}`);
-      });
-    } else {
-      localStorage.setItem('iptv_favorites', JSON.stringify(favorites));
-      localStorage.setItem('iptv_dead_channels', JSON.stringify([...deadChannels]));
-      localStorage.setItem('iptv_stream_mode', streamMode);
-      localStorage.setItem('iptv_custom_proxy', customProxyUrl);
-      localStorage.setItem('iptv_proxy_host', proxyHost);
-      localStorage.setItem('iptv_proxy_port', proxyPort);
-      localStorage.setItem('iptv_proxy_type', proxyType);
-    }
-  }, [favorites, deadChannels, streamMode, customProxyUrl, proxyHost, proxyPort, proxyType, user]);
+    localStorage.setItem('iptv_favorites', JSON.stringify(favorites));
+    localStorage.setItem('iptv_dead_channels', JSON.stringify([...deadChannels]));
+    localStorage.setItem('iptv_stream_mode', streamMode);
+    localStorage.setItem('iptv_custom_proxy', customProxyUrl);
+    localStorage.setItem('iptv_proxy_host', proxyHost);
+    localStorage.setItem('iptv_proxy_port', proxyPort);
+    localStorage.setItem('iptv_proxy_type', proxyType);
+  }, [favorites, deadChannels, streamMode, customProxyUrl, proxyHost, proxyPort, proxyType]);
 
   useEffect(() => {
     if (currentChannel) {
@@ -1213,20 +883,37 @@ export default function App() {
       return true;
     });
 
-    setFilteredChannels(uniqueList);
-  }, [debouncedSearch, channels, favorites, activeTab]);
+    const finalFilteredList = uniqueList.filter(c => {
+      if (c.source === '1' && isServer1Enabled) return true;
+      if (c.source === '2' && isServer2Enabled) return true;
+      if (c.source === '3' && isServer3Enabled) return true;
+      
+      // Keep bein sports 1 channels visible
+      if (c.name.toLowerCase().includes('bein sports 1')) {
+        return true;
+      }
+      return false;
+    });
+
+    setFilteredChannels(finalFilteredList);
+  }, [debouncedSearch, channels, favorites, activeTab, isServer1Enabled, isServer2Enabled, isServer3Enabled]);
 
   const sortedFilteredChannels = React.useMemo(() => {
     let sorted = [...filteredChannels];
     
     // For FIFA, prioritze specific channel keywords if they exist
     if (activeTab === 'fifa') {
-      const priorityKeywords = ['fifa', 'world cup', 'plus', 'star'];
+      const priorityKeywords = ['fifa', 'world cup', 'fwc', 'plus', 'star'];
       sorted.sort((a, b) => {
         const isA_beIn1 = a.name.toLowerCase().includes('bein sports 1');
         const isB_beIn1 = b.name.toLowerCase().includes('bein sports 1');
         if (isA_beIn1 && !isB_beIn1) return -1;
         if (!isA_beIn1 && isB_beIn1) return 1;
+
+        const isA_TSports = a.name.toLowerCase().includes('t sports') || a.name.toLowerCase().includes('tsports');
+        const isB_TSports = b.name.toLowerCase().includes('t sports') || b.name.toLowerCase().includes('tsports');
+        if (isA_TSports && !isB_TSports) return -1;
+        if (!isA_TSports && isB_TSports) return 1;
 
         const aPriority = priorityKeywords.some(k => a.name.toLowerCase().includes(k)) ? 0 : 1;
         const bPriority = priorityKeywords.some(k => b.name.toLowerCase().includes(k)) ? 0 : 1;
@@ -1283,14 +970,7 @@ export default function App() {
     return () => observerRef.current?.disconnect();
   }, [sortedFilteredChannels, visibleCount]);
 
-  useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    }
-    if (chatScrollRefMobile.current) {
-      chatScrollRefMobile.current.scrollTop = chatScrollRefMobile.current.scrollHeight;
-    }
-  }, [chatMessages]);
+
 
   useEffect(() => {
     const video = videoRef.current;
@@ -1421,149 +1101,164 @@ export default function App() {
       }
       
       setIsBuffering(true);
-      setValidationStatus('checking');
-      setValidationDetails(lang === 'en' ? 'Checking stream reachability...' : 'স্ট্রিমের স্থিতি পরীক্ষা করা হচ্ছে...');
+      setValidationStatus('direct');
+      setValidationDetails(lang === 'en' ? 'Direct playback active' : 'সরাসরি প্লেব্যাক সক্রিয়');
 
       const runLoader = async () => {
         const streamUrl = currentChannel.urls && currentChannel.urls[selectedServer] 
           ? currentChannel.urls[selectedServer] 
           : currentChannel.url;
 
-        const isHttpsPage = window.location.protocol === 'https:';
-        
-        let targetUrl = streamUrl;
-        let finalMode: 'direct' | 'local-proxy' | 'public-proxy' | 'alternative' = 'direct';
-        let status: 'direct' | 'fallback-local' | 'fallback-public' | 'failed' = 'direct';
-        let details = '';
-
-        // Helper function to fetch verify the endpoint in real-time
-        const checkDirectReachability = async (url: string): Promise<{ ok: boolean; reason?: 'CORS' | 'mixed-content' | 'timeout' | 'error' }> => {
-          if (isHttpsPage && url.startsWith('http:')) {
-            return { ok: false, reason: 'mixed-content' };
-          }
+        // Reset previous players
+        if (hlsRef.current) {
+          try { hlsRef.current.destroy(); } catch (e) {}
+          hlsRef.current = null;
+        }
+        if (dashRef.current) {
+          try { dashRef.current.reset(); } catch (e) {}
+          dashRef.current = null;
+        }
+        if (mpegtsRef.current) {
           try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000);
-            const res = await fetch(url, {
-              method: 'GET',
-              mode: 'cors',
-              headers: { 'Range': 'bytes=0-10' },
-              signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            return { ok: res.status >= 200 && res.status < 400 };
-          } catch (e: any) {
-            if (e.name === 'AbortError') return { ok: false, reason: 'timeout' };
-            return { ok: false, reason: 'CORS' };
-          }
-        };
+            mpegtsRef.current.unload();
+            mpegtsRef.current.detachMediaElement();
+            mpegtsRef.current.destroy();
+          } catch (e) {}
+          mpegtsRef.current = null;
+        }
 
-        // If 'proxy' or 'custom' mode is selected, default immediately to that proxy. Otherwise, check direct connectivity
-        if (streamMode === 'custom') {
-          if (customProxyUrl) {
+        const isHttpsPage = window.location.protocol === 'https:';
+        const headerParams = (userAgent ? `&userAgent=${encodeURIComponent(userAgent)}` : '') + 
+                             (referer ? `&referer=${encodeURIComponent(referer)}` : '');
+        const proxyConfigParams = (proxyHost && proxyPort ? `&proxyHost=${proxyHost}&proxyPort=${proxyPort}&proxyType=${proxyType}` : '');
+
+        let targetUrl = streamUrl;
+        let activeMode: 'direct' | 'proxy' | 'custom' = streamMode;
+
+        // Auto fallback to secure proxy for insecure http streams on an https page to bypass Mixed Content blocking
+        if (isHttpsPage && streamUrl.startsWith('http:') && activeMode === 'direct') {
+          activeMode = 'proxy';
+        }
+
+        if (activeMode === 'proxy') {
+          targetUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}${headerParams}${proxyConfigParams}`;
+        } else if (activeMode === 'custom') {
+          if (proxyType === 'url' && customProxyUrl) {
             targetUrl = `${customProxyUrl}${encodeURIComponent(streamUrl)}`;
           } else if (proxyHost && proxyPort) {
-            targetUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}&proxyHost=${proxyHost}&proxyPort=${proxyPort}&proxyType=${proxyType}`;
-          }
-          finalMode = 'alternative';
-          status = 'fallback-public';
-          details = lang === 'en' ? 'Routed via your custom proxy server.' : 'আপনার নিজস্ব কাস্টম প্রক্সির মাধ্যমে সংযোগ রাউট করা হয়েছে।';
-        } else if (streamMode === 'proxy') {
-          targetUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}`;
-          finalMode = 'local-proxy';
-          status = 'fallback-local';
-          details = lang === 'en' ? 'Manually routed via secure App Server Proxy.' : 'অ্যাপ সার্ভার প্রক্সির মাধ্যমে সংযোগ রাউট করা হয়েছে।';
-        } else {
-          let directCheck = await checkDirectReachability(streamUrl);
-          
-          if (directCheck.ok) {
-            targetUrl = streamUrl;
-            finalMode = 'direct';
-            status = 'direct';
-            details = lang === 'en' ? 'Direct connection successful (lightning fast ⚡)' : 'সরাসরি সংযোগ সফল (চমৎকার গতি ⚡)';
-          } else {
-            const reason = directCheck.reason || 'error';
-            let reasonMsg = reason === 'mixed-content' 
-              ? (lang === 'en' ? 'Mixed content block: HTTP stream on HTTPS page' : 'মিশ্র কনটেন্ট ব্লক: HTTPS পেজে HTTP স্ট্রিম')
-              : reason === 'CORS'
-              ? (lang === 'en' ? 'CORS restriction or network block' : 'CORS নিয়মাবলী বা নেটওয়ার্ক ব্লক')
-              : (lang === 'en' ? 'Stream offline or connection timeout' : 'স্ট্রিম অফলাইন বা সংযোগের সময় শেষ');
-
-            console.warn(`Direct stream test failed for ${streamUrl}. Reason: ${reason}. Activating fallback sequence...`);
-
-            // Fallback A: Try HTTPS upgrade first if it was a mixed-content block
-            let solvedByHttps = false;
-            if (reason === 'mixed-content') {
-              const upgradedHttpsUrl = streamUrl.replace('http:', 'https:');
-              const upgradedCheck = await checkDirectReachability(upgradedHttpsUrl);
-              if (upgradedCheck.ok) {
-                targetUrl = upgradedHttpsUrl;
-                finalMode = 'direct';
-                status = 'direct';
-                details = lang === 'en' ? 'HTTP upgraded to HTTPS (Direct playback ok 🔒)' : 'HTTP টিকে HTTPS-এ আপগ্রেড করা হয়েছে (ডাইরেক্ট প্লেব্যাক সফল 🔒)';
-                solvedByHttps = true;
-              }
-            }
-
-            if (!solvedByHttps) {
-              // Fallback B: Secure Local Express Proxy (Our powerful server-side bypass)
-              let useLocalProxy = false;
-              try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 1200);
-                const proxyRes = await fetch('/api/health', { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (proxyRes.ok) useLocalProxy = true;
-              } catch {
-                useLocalProxy = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-              }
-
-              if (useLocalProxy) {
-                targetUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}`;
-                finalMode = 'local-proxy';
-                status = 'fallback-local';
-                details = `${reasonMsg}. ` + (lang === 'en' ? 'Auto-routed via secure App Server Proxy.' : 'অ্যাপ সার্ভার প্রক্সির মাধ্যমে অটো-রাউট করা হয়েছে।');
-              } else {
-                // Fallback C: Public Known CORS Proxies (e.g. corsproxy.io)
-                const publicCorsProxy = `https://corsproxy.io/?url=${encodeURIComponent(streamUrl)}`;
-                targetUrl = publicCorsProxy;
-                finalMode = 'public-proxy';
-                status = 'fallback-public';
-                details = `${reasonMsg}. ` + (lang === 'en' ? 'Static Host: Routed via corsproxy.io bypass.' : 'স্ট্যাটিক হোস্ট: corsproxy.io এর মাধ্যমে অটো-রাউট করা হয়েছে।');
-              }
-            }
+            targetUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}${headerParams}${proxyConfigParams}`;
           }
         }
 
+        // Format detection helper on the original URL to keep extension metadata
+        const detectType = (url: string) => {
+          const lc = url.toLowerCase();
+          if (lc.includes('.mpd')) return 'dash';
+          if (lc.includes('.ts') || lc.includes('/ts/') || lc.match(/live\/[^/]+\/[^/]+\/\d+(\.ts)?$/)) return 'mpegts';
+          return 'hls';
+        };
+
+        const streamFormat = detectType(streamUrl);
+
         if (!active) return;
-        setValidationStatus(status);
-        setValidationDetails(details);
+
+        setPlayerDiagnostics({
+          originalUrl: streamUrl,
+          resolvedUrl: targetUrl,
+          format: streamFormat,
+          mode: activeMode,
+          time: new Date().toLocaleTimeString()
+        });
+
+        if (activeMode === 'proxy') {
+          setValidationStatus('fallback-local');
+          setValidationDetails(lang === 'en' ? 'Streaming via App secure Proxy...' : 'অ্যপ প্রক্সির মাধ্যমে স্ট্রিম হচ্ছে...');
+        } else if (activeMode === 'custom') {
+          setValidationStatus('fallback-public');
+          setValidationDetails(lang === 'en' ? 'Streaming via Custom Proxy...' : 'কাস্টম প্রক্সির মাধ্যমে স্ট্রিম হচ্ছে...');
+        } else {
+          setValidationStatus('direct');
+          setValidationDetails(lang === 'en' ? 'Direct playback active' : 'সরাসরি প্লেব্যাক সক্রিয়');
+        }
         
-        if (Hls.isSupported()) {
-          if (hlsRef.current) hlsRef.current.destroy();
-          const hls = new Hls({ 
-            maxBufferLength: 10, 
-            maxMaxBufferLength: 30,
-            enableWorker: true, 
-            lowLatencyMode: true,
-            backBufferLength: 30,
-            progressive: true,
-            fragLoadingTimeOut: 20000,
-            manifestLoadingTimeOut: 20000
-          });
-          hlsRef.current = hls;
-          hls.loadSource(targetUrl);
-          hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-            if (!active) return;
-            setQualityLevels([
-              { id: -1, label: 'Auto' },
-              ...hls.levels.map((level, index) => ({
-                id: index,
-                label: level.height ? `${level.height}p` : `Level ${index}`
-              }))
-            ]);
-            setCurrentQuality(hls.currentLevel);
+        if (streamFormat === 'hls') {
+          if (Hls.isSupported()) {
+            const hls = new Hls({ 
+              maxBufferLength: 10, 
+              maxMaxBufferLength: 30,
+              enableWorker: true, 
+              lowLatencyMode: true,
+              backBufferLength: 30,
+              progressive: true,
+              fragLoadingTimeOut: 20000,
+              manifestLoadingTimeOut: 20000
+            });
+            hlsRef.current = hls;
+            hls.loadSource(targetUrl);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+              if (!active) return;
+              setQualityLevels([
+                { id: -1, label: 'Auto' },
+                ...hls.levels.map((level, index) => ({
+                  id: index,
+                  label: level.height ? `${level.height}p` : `Level ${index}`
+                }))
+              ]);
+              setCurrentQuality(hls.currentLevel);
+              video.play()
+                .then(() => {
+                  if (active) {
+                    setIsPlaying(true);
+                    setIsBuffering(false);
+                  }
+                })
+                .catch((err) => {
+                  console.warn("Autoplay blocked or play failed:", err);
+                  if (active) {
+                    setIsPlaying(false);
+                    setIsBuffering(false);
+                    setShowControls(true);
+                  }
+                });
+            });
+            hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
+              if (!active) return;
+              if (hls.autoLevelEnabled) {
+                setCurrentQuality(-1);
+              } else {
+                setCurrentQuality(data.level);
+              }
+            });
+            hls.on(Hls.Events.ERROR, async (event, data) => {
+              if (data.fatal) {
+                if (!active) return;
+                setIsBuffering(false); 
+                hls.destroy(); 
+                
+                const isConnected = await checkIsInternetConnected();
+                if (!isConnected) {
+                  setPlayerError('no-internet');
+                } else {
+                  setPlayerError('stream-error');
+                  setErrorMsg(true); 
+                }
+              }
+            });
+          } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = targetUrl;
+            video.onerror = async () => {
+              if (!active) return;
+              setIsBuffering(false);
+              
+              const isConnected = await checkIsInternetConnected();
+              if (!isConnected) {
+                setPlayerError('no-internet');
+              } else {
+                setPlayerError('stream-error');
+                setErrorMsg(true);
+              }
+            };
             video.play()
               .then(() => {
                 if (active) {
@@ -1572,68 +1267,123 @@ export default function App() {
                 }
               })
               .catch((err) => {
-                console.warn("Autoplay blocked or play failed:", err);
+                console.warn("Native Autoplay blocked or play failed:", err);
                 if (active) {
                   setIsPlaying(false);
                   setIsBuffering(false);
                   setShowControls(true);
                 }
               });
-          });
-          hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
-            if (!active) return;
-            if (hls.autoLevelEnabled) {
-              setCurrentQuality(-1);
-            } else {
-              setCurrentQuality(data.level);
-            }
-          });
-          hls.on(Hls.Events.ERROR, async (event, data) => {
-            if (data.fatal) {
+          }
+        } else if (streamFormat === 'dash') {
+          try {
+            const player = dashjs.MediaPlayer().create();
+            dashRef.current = player;
+            player.initialize(video, targetUrl, true);
+            player.on(dashjs.MediaPlayer.events.PLAYBACK_PLAYING, () => {
+              if (active) {
+                setIsPlaying(true);
+                setIsBuffering(false);
+              }
+            });
+            player.on(dashjs.MediaPlayer.events.ERROR, async () => {
               if (!active) return;
-              setIsBuffering(false); 
-              hls.destroy(); 
-              
+              setIsBuffering(false);
               const isConnected = await checkIsInternetConnected();
               if (!isConnected) {
                 setPlayerError('no-internet');
               } else {
                 setPlayerError('stream-error');
-                setErrorMsg(true); 
-                setDeadChannels(prev => new Set(prev).add(currentChannel.url));
-              }
-            }
-          });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = targetUrl;
-          video.onerror = async () => {
-            if (!active) return;
-            setIsBuffering(false);
-            
-            const isConnected = await checkIsInternetConnected();
-            if (!isConnected) {
-              setPlayerError('no-internet');
-            } else {
-              setPlayerError('stream-error');
-              setErrorMsg(true);
-              setDeadChannels(prev => new Set(prev).add(currentChannel.url));
-            }
-          };
-          video.play()
-            .then(() => {
-              if (active) {
-                setIsPlaying(true);
-                setIsBuffering(false);
-              }
-            })
-            .catch((err) => {
-              console.warn("Native Autoplay blocked or play failed:", err);
-              if (active) {
-                setIsPlaying(false);
-                setIsBuffering(false);
-                setShowControls(true);
+                setErrorMsg(true);
               }
             });
+          } catch (e) {
+            console.error("DASH loading failed:", e);
+            setPlayerError('stream-error');
+          }
+        } else if (streamFormat === 'mpegts') {
+          try {
+            if (mpegts.getFeatureList().mseLivePlayback) {
+              const player = mpegts.createPlayer({
+                type: 'mpegts',
+                url: targetUrl,
+                isLive: true
+              });
+              mpegtsRef.current = player;
+              player.attachMediaElement(video);
+              player.load();
+              try {
+                const playPromise = player.play();
+                if (playPromise !== undefined) {
+                  playPromise
+                    .then(() => {
+                      if (active) {
+                        setIsPlaying(true);
+                        setIsBuffering(false);
+                      }
+                    })
+                    .catch((err: any) => {
+                      if (err?.name !== 'AbortError' && !err?.message?.includes('abort')) {
+                        console.warn("Mpegts play promise failed:", err);
+                      }
+                      if (active) {
+                        setIsPlaying(false);
+                        setIsBuffering(false);
+                      }
+                    });
+                } else {
+                  if (active) {
+                    setIsPlaying(true);
+                    setIsBuffering(false);
+                  }
+                }
+              } catch (playErr) {
+                console.warn("Mpegts immediate play failed:", playErr);
+              }
+
+              player.on(mpegts.Events.ERROR, async (type: any, detail: any, info: any) => {
+                console.error("Mpegts error:", type, detail, info);
+                if (!active) return;
+                setIsBuffering(false);
+                const isConnected = await checkIsInternetConnected();
+                if (!isConnected) {
+                  setPlayerError('no-internet');
+                } else {
+                  setPlayerError('stream-error');
+                  setErrorMsg(true);
+                }
+              });
+            } else {
+              // native TS stream fallback
+              video.src = targetUrl;
+              video.onerror = async () => {
+                if (!active) return;
+                setIsBuffering(false);
+                const isConnected = await checkIsInternetConnected();
+                if (!isConnected) {
+                  setPlayerError('no-internet');
+                } else {
+                  setPlayerError('stream-error');
+                  setErrorMsg(true);
+                }
+              };
+              video.play()
+                .then(() => {
+                  if (active) {
+                    setIsPlaying(true);
+                    setIsBuffering(false);
+                  }
+                })
+                .catch(() => {
+                  if (active) {
+                    setPlayerError('stream-error');
+                  }
+                });
+            }
+          } catch (e) {
+            console.error("MPEG-TS loading failed:", e);
+            setPlayerError('stream-error');
+          }
         }
       };
 
@@ -1642,8 +1392,20 @@ export default function App() {
       return () => {
         active = false;
         if (hlsRef.current) {
-          hlsRef.current.destroy();
+          try { hlsRef.current.destroy(); } catch (e) {}
           hlsRef.current = null;
+        }
+        if (dashRef.current) {
+          try { dashRef.current.reset(); } catch (e) {}
+          dashRef.current = null;
+        }
+        if (mpegtsRef.current) {
+          try {
+            mpegtsRef.current.unload();
+            mpegtsRef.current.detachMediaElement();
+            mpegtsRef.current.destroy();
+          } catch (e) {}
+          mpegtsRef.current = null;
         }
       };
     }
@@ -1957,40 +1719,7 @@ export default function App() {
 
   const sidebarVisibleClasses = isSidebarOpen ? 'translate-x-0' : '-translate-x-full';
   
-  const handleChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if(!chatInput.trim()) return;
-    if(!user) {
-      handleLogin();
-      return;
-    }
-    if(!currentChannel) return;
-    
-    const safeChannelId = btoa(currentChannel.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-    const msgText = chatInput;
-    setChatInput('');
-    
-    await addDoc(collection(db, 'messages'), {
-      channelId: safeChannelId,
-      uid: user.uid,
-      userName: user.displayName || 'Anonymous',
-      userPhoto: user.photoURL || '',
-      text: msgText,
-      createdAt: serverTimestamp()
-    });
-  };
-
-  const handleLogin = async () => {
-    if (isLoggingIn) return;
-    setIsLoggingIn(true);
-    try {
-      await signInWithGoogle();
-    } catch (err) {
-      console.error("Login failed:", err);
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
+  const handleLogin = () => {};
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2086,33 +1815,6 @@ export default function App() {
           <button className="p-2 hover:bg-zinc-800 rounded-full hidden sm:block">
             <Bell className="w-5 h-5" />
           </button>
-          
-          {user ? (
-            <div className="group relative ml-2">
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm cursor-pointer shadow-md border border-zinc-700 overflow-hidden">
-                 {user?.photoURL ? <img src={user.photoURL} referrerPolicy="no-referrer" alt="user" className="w-full h-full object-cover" /> : user?.displayName?.charAt(0) || 'U'}
-              </div>
-              {/* Dropdown for logout */}
-              <div className="absolute right-0 top-full mt-2 hidden group-hover:block bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl p-2 z-[100] min-w-[150px]">
-                 <div className="px-3 py-2 border-b border-zinc-700 mb-2">
-                   <p className="text-xs font-bold text-white truncate">{user?.displayName}</p>
-                   <p className="text-[10px] text-zinc-500 truncate">{user?.email}</p>
-                 </div>
-                 <button onClick={() => logout()} className="w-full flex items-center space-x-3 px-3 py-2 hover:bg-zinc-700 rounded-md text-sm text-zinc-300 transition-colors">
-                    <LogOut className="w-4 h-4" />
-                    <span>Sign Out</span>
-                 </button>
-              </div>
-            </div>
-          ) : (
-            <button 
-              onClick={handleLogin}
-              className="flex items-center gap-2 px-4 py-1.5 border border-zinc-800 hover:border-[#3ea6ff]/30 hover:bg-[#3ea6ff]/10 rounded-full transition-all duration-300 group"
-            >
-              <User className="w-5 h-5 text-[#3ea6ff] hidden xs:block sm:hidden" />
-              <span className="text-sm font-medium text-[#3ea6ff]">Sign in</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -2153,33 +1855,41 @@ export default function App() {
                   initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} transition={{ type: 'tween', duration: 0.2 }}
                   className={`absolute top-0 left-0 bottom-0 z-50 shadow-2xl lg:relative lg:z-10`}
                 >
-                  <SidebarContent 
-                    isSidebarOpen={isSidebarOpen}
-                    setIsSidebarOpen={setIsSidebarOpen}
-                    setActiveTab={setActiveTab}
-                    activeTab={activeTab}
-                    setCurrentChannel={setCurrentChannel}
-                    currentChannel={currentChannel}
-                    t={t}
-                    lang={lang}
-                    user={user}
-                    logout={logout}
-                    handleLogin={handleLogin}
-                    setIsCountryModalOpen={setIsCountryModalOpen}
-                    selectedCountry={selectedCountry}
-                    deferredPrompt={deferredPrompt}
-                    handleInstallApp={handleInstallApp}
-                    streamMode={streamMode}
-                    setStreamMode={setStreamMode}
-                    customProxyUrl={customProxyUrl}
-                    setCustomProxyUrl={setCustomProxyUrl}
-                    proxyHost={proxyHost}
-                    setProxyHost={setProxyHost}
-                    proxyPort={proxyPort}
-                    setProxyPort={setProxyPort}
-                    proxyType={proxyType}
-                    setProxyType={setProxyType}
-                  />
+                <Sidebar 
+                  isSidebarOpen={isSidebarOpen}
+                  setIsSidebarOpen={setIsSidebarOpen}
+                  setActiveTab={setActiveTab}
+                  activeTab={activeTab}
+                  setCurrentChannel={setCurrentChannel}
+                  currentChannel={currentChannel}
+                  t={t}
+                  lang={lang}
+
+                  setIsCountryModalOpen={setIsCountryModalOpen}
+                  selectedCountry={selectedCountry}
+                  deferredPrompt={deferredPrompt}
+                  handleInstallApp={handleInstallApp}
+                  streamMode={streamMode}
+                  setStreamMode={setStreamMode}
+                  customProxyUrl={customProxyUrl}
+                  setCustomProxyUrl={setCustomProxyUrl}
+                  proxyHost={proxyHost}
+                  setProxyHost={setProxyHost}
+                  proxyPort={proxyPort}
+                  setProxyPort={setProxyPort}
+                  proxyType={proxyType}
+                  setProxyType={setProxyType}
+                  userAgent={userAgent}
+                  setUserAgent={setUserAgent}
+                  referer={referer}
+                  setReferer={setReferer}
+                  isServer1Enabled={isServer1Enabled}
+                  setIsServer1Enabled={setIsServer1Enabled}
+                  isServer2Enabled={isServer2Enabled}
+                  setIsServer2Enabled={setIsServer2Enabled}
+                  isServer3Enabled={isServer3Enabled}
+                  setIsServer3Enabled={setIsServer3Enabled}
+                />
                 </motion.div>
              </>
           )}
@@ -2206,20 +1916,24 @@ export default function App() {
                  <span className="text-sm font-medium text-zinc-500 hidden sm:block">{displayChannelsList.length} {t.views.replace('views', 'streams')}</span>
               </div>
 
-              {activeTab === 'all' && (
+              {activeTab === 'all' && (isServer1Enabled || isServer2Enabled) && (
                 <div className="flex space-x-2 mb-6">
-                  <button 
-                    onClick={() => setServerSource('1')}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${serverSource === '1' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-                  >
-                    Server 1
-                  </button>
-                  <button 
-                    onClick={() => setServerSource('2')}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${serverSource === '2' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-                  >
-                    Server 2
-                  </button>
+                  {isServer1Enabled && (
+                    <button 
+                      onClick={() => setServerSource('1')}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${serverSource === '1' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                    >
+                      Server 1
+                    </button>
+                  )}
+                  {isServer2Enabled && (
+                    <button 
+                      onClick={() => setServerSource('2')}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${serverSource === '2' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                    >
+                      Server 2
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -2379,20 +2093,115 @@ export default function App() {
                   )}
 
                   {playerError === 'stream-error' && (
-                    <div className="absolute inset-0 z-30 flex flex-col justify-center items-center bg-zinc-950 px-6 text-center animate-fade-in">
-                      <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-full mb-4">
-                        <TvIcon className="w-12 h-12 text-zinc-500" />
+                    <div className="absolute inset-0 z-30 flex flex-col justify-center items-center bg-zinc-950 px-6 py-4 text-center overflow-y-auto animate-fade-in">
+                      <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-full mb-3 shrink-0">
+                        <TvIcon className="w-10 h-10 text-red-500" />
                       </div>
-                      <p className="text-white font-bold text-lg mb-2">{t.playbackError}</p>
-                      <button onClick={(e) => { e.stopPropagation(); setStreamMode(streamMode === 'proxy' ? 'direct' : 'proxy'); }} className="mt-4 px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-zinc-200 cursor-pointer shadow-lg active:scale-95 transition-transform">
-                        Use {streamMode === 'proxy' ? t.directMode : t.proxyMode}
-                      </button>
-                      <div className="mt-4 max-w-sm text-center px-4 py-2.5 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-400">
-                        <p className="font-semibold text-zinc-300">⚠️ Hosting Info:</p>
-                        <p className="mt-1">
-                          If hosting on static servers like Cloudflare, the secure proxy option is limited. 
-                          Mixed HTTP feeds or CORS streams will prevent playback on HTTPS pages. Consider Node.js/Docker VPS deployment for 100% proxy coverage!
-                        </p>
+                      <p className="text-white font-extrabold text-lg mb-1 shrink-0">
+                        {lang === 'en' ? 'Playback Blocked or Stream Offline' : 'প্লেব্যাক ব্লক হয়েছে বা স্ট্রিম অফলাইন'}
+                      </p>
+                      <p className="text-zinc-400 text-xs max-w-sm mb-4 leading-normal shrink-0">
+                        {lang === 'en' 
+                          ? 'Mixed Content, CORS, or Server block detected. Choose a different connection protocol below.' 
+                          : 'মিক্সড কনটেন্ট, CORS বা সার্ভার ব্লক সনাক্ত হয়েছে। নিচে সংযোগের নিয়ম পরিবর্তন করুন।'}
+                      </p>
+
+                      {/* Connection Protocol Toggler directly inside player */}
+                      <div className="flex bg-zinc-900 border border-white/5 p-1 rounded-xl mb-4 shrink-0 max-w-xs w-full">
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setStreamMode('direct'); 
+                            setPlayerError('none');
+                            setIsBuffering(true);
+                            const prevCh = currentChannel;
+                            setCurrentChannel(null);
+                            setTimeout(() => setCurrentChannel(prevCh), 50);
+                          }} 
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            streamMode === 'direct' 
+                              ? 'bg-zinc-800 text-indigo-400 border border-white/5' 
+                              : 'text-zinc-500 hover:text-zinc-300'
+                          }`}
+                        >
+                          ⚡ Direct Link
+                        </button>
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setStreamMode('proxy'); 
+                            setPlayerError('none');
+                            setIsBuffering(true);
+                            const prevCh = currentChannel;
+                            setCurrentChannel(null);
+                            setTimeout(() => setCurrentChannel(prevCh), 50);
+                          }} 
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            streamMode === 'proxy' 
+                              ? 'bg-zinc-800 text-indigo-400 border border-white/5' 
+                              : 'text-zinc-500 hover:text-zinc-300'
+                          }`}
+                        >
+                          🛡️ Secure Proxy
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 justify-center mb-4 shrink-0">
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setPlayerError('none');
+                            setIsBuffering(true);
+                            const prevCh = currentChannel;
+                            setCurrentChannel(null);
+                            setTimeout(() => setCurrentChannel(prevCh), 100);
+                          }} 
+                          className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-full cursor-pointer shadow-xl text-xs flex items-center space-x-1.5 active:scale-95 transition-all font-sans"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>{t.retryConnection}</span>
+                        </button>
+
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const u = currentChannel.urls && currentChannel.urls[selectedServer] 
+                              ? currentChannel.urls[selectedServer] 
+                              : currentChannel.url;
+                            if (u) {
+                              navigator.clipboard.writeText(u);
+                              setCopiedErrorUrl(true);
+                              setTimeout(() => setCopiedErrorUrl(false), 2000);
+                            }
+                          }}
+                          className="px-4 py-2 bg-zinc-900 border border-white/5 text-zinc-300 font-bold rounded-full cursor-pointer text-xs flex items-center space-x-1.5 hover:bg-zinc-800 active:scale-95 transition-all font-sans"
+                        >
+                          {copiedErrorUrl ? <Check className="w-3.5 h-3.5 text-teal-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{copiedErrorUrl ? (lang === 'en' ? 'Copied URL!' : 'ইউআরএল কপিড!') : (lang === 'en' ? 'Copy Raw Stream' : 'মূল লিংক কপি করুন')}</span>
+                        </button>
+                      </div>
+
+                      {/* Debug Diagnostics Expander */}
+                      <div className="w-full max-w-sm text-left">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDiagnostics(!showDiagnostics);
+                          }}
+                          className="text-[10px] font-bold tracking-wider text-zinc-500 hover:text-zinc-400 flex items-center space-x-1 uppercase mx-auto mb-2"
+                        >
+                          <span>{showDiagnostics ? '▼ Hide Diagnostics' : '▶ Show Diagnostics'}</span>
+                        </button>
+                        
+                        {showDiagnostics && playerDiagnostics && (
+                          <div className="p-3 bg-zinc-900/60 border border-white/5 rounded-xl text-[9px] font-mono text-zinc-400 leading-normal space-y-1.5 max-h-[120px] overflow-y-auto w-full select-all">
+                            <div><span className="text-zinc-600 font-bold uppercase tracking-widest text-[8px] mr-1">Time:</span> {playerDiagnostics.time}</div>
+                            <div><span className="text-zinc-600 font-bold uppercase tracking-widest text-[8px] mr-1">Mode:</span> <span className="text-indigo-400 font-extrabold">{playerDiagnostics.mode.toUpperCase()}</span></div>
+                            <div><span className="text-zinc-600 font-bold uppercase tracking-widest text-[8px] mr-1">Format:</span> <span className="text-yellow-500 font-extrabold">{playerDiagnostics.format.toUpperCase()}</span></div>
+                            <div className="truncate"><span className="text-zinc-600 font-bold uppercase tracking-widest text-[8px] mr-1">Source:</span> {playerDiagnostics.originalUrl}</div>
+                            <div className="truncate"><span className="text-zinc-600 font-bold uppercase tracking-widest text-[8px] mr-1">Target:</span> {playerDiagnostics.resolvedUrl}</div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -2544,84 +2353,7 @@ export default function App() {
                </div>
                 </div>
 
-                {/* Mobile Chat - Below Video, Above Info */}
-                {!isMiniPlayer && (
-                  !isChatExpanded ? (
-                    <div 
-                      onClick={() => setIsChatExpanded(true)}
-                      className="lg:hidden border-b border-zinc-805 bg-[#121212] hover:bg-zinc-800/80 px-4 py-3 flex items-center justify-between cursor-pointer transition-all shrink-0"
-                    >
-                      <div className="flex items-center space-x-2.5">
-                        <MessageSquare className="w-4 h-4 text-blue-400" />
-                        <span className="font-bold text-xs text-zinc-100 uppercase tracking-wider">{t.chatTitle}</span>
-                        <span className="flex items-center px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-500 border border-red-600/20 font-bold">LIVE</span>
-                      </div>
-                      <span className="text-xs text-blue-500 font-bold">Click to Join Chat 💬</span>
-                    </div>
-                  ) : (
-                    <div className="lg:hidden border-b border-zinc-800 bg-[#0f0f0f] flex flex-col h-[350px] sm:h-[450px]">
-                  <div className="p-3 bg-[#121212] border-b border-zinc-800 flex items-center justify-between shrink-0">
-                    <span className="font-bold text-xs text-zinc-100 flex items-center gap-2 uppercase tracking-wider">
-                      {t.chatTitle} 
-                      <span className="flex items-center px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-500 border border-red-600/20">LIVE</span>
-                    </span>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setIsChatExpanded(false); }}
-                      className="px-2.5 py-1 text-[11px] bg-zinc-850 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-md border border-zinc-700 cursor-pointer"
-                    >
-                      Collapse ✕
-                    </button>
-                  </div>
-                  
-                  <div ref={chatScrollRefMobile} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-none bg-black/10">
-                    <AnimatePresence initial={false}>
-                      {chatMessages.map((msg, idx) => {
-                        const isMe = user?.uid === msg.id || user?.displayName === msg.user;
-                        return (
-                          <motion.div 
-                            key={msg.id || idx} 
-                            initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-                            className="flex items-start gap-2.5 mb-0.5"
-                          >
-                            <div className="w-6 h-6 rounded-full bg-zinc-800 shrink-0 flex items-center justify-center text-[10px] font-bold text-zinc-500 border border-zinc-700/50 overflow-hidden mt-0.5">
-                              {msg.userPhoto ? <img src={msg.userPhoto} alt="" className="w-full h-full object-cover"/> : <span>{msg.user?.charAt(0)}</span>}
-                            </div>
-                            <p className="text-xs leading-snug break-words">
-                              <span className={`font-bold mr-2 ${isMe ? 'text-blue-400' : 'text-zinc-500'}`}>{msg.user}</span>
-                              <span className="text-zinc-200">{msg.text}</span>
-                            </p>
-                          </motion.div>
-                        );
-                      })}
-                    </AnimatePresence>
-                  </div>
 
-                  {user ? (
-                    <div className="p-3 bg-[#121212] border-t border-zinc-800">
-                      <form onSubmit={handleChatSubmit} className="flex items-center space-x-2">
-                        <input 
-                          type="text" 
-                          value={chatInput}
-                          onChange={e => setChatInput(e.target.value)}
-                          placeholder="Chat..." 
-                          className="flex-1 bg-zinc-900 rounded-lg px-4 py-2 border border-zinc-800 focus:border-blue-500 outline-none text-xs placeholder-zinc-600 transition-all" 
-                        />
-                        <button type="submit" disabled={!chatInput.trim()} className="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-lg disabled:opacity-50"><Send className="w-4 h-4 fill-current" /></button>
-                      </form>
-                    </div>
-                  ) : (
-                    <div className="p-2 border-t border-zinc-800 bg-[#0f0f0f] flex justify-center">
-                      <button 
-                        onClick={handleLogin} 
-                        className="w-full py-2 text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/5 rounded-lg border border-indigo-500/10 transition-all active:scale-95"
-                      >
-                        Sign In to join chat
-                      </button>
-                    </div>
-                  )}
-                </div>
-                  )
-                )}
 
                 {/* Video Info & Actions */}
                 {!isMiniPlayer && (
@@ -2670,7 +2402,7 @@ export default function App() {
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-blue-700 flex-shrink-0 flex items-center justify-center border border-white/10 shadow-lg pointer-events-none">
                           <div className="relative">
-                              <User className="w-6 h-6 text-white" />
+                              <Tv className="w-6 h-6 text-white" />
                               <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-500 rounded-full border-2 border-[#0f0f0f] flex items-center justify-center">
                                 <Check className="w-2 h-2 text-white" strokeWidth={5} />
                               </div>
@@ -2705,79 +2437,7 @@ export default function App() {
               {/* Related & Chat Column */}
               {!isMiniPlayer && (
                 <div className="w-full lg:w-[350px] xl:w-[420px] px-0 lg:px-0 flex-shrink-0 flex flex-col">
-                  {/* Embedded Sidebar Chat - DESKTOP ONLY */}
-                  {!isChatExpanded ? (
-                    <div 
-                      onClick={() => setIsChatExpanded(true)}
-                      className="hidden lg:flex border border-zinc-800 hover:border-zinc-700/80 rounded-2xl p-4 bg-[#121212] hover:bg-zinc-800/40 items-center justify-between cursor-pointer transition-all mb-6 shrink-0"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <MessageSquare className="w-5 h-5 text-blue-500" />
-                        <div className="text-left">
-                          <span className="font-bold text-sm text-zinc-100 flex items-center gap-2">
-                            {t.chatTitle} 
-                            <span className="flex items-center px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-500 border border-red-600/20 font-bold">LIVE</span>
-                          </span>
-                          <p className="text-[10px] text-zinc-550 font-medium">Click to expand live chat discussion</p>
-                        </div>
-                      </div>
-                      <span className="text-xs text-blue-500 font-bold px-2.5 py-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 whitespace-nowrap">Open Chat 💬</span>
-                    </div>
-                  ) : (
-                    <div className="hidden lg:flex border border-zinc-800 rounded-none sm:rounded-2xl overflow-hidden bg-[#0f0f0f] flex-col h-[500px] lg:h-[600px] shadow-2xl mb-6 shrink-0">
-                      <div className="p-3 bg-[#121212] border-b border-zinc-800 flex items-center justify-between shrink-0">
-                        <span className="font-bold text-sm text-zinc-100 flex items-center gap-2">
-                          {t.chatTitle} 
-                          <span className="flex items-center px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-500 border border-red-600/20">LIVE</span>
-                        </span>
-                        <div className="flex items-center space-x-2">
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); setIsChatExpanded(false); }}
-                            className="px-2.5 py-1 text-[11px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold rounded-md border border-zinc-750 cursor-pointer"
-                          >
-                            Collapse ✕
-                          </button>
-                        </div>
-                      </div>
-                    
-                    <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-700 bg-black/20">
-                      <AnimatePresence initial={false}>
-                        {chatMessages.map((msg, idx) => (
-                          <div key={msg.id || idx} className="flex items-start gap-2.5 mb-1">
-                            <div className="w-6 h-6 rounded-full bg-zinc-800 shrink-0 flex items-center justify-center text-[10px] uppercase font-bold text-zinc-500 border border-zinc-700/50 overflow-hidden mt-0.5">
-                              {msg.userPhoto ? <img src={msg.userPhoto} alt="" className="w-full h-full object-cover"/> : <span>{msg.user?.charAt(0)}</span>}
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                              <p className="text-[11px] leading-tight break-words">
-                                <span className={`font-bold mr-2 ${user?.uid === msg.id ? 'text-blue-400' : 'text-zinc-500'}`}>{msg.user}</span>
-                                <span className="text-zinc-200">{msg.text}</span>
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </AnimatePresence>
-                    </div>
 
-                    <div className="p-3 bg-[#121212] border-t border-zinc-800 shrink-0">
-                      {user ? (
-                        <form onSubmit={handleChatSubmit} className="flex items-center space-x-2">
-                          <input 
-                            type="text" 
-                            value={chatInput}
-                            onChange={e => setChatInput(e.target.value)}
-                            placeholder="Chat message..." 
-                            className="w-full bg-zinc-900 rounded-lg px-3 py-2 border border-zinc-800 outline-none text-xs text-white" 
-                          />
-                          <button type="submit" className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-lg">
-                            <Send className="w-4 h-4 fill-current" />
-                          </button>
-                        </form>
-                      ) : (
-                        <button onClick={handleLogin} className="w-full py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold">Sign in</button>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 <div className="px-4 lg:px-0">
                   <div className="flex items-center space-x-2 mb-4 overflow-x-auto pb-2 scrollbar-none">

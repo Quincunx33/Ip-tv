@@ -16,6 +16,97 @@ async function startServer() {
   // In-memory cache for resolved subdomains (e.g. 'somoytv' -> 'tvsen12.aynaott.com')
   const resolvedSubdomains: { [channelKey: string]: string } = {};
 
+  const parseServer3M3U = () => {
+    const filePath = path.join(process.cwd(), 'iptv-master', 'server3.m3u');
+    if (!fs.existsSync(filePath)) return [];
+    
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lines = content.split('\n');
+    const channels: any[] = [];
+    let currentItem: any = {};
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('#EXTINF:')) {
+        const parts = line.split(',');
+        currentItem.name = parts.length > 1 ? parts[parts.length - 1].trim() : 'Unknown';
+        const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+        if (logoMatch) currentItem.logo = logoMatch[1];
+      } else if (line.startsWith('http')) {
+        if (currentItem.name) {
+          const nameLc = currentItem.name.toLowerCase();
+          const urlLc = line.toLowerCase();
+          let detectedCountry = 'int'; // default to international
+          
+          if (nameLc.includes('🇧🇩') || nameLc.includes('bangla') || nameLc.includes('btv') || nameLc.includes('somoy') || nameLc.includes('jamuna') || nameLc.includes('ekattor') || nameLc.includes('independent') || nameLc.includes('ntv') || nameLc.includes('deepto') || nameLc.includes('rajdhani') || nameLc.includes('bengali') || nameLc.includes('projapoti') || nameLc.includes('t sports') || urlLc.includes('tsports')) {
+            detectedCountry = 'bd';
+          } else if (nameLc.includes('🇮🇳') || nameLc.includes('star sports') || nameLc.includes('sony sports') || nameLc.includes('willow') || nameLc.includes('fancode') || nameLc.includes('criclife')) {
+            detectedCountry = 'in';
+          } else if (nameLc.includes('🇺🇸') || nameLc.includes('fox') || nameLc.includes('nbc') || nameLc.includes('telemundo') || nameLc.includes('fubo') || nameLc.includes('nba') || nameLc.includes('dazn')) {
+            detectedCountry = 'us';
+          } else if (nameLc.includes('🇧🇷') || nameLc.includes('caze')) {
+            detectedCountry = 'br';
+          } else if (nameLc.includes('🇪🇸') || nameLc.includes('laliga')) {
+            detectedCountry = 'es';
+          } else if (nameLc.includes('🇦🇺')) {
+            detectedCountry = 'au';
+          } else if (nameLc.includes('🇹🇷') || nameLc.includes('idman')) {
+            detectedCountry = 'tr';
+          } else if (nameLc.includes('🇵🇰') || nameLc.includes('ptv')) {
+            detectedCountry = 'pk';
+          } else if (nameLc.includes('🇬🇧') || nameLc.includes('sky sport')) {
+            detectedCountry = 'uk';
+          } else if (nameLc.includes('🇵🇹')) {
+            detectedCountry = 'pt';
+          } else if (nameLc.includes('ru') || nameLc.includes('🇷🇺') || nameLc.includes('матч')) {
+            detectedCountry = 'ru';
+          } else if (nameLc.includes('fr') || nameLc.includes('🇫🇷') || nameLc.includes('eurosport')) {
+            detectedCountry = 'fr';
+          } else if (nameLc.includes('colombia') || nameLc.includes('🇨🇴') || nameLc.includes('caracol') || nameLc.includes('rcn') || nameLc.includes('win sport')) {
+            detectedCountry = 'co';
+          } else if (nameLc.includes('🇦🇱') || nameLc.includes('super sport')) {
+            detectedCountry = 'al';
+          } else if (nameLc.includes('🇨🇿') || nameLc.includes('sport 1 hd') || nameLc.includes('sport 2 hd')) {
+            detectedCountry = 'cz';
+          } else if (nameLc.includes('🇧🇬') || nameLc.includes('max sport')) {
+            detectedCountry = 'bg';
+          } else if (nameLc.includes('🇭🇺') || nameLc.includes('m4 sport')) {
+            detectedCountry = 'hu';
+          } else if (nameLc.includes('🇳🇱') || nameLc.includes('ziggo')) {
+            detectedCountry = 'nl';
+          } else if (nameLc.includes('🇦🇹') || nameLc.includes('orf')) {
+            detectedCountry = 'at';
+          } else if (nameLc.includes('🇺🇦') || nameLc.includes('suspilne') || nameLc.includes('setanta')) {
+            detectedCountry = 'ua';
+          }
+
+          channels.push({
+            name: currentItem.name,
+            url: line,
+            logo: currentItem.logo || "",
+            source: '3',
+            country: detectedCountry
+          });
+          currentItem = {};
+        }
+      }
+    }
+    return channels;
+  };
+
+  let cachedServer3Channels: any[] | null = null;
+  const getServer3Channels = () => {
+    if (cachedServer3Channels) return cachedServer3Channels;
+    try {
+      const parsed = parseServer3M3U();
+      cachedServer3Channels = parsed;
+      return parsed;
+    } catch (e) {
+      console.error("Error parsing Server 3 channels:", e);
+      return [];
+    }
+  };
+
   const getChannelKey = (urlStr: string) => {
     try {
       const u = new URL(urlStr);
@@ -25,6 +116,18 @@ async function startServer() {
       return '';
     }
   };
+
+  // CORS and Preflight middleware for all API endpoints
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
 
   // API routes go here FIRST
   app.get("/api/health", (req, res) => {
@@ -70,18 +173,28 @@ async function startServer() {
           targetOrigin = u.origin;
         } catch {}
 
+        const reqHeaders: Record<string, string> = {
+          'User-Agent': (req.query.userAgent as string) || 'VLC/3.0.9 LibVLC/3.0.9',
+          'Accept': '*/*',
+          'Connection': 'keep-alive'
+        };
+
+        if (req.query.referer) {
+          reqHeaders['Referer'] = req.query.referer as string;
+        }
+
+        if (req.headers.range) {
+          reqHeaders['Range'] = req.headers.range as string;
+        }
+
+        if (req.headers['accept-language']) {
+          reqHeaders['Accept-Language'] = req.headers['accept-language'] as string;
+        }
+
         const options = {
           agent: agent,
           timeout: 15000,
-          headers: {
-            'User-Agent': 'VLC/3.0.9 LibVLC/3.0.9',
-            'Accept': '*/*',
-            'Referer': urlStr,
-            'Connection': 'keep-alive',
-            ...('range' in req.headers ? { 'Range': req.headers.range as string } : {}),
-            ...('accept-language' in req.headers ? { 'Accept-Language': req.headers['accept-language'] as string } : {}),
-            ...(targetOrigin ? { 'Origin': targetOrigin } : {})
-          }
+          headers: reqHeaders
         };
 
         const clientReq = client.get(urlStr, options, async (clientRes) => {
@@ -218,7 +331,9 @@ async function startServer() {
                      headers['content-type'].includes('application/vnd.apple.mpegurl')
                    ));
     
-    const proxyParams = proxyHost && proxyPort ? `&proxyHost=${proxyHost}&proxyPort=${proxyPort}&proxyType=${proxyType}` : '';
+    const userAgentParam = req.query.userAgent ? `&userAgent=${encodeURIComponent(req.query.userAgent as string)}` : '';
+    const refererParam = req.query.referer ? `&referer=${encodeURIComponent(req.query.referer as string)}` : '';
+    const proxyParams = (proxyHost && proxyPort ? `&proxyHost=${proxyHost}&proxyPort=${proxyPort}&proxyType=${proxyType}` : '') + userAgentParam + refererParam;
 
     if (isM3u8) {
       let body = '';
@@ -330,7 +445,7 @@ async function startServer() {
                     name: ch.name,
                     url: ch.url,
                     logo: ch.logo || "",
-                    source: 'server1',
+                    source: '1',
                     country: countryCode
                   });
                 }
@@ -368,7 +483,7 @@ async function startServer() {
                       name: currentItem.name,
                       url: line,
                       logo: currentItem.logo || "",
-                      source: 'global',
+                      source: '2',
                       country: countryCode
                     });
                   }
@@ -379,6 +494,24 @@ async function startServer() {
           }
         }
       }
+
+      // 3. Search in Server 3 M3U
+      const server3List = getServer3Channels();
+      server3List.forEach(ch => {
+        if (ch.name.toLowerCase().includes(query)) {
+          const uniqueKey = `${ch.country}_3_${ch.url}`;
+          if (!seenUrls.has(uniqueKey)) {
+            seenUrls.add(uniqueKey);
+            matched.push({
+              name: ch.name,
+              url: ch.url,
+              logo: ch.logo || "",
+              source: '3',
+              country: ch.country
+            });
+          }
+        }
+      });
 
       // Sort matched results to prioritize exact matches, begins-with, and (new) tags
       matched.sort((a, b) => {
@@ -433,22 +566,28 @@ async function startServer() {
 
   app.get('/api/channels/:country', (req, res) => {
     const country = req.params.country;
-    const source = req.query.source === '2' ? '2' : '1'; // Default to Server 1
     const filePath = path.join(process.cwd(), 'iptv-master', 'streams', `${country}.m3u`);
     const server1Path = path.join(process.cwd(), 'iptv-master', 'server1_streams.json');
     
     try {
+      let channels: any[] = [];
+
+      // 1. Load Server 1 channels for this country
       if (country === 'fifa' || country === 'sports') {
         const staticPath = path.join(process.cwd(), 'public', 'static-api', `${country}.json`);
         if (fs.existsSync(staticPath)) {
-          return res.json(JSON.parse(fs.readFileSync(staticPath, 'utf-8')));
+          const staticData = JSON.parse(fs.readFileSync(staticPath, 'utf-8'));
+          staticData.forEach((ch: any) => {
+            channels.push({
+              name: ch.name,
+              url: ch.url,
+              logo: ch.logo || "",
+              source: ch.source === 'global' ? '2' : '1',
+              country: country
+            });
+          });
         }
-      }
-
-      const channels: any[] = [];
-
-      if (source === '1') {
-        // Load Server 1 Channels
+      } else {
         if (fs.existsSync(server1Path)) {
           const server1Data = JSON.parse(fs.readFileSync(server1Path, 'utf-8'));
           if (server1Data[country]) {
@@ -457,18 +596,19 @@ async function startServer() {
                 name: ch.name,
                 url: ch.url,
                 logo: ch.logo || "",
-                source: 'server1',
+                source: '1',
                 country: country
               });
             });
           }
         }
-      } else {
-        // Load File Channels (Server 2)
+      }
+
+      // 2. Load Server 2 (File Channels)
+      if (country !== 'fifa' && country !== 'sports') {
         if (fs.existsSync(filePath)) {
           const content = fs.readFileSync(filePath, 'utf-8');
           const lines = content.split('\n');
-          
           let currentItem: any = {};
           for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
@@ -483,7 +623,7 @@ async function startServer() {
                   name: currentItem.name,
                   url: line,
                   logo: currentItem.logo || "",
-                  source: 'global',
+                  source: '2',
                   country: country
                 });
                 currentItem = {};
@@ -492,7 +632,53 @@ async function startServer() {
           }
         }
       }
-      
+
+      // 3. Load Server 3 channels
+      const server3List = getServer3Channels();
+      if (country === 'fifa') {
+        // Find channels matching FIFA in Server 3
+        const server3Fifa = server3List.filter(ch => {
+          const nameLc = ch.name.toLowerCase();
+          return nameLc.includes('fifa') || nameLc.includes('world cup') || nameLc.includes('fwc') || nameLc.includes('bein sports 1');
+        });
+        channels = channels.concat(server3Fifa);
+        
+        // Custom order for FIFA:
+        // - "bein sports 1" goes first
+        // - "t sports" from Server 3 goes next
+        // - others go last
+        channels.sort((a, b) => {
+          const aName = a.name.toLowerCase();
+          const bName = b.name.toLowerCase();
+          
+          const aBein = aName.includes('bein sports 1');
+          const bBein = bName.includes('bein sports 1');
+          if (aBein && !bBein) return -1;
+          if (!aBein && bBein) return 1;
+
+          const aTS = (a.source === '3' && (aName.includes('t sports') || aName.includes('tsports')));
+          const bTS = (b.source === '3' && (bName.includes('t sports') || bName.includes('tsports')));
+          if (aTS && !bTS) return -1;
+          if (!aTS && bTS) return 1;
+
+          return 0; // maintain relative order
+        });
+
+      } else if (country === 'sports') {
+        // Find channels matching sports in Server 3
+        const server3Sports = server3List.filter(ch => {
+          const nameLc = ch.name.toLowerCase();
+          const urlLc = ch.url.toLowerCase();
+          return nameLc.includes('sports') || nameLc.includes('sport') || nameLc.includes('dazn') || nameLc.includes('football') || nameLc.includes('cup') || nameLc.includes('star sports') || nameLc.includes('sony sports') || nameLc.includes('ptv sports') || nameLc.includes('criclife') || nameLc.includes('fancode') || nameLc.includes('t sports') || urlLc.includes('tsports') || nameLc.includes('fs1') || nameLc.includes('fuel tv');
+        });
+        channels = channels.concat(server3Sports);
+        
+      } else {
+        // Standard country: filter Server 3 channels by language/country detected
+        const server3Country = server3List.filter(ch => ch.country === country);
+        channels = channels.concat(server3Country);
+      }
+
       res.json(channels);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : String(error) });

@@ -16,6 +16,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'inline',
       manifestFilename: 'manifest.json',
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+      },
       devOptions: {
         enabled: true,
         type: 'module',
