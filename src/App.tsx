@@ -947,9 +947,9 @@ export default function App() {
           return aDead ? 1 : -1;
         }
         
-        // Secondary sort: Server 1 channels first
-        if (a.source === '1' && b.source !== '1') return -1;
-        if (a.source !== '1' && b.source === '1') return 1;
+        // Secondary sort: Active server channels first
+        if (a.source === serverSource && b.source !== serverSource) return -1;
+        if (a.source !== serverSource && b.source === serverSource) return 1;
         
         // Tertiary sort: Alphabetical
         return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });

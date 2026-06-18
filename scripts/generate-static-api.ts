@@ -4,10 +4,59 @@ import readline from 'readline';
 
 const STREAMS_DIR = path.join(process.cwd(), 'iptv-master', 'streams');
 const SERVER1_PATH = path.join(process.cwd(), 'iptv-master', 'server1_streams.json');
+const SERVER3_PATH = path.join(process.cwd(), 'iptv-master', 'server3.m3u');
 const OUTPUT_DIR = path.join(process.cwd(), 'public', 'static-api');
 
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+}
+
+function detectCountryByName(name: string, url: string): string {
+  const nameLc = name.toLowerCase();
+  const urlLc = url.toLowerCase();
+  
+  if (nameLc.includes('🇧🇩') || nameLc.includes('bangla') || nameLc.includes('btv') || nameLc.includes('somoy') || nameLc.includes('jamuna') || nameLc.includes('ekattor') || nameLc.includes('independent') || nameLc.includes('ntv') || nameLc.includes('deepto') || nameLc.includes('rajdhani') || nameLc.includes('bengali') || nameLc.includes('projapoti') || nameLc.includes('t sports') || urlLc.includes('tsports')) {
+    return 'bd';
+  } else if (nameLc.includes('🇮🇳') || nameLc.includes('star sports') || nameLc.includes('sony sports') || nameLc.includes('willow') || nameLc.includes('fancode') || nameLc.includes('criclife')) {
+    return 'in';
+  } else if (nameLc.includes('🇺🇸') || nameLc.includes('fox') || nameLc.includes('nbc') || nameLc.includes('telemundo') || nameLc.includes('fubo') || nameLc.includes('nba') || nameLc.includes('dazn')) {
+    return 'us';
+  } else if (nameLc.includes('🇧🇷') || nameLc.includes('caze')) {
+    return 'br';
+  } else if (nameLc.includes('🇪🇸') || nameLc.includes('laliga')) {
+    return 'es';
+  } else if (nameLc.includes('🇦🇺')) {
+    return 'au';
+  } else if (nameLc.includes('🇹🇷') || nameLc.includes('idman')) {
+    return 'tr';
+  } else if (nameLc.includes('🇵🇰') || nameLc.includes('ptv')) {
+    return 'pk';
+  } else if (nameLc.includes('🇬🇧') || nameLc.includes('sky sport')) {
+    return 'uk';
+  } else if (nameLc.includes('🇵🇹')) {
+    return 'pt';
+  } else if (nameLc.includes('ru') || nameLc.includes('🇷🇺') || nameLc.includes('матч')) {
+    return 'ru';
+  } else if (nameLc.includes('fr') || nameLc.includes('🇫🇷') || nameLc.includes('eurosport')) {
+    return 'fr';
+  } else if (nameLc.includes('colombia') || nameLc.includes('🇨🇴') || nameLc.includes('caracol') || nameLc.includes('rcn') || nameLc.includes('win sport')) {
+    return 'co';
+  } else if (nameLc.includes('🇦🇱') || nameLc.includes('super sport')) {
+    return 'al';
+  } else if (nameLc.includes('🇨🇿') || nameLc.includes('sport 1 hd') || nameLc.includes('sport 2 hd')) {
+    return 'cz';
+  } else if (nameLc.includes('🇧🇬') || nameLc.includes('max sport')) {
+    return 'bg';
+  } else if (nameLc.includes('🇭🇺') || nameLc.includes('m4 sport')) {
+    return 'hu';
+  } else if (nameLc.includes('🇳🇱') || nameLc.includes('ziggo')) {
+    return 'nl';
+  } else if (nameLc.includes('🇦🇹') || nameLc.includes('orf')) {
+    return 'at';
+  } else if (nameLc.includes('🇺🇦') || nameLc.includes('suspilne') || nameLc.includes('setanta')) {
+    return 'ua';
+  }
+  return 'int';
 }
 
 async function run() {
@@ -17,8 +66,38 @@ async function run() {
 
     const server1Data = fs.existsSync(SERVER1_PATH) ? JSON.parse(fs.readFileSync(SERVER1_PATH, 'utf-8')) : {};
     
-    // Get unique list of countries from both sources
-    const allCountryKeys = new Set([...countries, ...Object.keys(server1Data)]);
+    // Process Server 3
+    const server3ChannelsByCountry: Record<string, any[]> = {};
+    if (fs.existsSync(SERVER3_PATH)) {
+      const content = fs.readFileSync(SERVER3_PATH, 'utf-8');
+      const lines = content.split('\n');
+      let currentItem: any = {};
+      for (const line of lines) {
+        const tLine = line.trim();
+        if (tLine.startsWith('#EXTINF:')) {
+          const parts = tLine.split(',');
+          currentItem.name = parts.length > 1 ? parts[parts.length - 1].trim() : 'Unknown';
+          const logoMatch = tLine.match(/tvg-logo="([^"]+)"/);
+          if (logoMatch) currentItem.logo = logoMatch[1];
+        } else if (tLine.startsWith('http')) {
+          if (currentItem.name) {
+            const country = detectCountryByName(currentItem.name, tLine);
+            if (!server3ChannelsByCountry[country]) server3ChannelsByCountry[country] = [];
+            server3ChannelsByCountry[country].push({
+              name: currentItem.name,
+              url: tLine,
+              logo: currentItem.logo || "",
+              source: '3',
+              country
+            });
+            currentItem = {};
+          }
+        }
+      }
+    }
+
+    // Get unique list of countries from all sources
+    const allCountryKeys = new Set([...countries, ...Object.keys(server1Data), ...Object.keys(server3ChannelsByCountry)]);
     const finalCountries = Array.from(allCountryKeys).sort();
 
     fs.writeFileSync(path.join(OUTPUT_DIR, 'channels.json'), JSON.stringify(finalCountries));
@@ -72,6 +151,14 @@ async function run() {
             }
           }
         }
+      }
+
+      // Server 3
+      if (server3ChannelsByCountry[country]) {
+        server3ChannelsByCountry[country].forEach((ch: any) => {
+          countryChannels.push(ch);
+          allChannels.push(ch);
+        });
       }
 
       // Sort country channels alphabetically by name
