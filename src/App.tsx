@@ -19,9 +19,8 @@ import { Channel } from './types';
 import { getCountryFlag, formatCountryName } from './utils';
 
 // Firebase imports
-import { auth, db, signInWithGoogle, logout } from './firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, onSnapshot, query, where, orderBy, getDocFromServer } from 'firebase/firestore';
+import { auth, db } from './firebase';
+import { doc, getDoc, setDoc, collection, onSnapshot } from 'firebase/firestore';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -514,24 +513,12 @@ export default function App() {
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [isClosingMiniPlayer, setIsClosingMiniPlayer] = useState(false);
 
-  const [user, setUser] = useState<any>(null);
-  const [loadingAuth, setLoadingAuth] = useState<boolean>(true);
   const [favorites, setFavorites] = useState<Channel[]>([]);
   const [deadChannels, setDeadChannels] = useState<Set<string>>(new Set());
 
   // Custom Playlists States loaded from Firestore
   const [customPlaylists, setCustomPlaylists] = useState<any[]>([]);
   const [customChannels, setCustomChannels] = useState<Channel[]>([]);
-  const [showAdminPanel, setShowAdminPanel] = useState<boolean>(false);
-
-  // User authentication state listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
-      setUser(authUser);
-      setLoadingAuth(false);
-    });
-    return () => unsubscribe();
-  }, []);
 
   // Fetch custom playlists from Firestore (realtime subscription)
   useEffect(() => {
@@ -586,64 +573,6 @@ export default function App() {
       active = false;
     };
   }, [customPlaylists, serverSource]);
-
-  // Sync favorites & deadChannels from Firestore on login
-  useEffect(() => {
-    if (!user) return;
-    
-    const fetchUserData = async () => {
-      try {
-        const userDocRef = doc(db, 'users', user.uid);
-        const docSnap = await getDoc(userDocRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.favorites) {
-            setFavorites(data.favorites);
-          }
-          if (data.deadChannels) {
-            setDeadChannels(new Set(data.deadChannels));
-          }
-        } else {
-          await setDoc(userDocRef, {
-            favorites: favorites,
-            deadChannels: Array.from(deadChannels)
-          });
-        }
-      } catch (err) {
-        console.error("Error sync reading user data:", err);
-      }
-    };
-    
-    fetchUserData();
-  }, [user]);
-
-  // Sync favorites & deadChannels back to Firestore when changed
-  const isFirstSyncRef = useRef(true);
-  useEffect(() => {
-    if (!user) return;
-    if (isFirstSyncRef.current) {
-      isFirstSyncRef.current = false;
-      return;
-    }
-    
-    const syncUserData = async () => {
-      try {
-        const userDocRef = doc(db, 'users', user.uid);
-        await setDoc(userDocRef, {
-          favorites: favorites,
-          deadChannels: Array.from(deadChannels)
-        }, { merge: true });
-      } catch (err) {
-        console.error("Error sync writing user data:", err);
-      }
-    };
-    
-    const timer = setTimeout(() => {
-      syncUserData();
-    }, 1500);
-    
-    return () => clearTimeout(timer);
-  }, [favorites, deadChannels, user]);
 
   // Infinite Scroll / Lazy Loading State
   const [visibleCount, setVisibleCount] = useState(50);
@@ -1920,14 +1849,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentChannel, isPlaying, isMuted, isFullscreen, isCssFullscreen]);
 
-  if (loadingAuth) {
-    return (
-      <div className="h-screen w-screen bg-[#0f0f0f] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-zinc-800 border-t-red-600 rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-[100dvh] w-screen bg-[#0f0f0f] text-white font-sans overflow-hidden select-none">
       
@@ -1974,60 +1895,6 @@ export default function App() {
         </div>
 
         <div className="flex items-center space-x-1.5 sm:space-x-3">
-          <button className="p-2 hover:bg-zinc-800 rounded-full sm:hidden" onClick={() => setIsCountryModalOpen(true)}>
-            <Globe className="w-5 h-5"/>
-          </button>
-          
-          {!user ? (
-            <button 
-              onClick={signInWithGoogle} 
-              className="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold uppercase tracking-wider text-white transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
-            >
-              <span className="w-3.5 h-3.5 flex items-center justify-center font-black bg-white/20 rounded-full text-[9px]">G</span>
-              <span>{lang === 'en' ? 'Sign In' : 'লগইন'}</span>
-            </button>
-          ) : (
-            <div className="flex items-center space-x-2">
-              {user.email === 'taaissu@gmail.com' && (
-                <span className="hidden xs:inline px-2 py-0.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[9px] font-black rounded uppercase tracking-wider animate-pulse">
-                  Admin
-                </span>
-              )}
-              <div className="group relative">
-                <button className="w-8 h-8 rounded-full border border-zinc-800 overflow-hidden flex items-center justify-center cursor-pointer bg-zinc-900 shadow-inner">
-                  {user.photoURL ? (
-                    <img src={user.photoURL} alt="User Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <span className="text-xs font-bold text-indigo-400 font-mono uppercase">{user.email?.slice(0, 1) || 'U'}</span>
-                  )}
-                </button>
-                {/* Profile drop-down */}
-                <div className="absolute right-0 mt-2 w-52 bg-[#09090b] border border-white/5 rounded-xl p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.8)] opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-200 z-[100] transform translate-y-1 group-hover:translate-y-0">
-                  <div className="px-3 py-2 border-b border-white/5 mb-1.5">
-                    <p className="text-xs font-bold text-zinc-100 truncate">{user.displayName || 'Subscriber'}</p>
-                    <p className="text-[10px] text-zinc-500 truncate font-mono">{user.email}</p>
-                  </div>
-                  {user.email === 'taaissu@gmail.com' && (
-                    <button 
-                      onClick={() => { setShowAdminPanel(true); }}
-                      className="w-full text-left px-3 py-2 hover:bg-white/5 hover:text-white text-indigo-400 text-xs font-bold rounded-lg transition-colors flex items-center space-x-2 cursor-pointer mb-1"
-                    >
-                      <span>📺</span>
-                      <span>M3U Playlist Mgr</span>
-                    </button>
-                  )}
-                  <button 
-                    onClick={logout}
-                    className="w-full text-left px-3 py-2 hover:bg-rose-500/10 text-rose-400 text-xs font-bold rounded-lg transition-colors flex items-center space-x-2 cursor-pointer"
-                  >
-                    <span>🚪</span>
-                    <span>{lang === 'en' ? 'Sign Out' : 'লগআউট'}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           <button className="p-2 hover:bg-zinc-800 rounded-full hidden sm:block">
             <Bell className="w-5 h-5" />
           </button>
@@ -2840,203 +2707,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Admin M3U Manager Modal */}
-      <AnimatePresence>
-        {showAdminPanel && user?.email === 'taaissu@gmail.com' && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-[#09090b] rounded-3xl max-w-2xl w-full p-6 relative border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.9)] max-h-[90vh] flex flex-col"
-            >
-              {/* Close Button */}
-              <button 
-                onClick={() => setShowAdminPanel(false)} 
-                className="absolute top-5 right-5 text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-all cursor-pointer"
-              >
-                <X className="w-5 h-5"/>
-              </button>
-
-              {/* Header */}
-              <div className="pb-4 border-b border-white/5 flex items-center space-x-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-                  <span className="text-lg">🛠️</span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-black tracking-tight text-white uppercase sm:text-xl">Server M3U Link Manager</h3>
-                  <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest leading-none">Firebase Rules Level Protection</p>
-                </div>
-              </div>
-
-              {/* Scrollable Container */}
-              <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
-                
-                {/* Information Card */}
-                <div className="p-4 bg-indigo-950/20 border border-indigo-500/10 rounded-2xl flex items-start gap-3">
-                  <span className="text-indigo-400 text-lg">💡</span>
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-indigo-300">Logged in as {user.email}</p>
-                    <p className="text-[11px] text-indigo-300/70 leading-relaxed">
-                      Only authorized email address <strong className="text-indigo-400">taaissu@gmail.com</strong> is allowed by the security rules level to add, edit or delete playlists. Selected servers will dynamically parse and load all streams.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Adding New Playlist Form */}
-                <div className="p-5 bg-[#121214] border border-white/5 rounded-2xl">
-                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Add Custom Channel Source / M3U Playlist</h4>
-                  
-                  <form onSubmit={async (e) => {
-                    e.preventDefault();
-                    const form = e.currentTarget;
-                    const formData = new FormData(form);
-                    const name = formData.get('playlist-name') as string;
-                    const url = formData.get('playlist-url') as string;
-                    const server = formData.get('playlist-server') as string;
-
-                    if (!name || !url || !form || !server) {
-                      setToastMessage("Please fill in all the input fields");
-                      setTimeout(() => setToastMessage(''), 3000);
-                      return;
-                    }
-
-                    try {
-                      // Generate unique key id
-                      const playlistId = 'm3u_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-                      
-                      const docRef = doc(db, 'm3u_playlists', playlistId);
-                      await setDoc(docRef, {
-                        name: name.trim(),
-                        url: url.trim(),
-                        server: server,
-                        addedBy: user.email,
-                        createdAt: new Date().toISOString()
-                      });
-
-                      form.reset();
-                      setToastMessage("Playlist linked successfully!");
-                      setTimeout(() => setToastMessage(''), 3000);
-                    } catch (error: any) {
-                      console.error("Firebase write error:", error);
-                      setToastMessage("Write failed: " + error.message);
-                      setTimeout(() => setToastMessage(''), 4000);
-                    }
-                  }} className="space-y-4">
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Name of Playlist */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Playlist Visual Name</label>
-                        <input 
-                          type="text" 
-                          name="playlist-name"
-                          placeholder="e.g. BD Premium streams"
-                          required
-                          className="w-full bg-zinc-950 border border-white/5 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500/20 text-indigo-300 font-medium transition-all"
-                        />
-                      </div>
-
-                      {/* Server Selection */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Select Server Source Target</label>
-                        <select 
-                          name="playlist-server"
-                          required
-                          className="w-full bg-zinc-950 border border-white/5 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500/20 text-indigo-300 font-bold transition-all cursor-pointer"
-                        >
-                          <option value="1">Server Source Feed 1</option>
-                          <option value="2">Server Source Feed 2</option>
-                          <option value="3">Dedicated Server Feed 3</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* M3U Link URL */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Direct M3U url / Stream Link</label>
-                      <input 
-                        type="url" 
-                        name="playlist-url"
-                        placeholder="https://example.com/live-list.m3u"
-                        required
-                        className="w-full bg-zinc-950 border border-white/5 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500/20 text-indigo-300 font-mono transition-all"
-                      />
-                      <p className="text-[9px] text-zinc-500 italic pl-1">Supports both raw .m3u web links or unified single live streams</p>
-                    </div>
-
-                    {/* Submit Button */}
-                    <div className="pt-2">
-                      <button 
-                        type="submit"
-                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold tracking-widest uppercase text-[10px] rounded-xl transition-all shadow-lg shadow-indigo-600/25 cursor-pointer active:scale-98"
-                      >
-                        + Bind & Inject M3U Playlist to Server
-                      </button>
-                    </div>
-                  </form>
-                </div>
-
-                {/* Registered Playlists Listing */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-1">Active Custom Playlists ({customPlaylists.length})</h4>
-                  
-                  {customPlaylists.length === 0 ? (
-                    <div className="py-8 bg-[#121214]/65 border border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center text-zinc-500">
-                      <span className="text-2xl mb-1.5">📭</span>
-                      <p className="text-xs font-bold uppercase tracking-wider">{lang === 'en' ? 'No custom links registered' : 'কোন কাস্টম প্লেলিস্ট নেই'}</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {customPlaylists.map((playlist, idx) => (
-                        <div 
-                          key={playlist.id || idx}
-                          className="flex items-center justify-between p-4 bg-[#121214] border border-white/5 hover:border-white/10 rounded-xl transition-all group"
-                        >
-                          <div className="flex flex-col space-y-1 flex-1 min-w-0 pr-4">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs font-bold text-white truncate">{playlist.name}</span>
-                              <span className="px-1.5 py-0.5 bg-zinc-800 border border-white/5 text-[8px] font-black tracking-widest uppercase text-indigo-400 rounded">
-                                Server {playlist.server}
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-zinc-500 truncate font-mono">{playlist.url}</span>
-                            <span className="text-[8px] text-zinc-600 font-semibold uppercase tracking-wider pl-0.5">Added by {playlist.addedBy}</span>
-                          </div>
-
-                          <button 
-                            onClick={async () => {
-                              try {
-                                await deleteDoc(doc(db, 'm3u_playlists', playlist.id));
-                                setToastMessage("Playlist deleted successfully");
-                                setTimeout(() => setToastMessage(''), 3000);
-                              } catch (error: any) {
-                                setToastMessage("Deletion failed: " + error.message);
-                                setTimeout(() => setToastMessage(''), 4000);
-                              }
-                            }}
-                            className="p-2.5 hover:bg-rose-500/10 text-zinc-500 hover:text-rose-400 border border-zinc-900 hover:border-rose-500/20 rounded-xl transition-all cursor-pointer shrink-0"
-                            title="Delete playlist link"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-              {/* Concluding Footer */}
-              <div className="pt-4 border-t border-white/5 flex items-center justify-between mt-6 shrink-0 text-zinc-600 font-bold uppercase tracking-wider text-[8px]">
-                <span>Firebase Authentication Mode</span>
-                <span className="text-emerald-500 animate-pulse">Rules Engaged</span>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
