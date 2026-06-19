@@ -252,7 +252,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center space-x-1">
-                    <span className={`text-xs font-bold ${serverSource === '3' ? 'text-teal-400' : 'text-white'}`}>Dedicated S3</span>
+                    <span className={`text-xs font-bold ${serverSource === '3' ? 'text-teal-400' : 'text-white'}`}>Server 3</span>
                     <span className="px-1 py-0.2 bg-indigo-500/20 text-indigo-400 text-[7px] font-black uppercase tracking-wider rounded border border-indigo-500/10">Ultra</span>
                   </div>
                   <span className="text-[9px] text-zinc-500 uppercase tracking-tighter font-black">Stable Optimized</span>

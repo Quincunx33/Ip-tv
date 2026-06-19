@@ -115,7 +115,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ user, customPlaylists, onClos
                   >
                     <option value="1">Feed Alpha (Server 1)</option>
                     <option value="2">Core Delta (Server 2)</option>
-                    <option value="3">Dedicated Sigma (Server 3)</option>
+                    <option value="3">Sigma (Server 3)</option>
                   </select>
                   <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none">
                     <Layout className="w-4 h-4 text-zinc-600" />

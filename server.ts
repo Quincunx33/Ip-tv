@@ -135,7 +135,7 @@ async function startServer() {
   });
 
   app.get('/api/admin/verify', (req, res) => {
-    const email = req.query.email as string;
+    const email = (req.query.email as string)?.toLowerCase();
     // Hardcoded authorized email as requested by user
     const authorizedAdmins = ['taaissu@gmail.com'];
     const isAuthorized = email && authorizedAdmins.includes(email);

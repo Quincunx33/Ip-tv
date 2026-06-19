@@ -525,6 +525,7 @@ export default function App() {
   const [customChannels, setCustomChannels] = useState<Channel[]>([]);
   const [showAdminPanel, setShowAdminPanel] = useState<boolean>(false);
   const [isAdminAuthorized, setIsAdminAuthorized] = useState<boolean>(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState<boolean>(false);
 
   // User authentication state listener
   useEffect(() => {
@@ -2007,8 +2008,11 @@ export default function App() {
             </button>
           ) : (
             <div className="flex items-center space-x-2">
-              <div className="group relative">
-                <button className="w-8 h-8 rounded-full border border-zinc-800 overflow-hidden flex items-center justify-center cursor-pointer bg-zinc-900 shadow-inner">
+              <div className="relative">
+                <button 
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className="w-8 h-8 rounded-full border border-zinc-800 overflow-hidden flex items-center justify-center cursor-pointer bg-zinc-900 shadow-inner"
+                >
                   {user.photoURL ? (
                     <img src={user.photoURL} alt="User Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
@@ -2016,14 +2020,15 @@ export default function App() {
                   )}
                 </button>
                 {/* Profile drop-down */}
-                <div className="absolute right-0 mt-2 w-52 bg-[#09090b] border border-white/5 rounded-xl p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.8)] opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-200 z-[100] transform translate-y-1 group-hover:translate-y-0">
-                  <div className="px-3 py-2 border-b border-white/5 mb-1.5">
+                {isProfileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-52 bg-[#09090b] border border-white/5 rounded-xl p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.8)] transition-all duration-200 z-[100] transform translate-y-0">
+                  <div className="px-3 py-2 border-b border-white/5 mb-1.5 flex flex-col items-start text-left w-full">
                     <p className="text-xs font-bold text-zinc-100 truncate">{user.displayName || 'Subscriber'}</p>
                     <p className="text-[10px] text-zinc-500 truncate font-mono">{user.email}</p>
                   </div>
                   {isAdminAuthorized && (
                     <button 
-                      onClick={() => { setShowAdminPanel(true); }}
+                      onClick={() => { setShowAdminPanel(true); setIsProfileMenuOpen(false); }}
                       className="w-full text-left px-3 py-2 hover:bg-white/5 hover:text-white text-indigo-400 text-xs font-bold rounded-lg transition-colors flex items-center space-x-2 cursor-pointer mb-1"
                     >
                       <span>📺</span>
@@ -2038,6 +2043,7 @@ export default function App() {
                     <span>{lang === 'en' ? 'Sign Out' : 'লগআউট'}</span>
                   </button>
                 </div>
+                )}
               </div>
             </div>
           )}
@@ -2171,7 +2177,7 @@ export default function App() {
                       onClick={() => setServerSource('3')}
                       className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${serverSource === '3' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
                     >
-                      Server 3 (Dedicated)
+                      Server 3
                     </button>
                   )}
                 </div>
