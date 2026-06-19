@@ -54,22 +54,20 @@ service cloud.firestore {
       allow read: if true; // Any visitor can view loaded custom channels
       allow create: if isAdmin() && 
                       isValidId(playlistId) &&
-                      request.resource.data.keys().hasAll(['name', 'url', 'server', 'category', 'addedBy', 'createdAt']) &&
-                      request.resource.data.keys().size() == 6 &&
+                      request.resource.data.keys().hasAll(['name', 'url', 'server', 'addedBy', 'createdAt']) &&
+                      request.resource.data.keys().size() == 5 &&
                       request.resource.data.name is string && request.resource.data.name.size() <= 200 &&
                       request.resource.data.url is string && request.resource.data.url.size() <= 2000 &&
                       request.resource.data.server is string && (request.resource.data.server == '1' || request.resource.data.server == '2' || request.resource.data.server == '3') &&
-                      request.resource.data.category is string && (request.resource.data.category in ['general', 'sports', 'fifa', 'news']) &&
                       request.resource.data.addedBy == request.auth.token.email &&
                       request.resource.data.createdAt == request.time;
       allow update: if isAdmin() && 
                       isValidId(playlistId) &&
-                      request.resource.data.keys().hasAll(['name', 'url', 'server', 'category', 'addedBy', 'createdAt']) &&
-                      request.resource.data.keys().size() == 6 &&
+                      request.resource.data.keys().hasAll(['name', 'url', 'server', 'addedBy', 'createdAt']) &&
+                      request.resource.data.keys().size() == 5 &&
                       request.resource.data.name is string && request.resource.data.name.size() <= 200 &&
                       request.resource.data.url is string && request.resource.data.url.size() <= 2000 &&
                       request.resource.data.server is string && (request.resource.data.server == '1' || request.resource.data.server == '2' || request.resource.data.server == '3') &&
-                      request.resource.data.category is string && (request.resource.data.category in ['general', 'sports', 'fifa', 'news']) &&
                       request.resource.data.addedBy == resource.data.addedBy &&
                       request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if isAdmin() && isValidId(playlistId);

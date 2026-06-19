@@ -10,7 +10,6 @@ export interface Channel {
   logo?: string;
   source?: string;
   country?: string;
-  category?: string;
 }
 
 export interface SidebarProps {

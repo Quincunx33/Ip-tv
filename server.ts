@@ -134,14 +134,6 @@ async function startServer() {
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 
-  app.get('/api/admin/verify', (req, res) => {
-    const email = (req.query.email as string)?.toLowerCase();
-    // Hardcoded authorized email as requested by user
-    const authorizedAdmins = ['taaissu@gmail.com'];
-    const isAuthorized = email && authorizedAdmins.includes(email);
-    res.json({ authorized: !!isAuthorized });
-  });
-
   app.get('/api/parse-m3u', (req, res) => {
     const urlStr = req.query.url as string;
     if (!urlStr) return res.status(400).send('URL required');
