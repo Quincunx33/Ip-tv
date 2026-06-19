@@ -418,6 +418,10 @@ export default function App() {
           );
 
           const filteredResults = results.filter(ch => {
+            const lowerName = ch.name.toLowerCase();
+            if (lowerName.includes('football wrold cup') || lowerName.includes('football world cup')) {
+              return false;
+            }
             const s = ch.source || '1';
             const isEnabled = s === '1' ? isServer1Enabled : s === '2' ? isServer2Enabled : isServer3Enabled;
             return isEnabled || ch.name.toLowerCase().includes('bein sports 1');
@@ -426,6 +430,12 @@ export default function App() {
           filteredResults.sort((a, b) => {
             const aLower = a.name.toLowerCase();
             const bLower = b.name.toLowerCase();
+            
+            if (aLower.includes('football wrold cup') || aLower.includes('football world cup') || 
+                bLower.includes('football wrold cup') || bLower.includes('football world cup')) {
+                  // Handled later or skipped
+            }
+
             const cleanQuery = queryStr.replace(/[^a-z0-9]/g, '');
             const cleanA = aLower.replace(/[^a-z0-9]/g, '');
             const cleanB = bLower.replace(/[^a-z0-9]/g, '');
@@ -1052,6 +1062,11 @@ export default function App() {
     }).sort((a, b) => a.name.localeCompare(b.name));
 
     const finalFilteredList = uniqueList.filter(c => {
+      const lowerName = c.name.toLowerCase();
+      if (lowerName.includes('football wrold cup') || lowerName.includes('football world cup')) {
+        return false;
+      }
+
       if (activeTab === 'all') {
         return c.source === serverSource;
       }
@@ -2504,7 +2519,7 @@ export default function App() {
                              <button 
                                onClick={() => { setShowSettingsMenu(!showSettingsMenu); }}
                                className="hover:opacity-80 p-1 cursor-pointer flex items-center space-x-1"
-                               title="Settings"
+                               title="Video Print / Settings"
                              >
                                <Settings className="w-5 h-5 animate-[spin_10s_linear_infinite]" />
                                {currentQuality !== -1 && qualityLevels.length > 1 && (
@@ -2523,7 +2538,7 @@ export default function App() {
                                    className="absolute bottom-full right-0 mb-3 bg-[#111112]/95 backdrop-blur-md border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl min-w-[245px] max-w-[280px] z-[100] font-sans p-3 text-left"
                                  >
                                    <div className="text-xs font-black text-zinc-100 mb-3 border-b border-zinc-900 pb-2 flex items-center justify-between">
-                                      <span>{lang === 'en' ? 'PLAYER CONFIG' : 'প্লেয়ার কনফিগারেশন'}</span>
+                                      <span>{lang === 'en' ? 'VIDEO PRINT / CONFIG' : 'ভিডিও প্রিন্ট / কনফিগারেশন'}</span>
                                       <span className="text-[9px] bg-zinc-800 px-1.5 py-0.5 text-zinc-400 rounded-full font-mono">v2.2</span>
                                    </div>
                                    
@@ -2531,7 +2546,7 @@ export default function App() {
                                    {currentChannel && currentChannel.urls && currentChannel.urls.length > 1 && (
                                      <div className="mb-3.5 pt-1">
                                        <label className="text-[10px] uppercase font-black text-zinc-400 tracking-wider block mb-1.5">
-                                         {lang === 'en' ? 'Stream Server / Feed' : 'সার্ভার বা ব্যাকআপ ফিড'}
+                                         {lang === 'en' ? 'Video Print / Extra Feeds' : 'ভিডিও প্রিন্ট বা ব্যাকআপ ফিড'}
                                        </label>
                                        <div className="space-y-1 max-h-[110px] overflow-y-auto scrollbar-thin">
                                          {currentChannel.urls.map((url, index) => (
@@ -2544,8 +2559,8 @@ export default function App() {
                                              }}
                                              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${selectedServer === index ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-600/20' : 'bg-zinc-900/40 hover:bg-zinc-800 text-zinc-300'}`}
                                            >
-                                             <span>{lang === 'en' ? `Server ${index + 1}` : `সার্ভার ${index + 1}`}</span>
-                                             {index === 0 && <span className="text-[8px] opacity-60 ml-1">({lang === 'en' ? 'Primary' : 'প্রধান'})</span>}
+                                             <span>{lang === 'en' ? `Print ${index + 1}` : `প্রিন্ট ${index + 1}`}</span>
+                                             {index === 0 && <span className="text-[8px] opacity-60 ml-1">({lang === 'en' ? 'Auto/Main' : 'অটো/প্রধান'})</span>}
                                              {selectedServer === index && <Check className="w-3.5 h-3.5 text-indigo-400" />}
                                            </button>
                                          ))}
@@ -2556,7 +2571,7 @@ export default function App() {
                                    {qualityLevels.length > 1 && (
                                      <div className={`${currentChannel && currentChannel.urls && currentChannel.urls.length > 1 ? 'border-t border-zinc-900 mt-3 pt-3' : ''}`}>
                                        <label className="text-[10px] uppercase font-black text-zinc-400 tracking-wider block mb-1.5">
-                                         {lang === 'en' ? 'Quality' : 'ভিডিও কোয়ালিটি'}
+                                         {lang === 'en' ? 'Video Print / Quality' : 'ভিডিও প্রিন্ট / কোয়ালিটি'}
                                        </label>
                                        <div className="grid grid-cols-2 gap-1 max-h-[110px] overflow-y-auto scrollbar-thin">
                                          {qualityLevels.map((level) => (
