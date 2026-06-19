@@ -134,6 +134,72 @@ async function startServer() {
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 
+  app.get('/api/admin/verify', (req, res) => {
+    const email = req.query.email as string;
+    // Hardcoded authorized email as requested by user
+    const authorizedAdmins = ['taaissu@gmail.com'];
+    const isAuthorized = email && authorizedAdmins.includes(email);
+    res.json({ authorized: !!isAuthorized });
+  });
+
+  app.get('/api/parse-m3u', (req, res) => {
+    const urlStr = req.query.url as string;
+    if (!urlStr) return res.status(400).send('URL required');
+
+    const client = urlStr.startsWith('https') ? https : http;
+    try {
+      const remoteReq = client.get(urlStr, { timeout: 15000 }, (remoteRes) => {
+        let body = '';
+        remoteRes.on('data', chunk => body += chunk);
+        remoteRes.on('end', () => {
+          const lines = body.split('\n');
+          const parsedChannels: any[] = [];
+          let currentItem: any = {};
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('#EXTINF:')) {
+              const parts = line.split(',');
+              currentItem.name = parts.length > 1 ? parts[parts.length - 1].trim() : 'Unknown';
+              const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+              if (logoMatch) currentItem.logo = logoMatch[1];
+            } else if (line.startsWith('http')) {
+              if (currentItem.name) {
+                parsedChannels.push({
+                  name: currentItem.name,
+                  url: line,
+                  logo: currentItem.logo || "",
+                });
+                currentItem = {};
+              } else {
+                // If direct link line without EXTINF, extract name from filename or use a generic name
+                const filename = line.split('/').pop()?.split('?')[0] || 'Custom Stream';
+                parsedChannels.push({
+                  name: filename.replace(/\.[^/.]+$/, ""),
+                  url: line,
+                  logo: ""
+                });
+              }
+            }
+          }
+          res.json(parsedChannels);
+        });
+      });
+
+      remoteReq.on('error', (err) => {
+        console.error('Error fetching M3U via proxy:', err.message);
+        res.status(500).json({ error: 'Failed to retrieve remote playlist: ' + err.message });
+      });
+
+      remoteReq.on('timeout', () => {
+        remoteReq.destroy();
+        res.status(504).json({ error: 'Request timed out fetching live playlist' });
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/proxy', async (req, res) => {
     const originalTargetUrl = req.query.url as string;
     if (!originalTargetUrl) return res.status(400).send('URL required');

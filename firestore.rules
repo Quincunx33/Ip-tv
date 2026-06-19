@@ -14,11 +14,15 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isValidChannel(channel) {
-      return channel is map &&
-             channel.keys().hasAll(['url', 'name']) &&
-             channel.url is string &&
-             channel.name is string;
+    // Role-based helper matching specifically our admin user taaissu@gmail.com
+    function isAdmin() {
+      return isSignedIn() && 
+             request.auth.token.email == 'taaissu@gmail.com' && 
+             request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
     function isValidFavorites(arr) {
@@ -44,6 +48,31 @@ service cloud.firestore {
       match /interactions/{interactionId} {
         allow read, write: if isOwner(userId);
       }
+    }
+
+    match /m3u_playlists/{playlistId} {
+      allow read: if true; // Any visitor can view loaded custom channels
+      allow create: if isAdmin() && 
+                      isValidId(playlistId) &&
+                      request.resource.data.keys().hasAll(['name', 'url', 'server', 'category', 'addedBy', 'createdAt']) &&
+                      request.resource.data.keys().size() == 6 &&
+                      request.resource.data.name is string && request.resource.data.name.size() <= 200 &&
+                      request.resource.data.url is string && request.resource.data.url.size() <= 2000 &&
+                      request.resource.data.server is string && (request.resource.data.server == '1' || request.resource.data.server == '2' || request.resource.data.server == '3') &&
+                      request.resource.data.category is string && (request.resource.data.category in ['general', 'sports', 'fifa', 'news']) &&
+                      request.resource.data.addedBy == request.auth.token.email &&
+                      request.resource.data.createdAt == request.time;
+      allow update: if isAdmin() && 
+                      isValidId(playlistId) &&
+                      request.resource.data.keys().hasAll(['name', 'url', 'server', 'category', 'addedBy', 'createdAt']) &&
+                      request.resource.data.keys().size() == 6 &&
+                      request.resource.data.name is string && request.resource.data.name.size() <= 200 &&
+                      request.resource.data.url is string && request.resource.data.url.size() <= 2000 &&
+                      request.resource.data.server is string && (request.resource.data.server == '1' || request.resource.data.server == '2' || request.resource.data.server == '3') &&
+                      request.resource.data.category is string && (request.resource.data.category in ['general', 'sports', 'fifa', 'news']) &&
+                      request.resource.data.addedBy == resource.data.addedBy &&
+                      request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin() && isValidId(playlistId);
     }
 
     match /messages/{messageId} {

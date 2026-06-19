@@ -10,12 +10,19 @@ import * as dashjs from 'dashjs';
 import { Play, Pause, Search, Menu, Tv, Globe, X, Volume2, VolumeX, RefreshCw, Copy, Check, ChevronDown, 
   Star, Heart, Languages, LayoutGrid, List, Flame, Radio, Bookmark, Tv2, Maximize, Minimize, 
   SkipForward, SkipBack, Expand, AppWindow, Tv2 as TvIcon, MoreVertical, Send, ThumbsUp, ThumbsDown, 
-  Share, Users, MessageSquare, Home, Compass, Settings, Clock, Cast, Bell, PictureInPicture
+  Share, Users, MessageSquare, Home, Compass, Settings, Clock, Cast, Bell, PictureInPicture,
+  Plus, Trash2
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Sidebar from './components/Sidebar';
+import AdminPortal from './components/AdminPortal';
 import { Channel } from './types';
 import { getCountryFlag, formatCountryName } from './utils';
+
+// Firebase imports
+import { auth, db, signInWithGoogle, logout } from './firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, onSnapshot, query, where, orderBy, getDocFromServer } from 'firebase/firestore';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -508,10 +515,151 @@ export default function App() {
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [isClosingMiniPlayer, setIsClosingMiniPlayer] = useState(false);
 
-  const user = null;
-  const loadingAuth = false;
+  const [user, setUser] = useState<any>(null);
+  const [loadingAuth, setLoadingAuth] = useState<boolean>(true);
   const [favorites, setFavorites] = useState<Channel[]>([]);
   const [deadChannels, setDeadChannels] = useState<Set<string>>(new Set());
+
+  // Custom Playlists States loaded from Firestore
+  const [customPlaylists, setCustomPlaylists] = useState<any[]>([]);
+  const [customChannels, setCustomChannels] = useState<Channel[]>([]);
+  const [showAdminPanel, setShowAdminPanel] = useState<boolean>(false);
+  const [isAdminAuthorized, setIsAdminAuthorized] = useState<boolean>(false);
+
+  // User authentication state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
+      setUser(authUser);
+      setLoadingAuth(false);
+      
+      if (authUser?.email) {
+        try {
+          const res = await fetch(`/api/admin/verify?email=${encodeURIComponent(authUser.email)}`);
+          const data = await res.json();
+          setIsAdminAuthorized(!!data.authorized);
+        } catch (err) {
+          console.error("Auth verification failed:", err);
+          setIsAdminAuthorized(false);
+        }
+      } else {
+        setIsAdminAuthorized(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch custom playlists from Firestore (realtime subscription)
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'm3u_playlists'), (snapshot) => {
+      const playlistsData: any[] = [];
+      snapshot.forEach(docSnap => {
+        playlistsData.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setCustomPlaylists(playlistsData);
+    }, (error) => {
+      console.error("Error listening to m3u_playlists:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Parse and cache custom M3U channels matching serverSource
+  useEffect(() => {
+    let active = true;
+    const fetchCustomChannels = async () => {
+      const allParsed: Channel[] = [];
+      const matchingPlaylists = customPlaylists.filter(p => String(p.server) === String(serverSource));
+      
+      for (const playlist of matchingPlaylists) {
+        try {
+          const res = await fetch(`/api/parse-m3u?url=${encodeURIComponent(playlist.url)}`);
+          if (res.ok) {
+            const parsedList: Channel[] = await res.json();
+            const formatted = parsedList.map(ch => ({
+              ...ch,
+              source: serverSource,
+              country: ch.country || 'custom',
+              category: playlist.category || 'general'
+            }));
+            allParsed.push(...formatted);
+          }
+        } catch (err) {
+          console.error("Failed to parse custom playlist URL:", playlist.url, err);
+        }
+      }
+      
+      if (active) {
+        setCustomChannels(allParsed);
+      }
+    };
+    
+    if (customPlaylists.length > 0) {
+      fetchCustomChannels();
+    } else {
+      setCustomChannels([]);
+    }
+    
+    return () => {
+      active = false;
+    };
+  }, [customPlaylists, serverSource]);
+
+  // Sync favorites & deadChannels from Firestore on login
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchUserData = async () => {
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.favorites) {
+            setFavorites(data.favorites);
+          }
+          if (data.deadChannels) {
+            setDeadChannels(new Set(data.deadChannels));
+          }
+        } else {
+          await setDoc(userDocRef, {
+            favorites: favorites,
+            deadChannels: Array.from(deadChannels)
+          });
+        }
+      } catch (err) {
+        console.error("Error sync reading user data:", err);
+      }
+    };
+    
+    fetchUserData();
+  }, [user]);
+
+  // Sync favorites & deadChannels back to Firestore when changed
+  const isFirstSyncRef = useRef(true);
+  useEffect(() => {
+    if (!user) return;
+    if (isFirstSyncRef.current) {
+      isFirstSyncRef.current = false;
+      return;
+    }
+    
+    const syncUserData = async () => {
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        await setDoc(userDocRef, {
+          favorites: favorites,
+          deadChannels: Array.from(deadChannels)
+        }, { merge: true });
+      } catch (err) {
+        console.error("Error sync writing user data:", err);
+      }
+    };
+    
+    const timer = setTimeout(() => {
+      syncUserData();
+    }, 1500);
+    
+    return () => clearTimeout(timer);
+  }, [favorites, deadChannels, user]);
 
   // Infinite Scroll / Lazy Loading State
   const [visibleCount, setVisibleCount] = useState(50);
@@ -865,15 +1013,19 @@ export default function App() {
   }, [selectedCountry, serverSource, activeTab]);
 
   useEffect(() => {
-    let list = channels;
+    const baseChannels = [...channels, ...customChannels];
+    let list = baseChannels;
     if (activeTab === 'favorites') {
       list = favorites;
-    } else if (activeTab === 'fifa' || activeTab === 'sports') {
-      // Use the pre-compiled global static lists without extra clientside pruning
-      list = channels;
+    } else if (activeTab === 'fifa') {
+      const kw = ['fifa', 'world cup', 'football', 'uefa'];
+      list = baseChannels.filter(c => c.category === 'fifa' || (!c.category && kw.some(k => c.name.toLowerCase().includes(k))));
+    } else if (activeTab === 'sports') {
+      const kw = ['sports', 't sports', 'ghazi', 'gtv', 'star sports', 'sony', 'bein', 'willow', 'cricket', 'football', 'ten'];
+      list = baseChannels.filter(c => c.category === 'sports' || c.category === 'fifa' || (!c.category && kw.some(k => c.name.toLowerCase().includes(k))));
     } else if (activeTab === 'news') {
-      const kw = ['news', 'somoy', 'jamuna', 'ekattor', 'independent', 'bbc', 'cnn', 'al jazeera'];
-      list = channels.filter(c => kw.some(k => c.name.toLowerCase().includes(k)));
+      const kw = ['news', 'somoy', 'jamuna', 'ekattor', 'independent', 'bbc', 'cnn', 'al jazeera', 'reuters'];
+      list = baseChannels.filter(c => c.category === 'news' || kw.some(k => c.name.toLowerCase().includes(k)));
     }
     if (debouncedSearch) {
       const query = debouncedSearch.toLowerCase().trim();
@@ -896,7 +1048,7 @@ export default function App() {
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
-    });
+    }).sort((a, b) => a.name.localeCompare(b.name));
 
     const finalFilteredList = uniqueList.filter(c => {
       if (activeTab === 'all') {
@@ -1840,10 +1992,56 @@ export default function App() {
           </button>
         </div>
 
-        <div className="flex items-center space-x-1 sm:space-x-3">
+        <div className="flex items-center space-x-1.5 sm:space-x-3">
           <button className="p-2 hover:bg-zinc-800 rounded-full sm:hidden" onClick={() => setIsCountryModalOpen(true)}>
             <Globe className="w-5 h-5"/>
           </button>
+          
+          {!user ? (
+            <button 
+              onClick={signInWithGoogle} 
+              className="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold uppercase tracking-wider text-white transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
+            >
+              <span className="w-3.5 h-3.5 flex items-center justify-center font-black bg-white/20 rounded-full text-[9px]">G</span>
+              <span>{lang === 'en' ? 'Sign In' : 'লগইন'}</span>
+            </button>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <div className="group relative">
+                <button className="w-8 h-8 rounded-full border border-zinc-800 overflow-hidden flex items-center justify-center cursor-pointer bg-zinc-900 shadow-inner">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt="User Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <span className="text-xs font-bold text-indigo-400 font-mono uppercase">{user.email?.slice(0, 1) || 'U'}</span>
+                  )}
+                </button>
+                {/* Profile drop-down */}
+                <div className="absolute right-0 mt-2 w-52 bg-[#09090b] border border-white/5 rounded-xl p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.8)] opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-200 z-[100] transform translate-y-1 group-hover:translate-y-0">
+                  <div className="px-3 py-2 border-b border-white/5 mb-1.5">
+                    <p className="text-xs font-bold text-zinc-100 truncate">{user.displayName || 'Subscriber'}</p>
+                    <p className="text-[10px] text-zinc-500 truncate font-mono">{user.email}</p>
+                  </div>
+                  {isAdminAuthorized && (
+                    <button 
+                      onClick={() => { setShowAdminPanel(true); }}
+                      className="w-full text-left px-3 py-2 hover:bg-white/5 hover:text-white text-indigo-400 text-xs font-bold rounded-lg transition-colors flex items-center space-x-2 cursor-pointer mb-1"
+                    >
+                      <span>📺</span>
+                      <span>M3U Playlist Mgr</span>
+                    </button>
+                  )}
+                  <button 
+                    onClick={logout}
+                    className="w-full text-left px-3 py-2 hover:bg-rose-500/10 text-rose-400 text-xs font-bold rounded-lg transition-colors flex items-center space-x-2 cursor-pointer"
+                  >
+                    <span>🚪</span>
+                    <span>{lang === 'en' ? 'Sign Out' : 'লগআউট'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <button className="p-2 hover:bg-zinc-800 rounded-full hidden sm:block">
             <Bell className="w-5 h-5" />
           </button>
@@ -2653,6 +2851,18 @@ export default function App() {
             <Check className="w-4 h-4 text-white font-black shrink-0" strokeWidth={3} />
             <span>{toastMessage}</span>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Dedicated Admin Portal */}
+      <AnimatePresence>
+        {showAdminPanel && isAdminAuthorized && user && (
+          <AdminPortal 
+            user={user} 
+            customPlaylists={customPlaylists} 
+            onClose={() => setShowAdminPanel(false)} 
+            lang={lang} 
+          />
         )}
       </AnimatePresence>
     </div>
