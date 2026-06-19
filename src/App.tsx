@@ -1904,6 +1904,13 @@ export default function App() {
         </div>
 
         <div className="flex items-center space-x-1.5 sm:space-x-3">
+          <button 
+            onClick={() => setIsCustomModalOpen(true)}
+            className="p-2.5 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 rounded-full cursor-pointer transition-all border border-indigo-500/20"
+            title={lang === 'en' ? 'Add Custom M3U' : 'কাস্টম লিঙ্ক যোগ করুন'}
+          >
+            <Plus className="w-5 h-5" />
+          </button>
           <button className="p-2 hover:bg-zinc-800 rounded-full hidden sm:block">
             <Bell className="w-5 h-5" />
           </button>

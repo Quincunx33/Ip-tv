@@ -622,8 +622,75 @@ async function startServer() {
     }
   });
 
+  // API for parsing remote M3U playlists
+  app.get("/api/parse-m3u", async (req, res) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ error: "Missing URL" });
+
+    try {
+      const response = await fetch(url as string);
+      if (!response.ok) throw new Error("Failed to fetch M3U");
+      const content = await response.text();
+      
+      const lines = content.split('\n');
+      const channels: any[] = [];
+      let currentItem: any = {};
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('#EXTINF:')) {
+          const nameMatch = line.match(/,(.+)$/);
+          currentItem.name = nameMatch ? nameMatch[1].trim() : 'Unknown';
+          const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+          if (logoMatch) currentItem.logo = logoMatch[1];
+        } else if (line.startsWith('http')) {
+          if (currentItem.name) {
+            channels.push({
+              name: currentItem.name,
+              url: line,
+              logo: currentItem.logo || "",
+              country: "custom"
+            });
+            currentItem = {};
+          } else {
+             const urlParts = line.split('/');
+             const fileName = urlParts[urlParts.length - 1] || 'Stream';
+             channels.push({
+               name: fileName,
+               url: line,
+               logo: "",
+               country: "custom"
+             });
+          }
+        }
+      }
+      res.json(channels);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
   app.get('/api/channels/:country', (req, res) => {
     const country = req.params.country;
+
+    // 1. Load static channels for special categories - FAST EXIT
+    if (country === 'fifa') {
+      const staticPath = path.join(process.cwd(), 'public', 'static-api', 'fifa.json');
+      if (fs.existsSync(staticPath)) {
+        const staticData = JSON.parse(fs.readFileSync(staticPath, 'utf-8'));
+        return res.json(staticData);
+      }
+      return res.json([]);
+    }
+
+    if (country === 'sports') {
+      const staticPath = path.join(process.cwd(), 'public', 'static-api', 'sports.json');
+      if (fs.existsSync(staticPath)) {
+        const staticData = JSON.parse(fs.readFileSync(staticPath, 'utf-8'));
+        return res.json(staticData);
+      }
+    }
+
     const filePath = path.join(process.cwd(), 'iptv-master', 'streams', `${country}.m3u`);
     const server1Path = path.join(process.cwd(), 'iptv-master', 'server1_streams.json');
     
@@ -631,31 +698,18 @@ async function startServer() {
       let channels: any[] = [];
 
       // 1. Load Server 1 channels for this country
-      // 1. Load static channels for special categories
-      if (country === 'fifa') {
-        const staticPath = path.join(process.cwd(), 'public', 'static-api', 'fifa.json');
-        if (fs.existsSync(staticPath)) {
-          const staticData = JSON.parse(fs.readFileSync(staticPath, 'utf-8'));
-          return res.json(staticData);
-        }
-        return res.json([]);
-      }
-
-      if (country === 'sports') {
-        const staticPath = path.join(process.cwd(), 'public', 'static-api', 'sports.json');
-        if (fs.existsSync(server1Path)) {
-          const server1Data = JSON.parse(fs.readFileSync(server1Path, 'utf-8'));
-          if (server1Data[country]) {
-            server1Data[country].forEach((ch: any) => {
-              channels.push({
-                name: ch.name,
-                url: ch.url,
-                logo: ch.logo || "",
-                source: '1',
-                country: country
-              });
+      if (fs.existsSync(server1Path)) {
+        const server1Data = JSON.parse(fs.readFileSync(server1Path, 'utf-8'));
+        if (server1Data[country]) {
+          server1Data[country].forEach((ch: any) => {
+            channels.push({
+              name: ch.name,
+              url: ch.url,
+              logo: ch.logo || "",
+              source: '1',
+              country: country
             });
-          }
+          });
         }
       }
 

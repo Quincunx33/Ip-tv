@@ -167,19 +167,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <ChevronDown className="w-4 h-4 text-zinc-500" />
           </button>
-
-          <button 
-            onClick={() => {setIsCustomModalOpen(true); if(window.innerWidth < 1024) setIsSidebarOpen(false);}} 
-            className="w-full flex items-center justify-between px-3 py-3 rounded-xl bg-indigo-600/10 border border-indigo-500/20 hover:bg-indigo-600/20 transition-all cursor-pointer group mt-3"
-          >
-            <div className="flex items-center space-x-3">
-              <Radio className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-bold text-indigo-300">
-                {lang === 'en' ? 'Add Custom M3U' : 'কাস্টম লিঙ্ক যোগ করুন'}
-              </span>
-            </div>
-            <Plus className="w-4 h-4 text-indigo-500" />
-          </button>
         </div>
 
 

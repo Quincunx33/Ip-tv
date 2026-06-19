@@ -183,21 +183,85 @@ async function run() {
       'star sports', 'starsports', 'starsports1'
     ];
 
-    const fifaChannels = allChannels.filter(ch => 
-      fifaKeywords.some(kw => ch.name.toLowerCase().includes(kw)) || ch.name.toLowerCase().includes('bein sports 1')
-    );
-    fifaChannels.sort((a, b) => {
-      const isA_beIn1 = a.name.toLowerCase().includes('bein sports 1');
-      const isB_beIn1 = b.name.toLowerCase().includes('bein sports 1');
-      if (isA_beIn1 && !isB_beIn1) return -1;
-      if (!isA_beIn1 && isB_beIn1) return 1;
-
-      const priorityKeywords = ['fifa', 'world cup', 'plus', 'star'];
-      const aPriority = priorityKeywords.some(k => a.name.toLowerCase().includes(k)) ? 0 : 1;
-      const bPriority = priorityKeywords.some(k => b.name.toLowerCase().includes(k)) ? 0 : 1;
-      if (aPriority !== bPriority) return aPriority - bPriority;
-      return a.name.localeCompare(b.name);
-    });
+    const fifaChannels = [
+      {
+        "name": "beIN Sports 1 (FIFA)",
+        "url": "https://1nyaler.streamhostingcdn.top/stream/23/index.m3u8",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/BeIN_Sports_logo.svg",
+        "source": "1",
+        "country": "fifa"
+      },
+      {
+        "name": "FIFA Live 🇦🇺 🇹🇷",
+        "url": "https://andro.226503.xyz/checklist/androstreamlivebs1.m3u8",
+        "logo": "",
+        "source": "3",
+        "country": "au"
+      },
+      {
+        "name": "World Cup 4k 5",
+        "url": "http://starhub.pro/live/farhat-3379/67897-913379/745270.ts",
+        "logo": "",
+        "source": "3",
+        "country": "int"
+      },
+      {
+        "name": "Bein Sports 1 Max Arabic",
+        "url": "http://starhub.pro/live/farhat-3379/67897-913379/744517.ts",
+        "logo": "",
+        "source": "3",
+        "country": "int"
+      },
+      {
+        "name": "BEIN SPORTS 1 Turkey",
+        "url": "https://andro.226503.xyz/checklist/androstreamlivebiraz1.m3u8",
+        "logo": "",
+        "source": "3",
+        "country": "int"
+      },
+      {
+        "name": "Sport5 🇮🇱 1",
+        "url": "https://rgelive.akamaized.net/hls/live/2043151/radiolive/playlist.m3u8",
+        "logo": "",
+        "source": "3",
+        "country": "int"
+      },
+      {
+        "name": "Sport5 🇮🇱 2",
+        "url": "https://rgelive.akamaized.net/hls/live/2043095/live3/playlist.m3u8",
+        "logo": "",
+        "source": "3",
+        "country": "int"
+      },
+      {
+        "name": "Sports 🇫🇷",
+        "url": "http://84.17.50.102/fox/index.m3u8",
+        "logo": "",
+        "source": "3",
+        "country": "fr"
+      },
+      {
+        "name": "T Sports",
+        "url": "https://tvsen7.aynaott.com/tsports-hd/index.m3u8",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/e/e0/T_Sports_logo.jpg",
+        "source": "2",
+        "country": "bd"
+      },
+      {
+        "name": "T Sports Premium",
+        "url": "http://luckonline.eu/live/y49sz6KMQs/6115263489/1142.ts",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/e/e0/T_Sports_logo.jpg",
+        "source": "3",
+        "country": "bd"
+      },
+      {
+        "name": "10 T sports",
+        "url": "http://premiumtvs.space/live/jen12345/Jen54321/130714.ts",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/e/e0/T_Sports_logo.jpg",
+        "source": "3",
+        "country": "bd"
+      }
+    ];
     const sportsChannelsRaw = allChannels.filter(ch =>
       sportsKeywords.some(kw => ch.name.toLowerCase().includes(kw))
     );
