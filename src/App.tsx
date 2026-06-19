@@ -509,30 +509,32 @@ export default function App() {
 
   const [validationStatus, setValidationStatus] = useState<'checking' | 'direct' | 'fallback-local' | 'fallback-public' | 'failed'>('checking');
   const [validationDetails, setValidationDetails] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'sports' | 'news' | 'fifa'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'sports' | 'news' | 'fifa' | 'custom'>('fifa');
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [isClosingMiniPlayer, setIsClosingMiniPlayer] = useState(false);
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
 
-  const [favorites, setFavorites] = useState<Channel[]>([]);
+  const [favorites, setFavorites] = useState<Channel[]>(() => {
+    const saved = localStorage.getItem('st_favorites');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [deadChannels, setDeadChannels] = useState<Set<string>>(new Set());
 
-  // Custom Playlists States loaded from Firestore
-  const [customPlaylists, setCustomPlaylists] = useState<any[]>([]);
+  // Custom Playlists States loaded from LocalStorage
+  const [customPlaylists, setCustomPlaylists] = useState<any[]>(() => {
+    const saved = localStorage.getItem('st_custom_playlists');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [customChannels, setCustomChannels] = useState<Channel[]>([]);
 
-  // Fetch custom playlists from Firestore (realtime subscription)
+  // Sync states to LocalStorage
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'm3u_playlists'), (snapshot) => {
-      const playlistsData: any[] = [];
-      snapshot.forEach(docSnap => {
-        playlistsData.push({ id: docSnap.id, ...docSnap.data() });
-      });
-      setCustomPlaylists(playlistsData);
-    }, (error) => {
-      console.error("Error listening to m3u_playlists:", error);
-    });
-    return () => unsubscribe();
-  }, []);
+    localStorage.setItem('st_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  useEffect(() => {
+    localStorage.setItem('st_custom_playlists', JSON.stringify(customPlaylists));
+  }, [customPlaylists]);
 
   // Parse and cache custom M3U channels matching serverSource
   useEffect(() => {
@@ -903,6 +905,11 @@ export default function App() {
     if (!selectedCountry) return;
     const fetchChannels = async () => {
       setLoading(true);
+      if (activeTab === 'custom') {
+        setChannels([]);
+        setLoading(false);
+        return;
+      }
       const fetchId = activeTab === 'fifa' ? 'fifa' : activeTab === 'sports' ? 'sports' : selectedCountry;
       try {
         let res = await fetch(`/api/channels/${fetchId}?source=${serverSource}`);
@@ -930,6 +937,8 @@ export default function App() {
     let list = baseChannels;
     if (activeTab === 'favorites') {
       list = favorites;
+    } else if (activeTab === 'custom') {
+      list = customChannels;
     } else if (activeTab === 'fifa' || activeTab === 'sports') {
       // Use the pre-compiled global static lists without extra clientside pruning
       list = baseChannels;
@@ -1974,6 +1983,7 @@ export default function App() {
                   setIsServer3Enabled={setIsServer3Enabled}
                   serverSource={serverSource}
                   setServerSource={setServerSource}
+                  setIsCustomModalOpen={setIsCustomModalOpen}
                 />
                 </motion.div>
              </>
@@ -2024,7 +2034,7 @@ export default function App() {
                       onClick={() => setServerSource('3')}
                       className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${serverSource === '3' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
                     >
-                      Server 3 (Dedicated)
+                      Server 3
                     </button>
                   )}
                 </div>
@@ -2665,6 +2675,176 @@ export default function App() {
                     </button>
                   )}
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom M3U Manager Modal */}
+      <AnimatePresence>
+        {isCustomModalOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-[#09090b] rounded-3xl max-w-2xl w-full p-6 relative border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.9)] max-h-[90vh] flex flex-col"
+            >
+              {/* Close Button */}
+              <button 
+                onClick={() => setIsCustomModalOpen(false)} 
+                className="absolute top-5 right-5 text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5"/>
+              </button>
+
+              {/* Header */}
+              <div className="pb-4 border-b border-white/5 flex items-center space-x-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
+                  <span className="text-lg">📺</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black tracking-tight text-white uppercase sm:text-xl">Custom M3U Link Manager</h3>
+                  <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest leading-none">Add your own streams</p>
+                </div>
+              </div>
+
+              {/* Scrollable Container */}
+              <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+                
+                {/* Adding New Playlist Form */}
+                <div className="p-5 bg-[#121214] border border-white/5 rounded-2xl">
+                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Add M3U Playlist or Stream URL</h4>
+                  
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget;
+                    const formData = new FormData(form);
+                    const name = formData.get('playlist-name') as string;
+                    const url = formData.get('playlist-url') as string;
+                    const server = formData.get('playlist-server') as string;
+
+                    if (!name || !url || !server) {
+                      setToastMessage("Please fill in all the input fields");
+                      setTimeout(() => setToastMessage(''), 3000);
+                      return;
+                    }
+
+                    const newPlaylist = {
+                      id: 'm3u_' + Date.now(),
+                      name: name.trim(),
+                      url: url.trim(),
+                      server: server,
+                      createdAt: new Date().toISOString()
+                    };
+
+                    setCustomPlaylists(prev => [...prev, newPlaylist]);
+                    form.reset();
+                    setToastMessage("Playlist added successfully!");
+                    setTimeout(() => setToastMessage(''), 3000);
+                  }} className="space-y-4">
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Name of Playlist */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Name</label>
+                        <input 
+                          type="text" 
+                          name="playlist-name"
+                          placeholder="e.g. My Premium Playlist"
+                          required
+                          className="w-full bg-zinc-950 border border-white/5 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500/20 text-indigo-300 font-medium transition-all"
+                        />
+                      </div>
+
+                      {/* Server Selection */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Server Source</label>
+                        <select 
+                          name="playlist-server"
+                          required
+                          className="w-full bg-zinc-950 border border-white/5 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500/20 text-indigo-300 font-bold transition-all cursor-pointer"
+                        >
+                          <option value="1">Server 1</option>
+                          <option value="2">Server 2</option>
+                          <option value="3">Server 3</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* M3U Link URL */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">M3U or Stream URL</label>
+                      <input 
+                        type="url" 
+                        name="playlist-url"
+                        placeholder="https://example.com/live.m3u8"
+                        required
+                        className="w-full bg-zinc-950 border border-white/5 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500/20 text-indigo-300 font-mono transition-all"
+                      />
+                    </div>
+
+                    {/* Submit Button */}
+                    <div className="pt-2">
+                      <button 
+                        type="submit"
+                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold tracking-widest uppercase text-[10px] rounded-xl transition-all shadow-lg shadow-indigo-600/25 cursor-pointer active:scale-98"
+                      >
+                        + Add Custom Playlist
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Registered Playlists Listing */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-1">Active Custom Playlists ({customPlaylists.length})</h4>
+                  
+                  {customPlaylists.length === 0 ? (
+                    <div className="py-8 bg-[#121214]/65 border border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center text-zinc-500">
+                      <span className="text-2xl mb-1.5">📭</span>
+                      <p className="text-xs font-bold uppercase tracking-wider">{lang === 'en' ? 'No custom links registered' : 'কোন কাস্টম প্লেলিস্ট নেই'}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {customPlaylists.map((playlist, idx) => (
+                        <div 
+                          key={playlist.id || idx}
+                          className="flex items-center justify-between p-4 bg-[#121214] border border-white/5 hover:border-white/10 rounded-xl transition-all group"
+                        >
+                          <div className="flex flex-col space-y-1 flex-1 min-w-0 pr-4">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs font-bold text-white truncate">{playlist.name}</span>
+                              <span className="px-1.5 py-0.5 bg-zinc-800 border border-white/5 text-[8px] font-black tracking-widest uppercase text-indigo-400 rounded">
+                                Server {playlist.server}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-zinc-500 truncate font-mono">{playlist.url}</span>
+                          </div>
+
+                          <button 
+                            onClick={() => {
+                              setCustomPlaylists(prev => prev.filter(p => p.id !== playlist.id));
+                              setToastMessage("Playlist removed");
+                              setTimeout(() => setToastMessage(''), 3000);
+                            }}
+                            className="p-2.5 hover:bg-rose-500/10 text-zinc-500 hover:text-rose-400 border border-zinc-900 hover:border-rose-500/20 rounded-xl transition-all cursor-pointer shrink-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Concluding Footer */}
+              <div className="pt-4 border-t border-white/5 flex items-center justify-between mt-6 shrink-0 text-zinc-600 font-bold uppercase tracking-wider text-[8px]">
+                <span>Saved Locally</span>
+                <span className="text-emerald-500 animate-pulse">Online</span>
               </div>
             </motion.div>
           </div>

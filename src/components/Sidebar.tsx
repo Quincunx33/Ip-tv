@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { 
   Home, Flame, Globe, Radio, Bookmark, AppWindow, 
   RefreshCw, ChevronDown, Settings, Shield, Cpu, Activity, 
-  LayoutDashboard, Map, Info, Zap
+  LayoutDashboard, Map, Info, Zap, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SidebarProps } from '../types';
@@ -47,7 +47,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   isServer3Enabled,
   setIsServer3Enabled,
   serverSource,
-  setServerSource
+  setServerSource,
+  setIsCustomModalOpen
 }) => {
   const [isClearing, setIsClearing] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
@@ -79,6 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: 'all', label: t.home, icon: Home },
     { id: 'sports', label: t.sports, icon: Flame },
     { id: 'fifa', label: t.fifa, icon: Globe, special: true },
+    { id: 'custom', label: lang === 'en' ? 'Custom' : 'কাস্টম', icon: Zap, special: true },
     { id: 'news', label: t.news, icon: Radio },
     { id: 'favorites', label: t.favorites, icon: Bookmark },
   ];
@@ -165,6 +167,19 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <ChevronDown className="w-4 h-4 text-zinc-500" />
           </button>
+
+          <button 
+            onClick={() => {setIsCustomModalOpen(true); if(window.innerWidth < 1024) setIsSidebarOpen(false);}} 
+            className="w-full flex items-center justify-between px-3 py-3 rounded-xl bg-indigo-600/10 border border-indigo-500/20 hover:bg-indigo-600/20 transition-all cursor-pointer group mt-3"
+          >
+            <div className="flex items-center space-x-3">
+              <Radio className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform" />
+              <span className="text-sm font-bold text-indigo-300">
+                {lang === 'en' ? 'Add Custom M3U' : 'কাস্টম লিঙ্ক যোগ করুন'}
+              </span>
+            </div>
+            <Plus className="w-4 h-4 text-indigo-500" />
+          </button>
         </div>
 
 
@@ -241,7 +256,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               </button>
             </div>
 
-            {/* Server 3 Toggle (Latest / Dedicated) */}
+            {/* Server 3 Toggle */}
             <div 
               onClick={() => {if(isServer3Enabled) setServerSource('3');}}
               className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${serverSource === '3' ? 'bg-teal-500/10 border-teal-500/30 ring-1 ring-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white/5 border-white/5 hover:bg-white/[0.08]'}`}
@@ -252,10 +267,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center space-x-1">
-                    <span className={`text-xs font-bold ${serverSource === '3' ? 'text-teal-400' : 'text-white'}`}>Dedicated S3</span>
+                    <span className={`text-xs font-bold ${serverSource === '3' ? 'text-teal-400' : 'text-white'}`}>Server 3</span>
                     <span className="px-1 py-0.2 bg-indigo-500/20 text-indigo-400 text-[7px] font-black uppercase tracking-wider rounded border border-indigo-500/10">Ultra</span>
                   </div>
-                  <span className="text-[9px] text-zinc-500 uppercase tracking-tighter font-black">Stable Optimized</span>
                 </div>
               </div>
               <button 

@@ -631,21 +631,18 @@ async function startServer() {
       let channels: any[] = [];
 
       // 1. Load Server 1 channels for this country
-      if (country === 'fifa' || country === 'sports') {
-        const staticPath = path.join(process.cwd(), 'public', 'static-api', `${country}.json`);
+      // 1. Load static channels for special categories
+      if (country === 'fifa') {
+        const staticPath = path.join(process.cwd(), 'public', 'static-api', 'fifa.json');
         if (fs.existsSync(staticPath)) {
           const staticData = JSON.parse(fs.readFileSync(staticPath, 'utf-8'));
-          staticData.forEach((ch: any) => {
-            channels.push({
-              name: ch.name,
-              url: ch.url,
-              logo: ch.logo || "",
-              source: (ch.source === '2' || ch.source === 'global') ? '2' : '1',
-              country: country
-            });
-          });
+          return res.json(staticData);
         }
-      } else {
+        return res.json([]);
+      }
+
+      if (country === 'sports') {
+        const staticPath = path.join(process.cwd(), 'public', 'static-api', 'sports.json');
         if (fs.existsSync(server1Path)) {
           const server1Data = JSON.parse(fs.readFileSync(server1Path, 'utf-8'));
           if (server1Data[country]) {

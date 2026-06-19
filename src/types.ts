@@ -47,4 +47,5 @@ export interface SidebarProps {
   setIsServer3Enabled: (v: boolean) => void;
   serverSource: string;
   setServerSource: (s: any) => void;
+  setIsCustomModalOpen: (o: boolean) => void;
 }

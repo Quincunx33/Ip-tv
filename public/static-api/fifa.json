@@ -2,11 +2,6 @@
   {
     "name": "beIN Sports 1 (FIFA)",
     "url": "https://1nyaler.streamhostingcdn.top/stream/23/index.m3u8",
-    "urls": [
-      "https://1nyaler.streamhostingcdn.top/stream/23/index.m3u8",
-      "https://ctrl.laotv.la/live/Bsport1/index.m3u8",
-      "https://bein-esp-xumo.amagi.tv/playlistR720P.m3u8"
-    ],
     "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/BeIN_Sports_logo.svg",
     "source": "1",
     "country": "fifa"
@@ -62,16 +57,16 @@
   },
   {
     "name": "T Sports",
-    "url": "http://luckonline.eu/live/y49sz6KMQs/6115263489/1142.ts",
-    "logo": "https://upload.wikimedia.org/wikipedia/commons/e/e0/T_Sports_logo.jpg",
-    "source": "3",
-    "country": "bd"
-  },
-  {
-    "name": "T Sports (720p)",
     "url": "https://tvsen7.aynaott.com/tsports-hd/index.m3u8",
     "logo": "https://upload.wikimedia.org/wikipedia/commons/e/e0/T_Sports_logo.jpg",
     "source": "2",
+    "country": "bd"
+  },
+  {
+    "name": "T Sports Premium",
+    "url": "http://luckonline.eu/live/y49sz6KMQs/6115263489/1142.ts",
+    "logo": "https://upload.wikimedia.org/wikipedia/commons/e/e0/T_Sports_logo.jpg",
+    "source": "3",
     "country": "bd"
   },
   {
