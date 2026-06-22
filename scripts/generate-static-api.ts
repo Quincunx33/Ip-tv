@@ -5,6 +5,7 @@ import readline from 'readline';
 const STREAMS_DIR = path.join(process.cwd(), 'iptv-master', 'streams');
 const SERVER1_PATH = path.join(process.cwd(), 'iptv-master', 'server1_streams.json');
 const SERVER3_PATH = path.join(process.cwd(), 'iptv-master', 'server3.m3u');
+const SERVER4_PATH = path.join(process.cwd(), 'iptv-master', 'server4.m3u');
 const OUTPUT_DIR = path.join(process.cwd(), 'public', 'static-api');
 
 if (!fs.existsSync(OUTPUT_DIR)) {
@@ -96,8 +97,38 @@ async function run() {
       }
     }
 
+    // Process Server 4
+    const server4ChannelsByCountry: Record<string, any[]> = {};
+    if (fs.existsSync(SERVER4_PATH)) {
+      const content = fs.readFileSync(SERVER4_PATH, 'utf-8');
+      const lines = content.split('\n');
+      let currentItem: any = {};
+      for (const line of lines) {
+        const tLine = line.trim();
+        if (tLine.startsWith('#EXTINF:')) {
+          const parts = tLine.split(',');
+          currentItem.name = parts.length > 1 ? parts[parts.length - 1].trim() : 'Unknown';
+          const logoMatch = tLine.match(/tvg-logo="([^"]+)"/);
+          if (logoMatch) currentItem.logo = logoMatch[1];
+        } else if (tLine.startsWith('http')) {
+          if (currentItem.name) {
+            const country = detectCountryByName(currentItem.name, tLine);
+            if (!server4ChannelsByCountry[country]) server4ChannelsByCountry[country] = [];
+            server4ChannelsByCountry[country].push({
+              name: currentItem.name,
+              url: tLine,
+              logo: currentItem.logo || "",
+              source: '4',
+              country
+            });
+            currentItem = {};
+          }
+        }
+      }
+    }
+
     // Get unique list of countries from all sources
-    const allCountryKeys = new Set([...countries, ...Object.keys(server1Data), ...Object.keys(server3ChannelsByCountry)]);
+    const allCountryKeys = new Set([...countries, ...Object.keys(server1Data), ...Object.keys(server3ChannelsByCountry), ...Object.keys(server4ChannelsByCountry)]);
     const finalCountries = Array.from(allCountryKeys).sort();
 
     fs.writeFileSync(path.join(OUTPUT_DIR, 'channels.json'), JSON.stringify(finalCountries));
@@ -174,6 +205,14 @@ async function run() {
         });
       }
 
+      // Server 4
+      if (server4ChannelsByCountry[country]) {
+        server4ChannelsByCountry[country].forEach((ch: any) => {
+          countryChannels.push(ch);
+          allChannels.push(ch);
+        });
+      }
+
       // Sort country channels alphabetically by name
       countryChannels.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
@@ -197,6 +236,13 @@ async function run() {
     ];
 
     const fifaChannels = [
+  {
+    "name": "FIFA Premium Live",
+    "url": "https://1.bb1.dpdns.org/hls/1/stream.m3u8",
+    "logo": "https://assets.football-logos.cc/logos/tournaments/1500x1500/fifa-world-cup-2026--white.10e0b37b.png",
+    "source": "3",
+    "country": "fifa"
+  },
   {
     "name": "beIN Sports 1 (FIFA)",
     "url": "https://1nyaler.streamhostingcdn.top/stream/23/index.m3u8",

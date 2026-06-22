@@ -1,5 +1,6 @@
 const resolvedSubdomains = {};
 const subdomainsToTry = ['tvsen12', 'tvsen14', 'tvsen11', 'tvsen15', 'tvsen5', 'tvsen7', 'tvsen6', 'tvsen13'];
+const activeFetches = new Map();
 
 function getChannelKey(urlStr) {
   try {
@@ -8,6 +9,73 @@ function getChannelKey(urlStr) {
     return parts.find(p => p && p.trim() !== '') || '';
   } catch {
     return '';
+  }
+}
+
+async function getCachedSubdomain(channelKey, cache) {
+  if (!cache || !channelKey) return null;
+  try {
+    const cacheKeyUrl = `https://subdomain-cache.internal/${channelKey}`;
+    const cacheKey = new Request(cacheKeyUrl, { method: 'GET' });
+    const cachedRes = await cache.match(cacheKey);
+    if (cachedRes) {
+      const text = await cachedRes.text();
+      if (text && text.trim() !== '') {
+        return text.trim();
+      }
+    }
+  } catch (e) {
+    console.error('Error fetching cached subdomain:', e);
+  }
+  return null;
+}
+
+async function setCachedSubdomain(channelKey, subdomain, cache, context) {
+  if (!cache || !channelKey || !subdomain) return;
+  try {
+    const cacheKeyUrl = `https://subdomain-cache.internal/${channelKey}`;
+    const cacheKey = new Request(cacheKeyUrl, { method: 'GET' });
+    const response = new Response(subdomain, {
+      headers: {
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'public, max-age=7200, s-maxage=7200',
+      }
+    });
+    if (context && context.waitUntil) {
+      context.waitUntil(cache.put(cacheKey, response));
+    } else {
+      await cache.put(cacheKey, response);
+    }
+  } catch (e) {
+    console.error('Error storing cached subdomain:', e);
+  }
+}
+
+async function deduplicatedFetch(url, init) {
+  const fetchKey = `${init.method || 'GET'}:${url}`;
+  
+  if (activeFetches.has(fetchKey)) {
+    try {
+      const resp = await activeFetches.get(fetchKey);
+      return resp.clone();
+    } catch (e) {
+      // Allow fallback if previous failed
+      activeFetches.delete(fetchKey);
+    }
+  }
+  
+  const fetchPromise = (async () => {
+    const r = await fetch(url, init);
+    return r;
+  })();
+  
+  activeFetches.set(fetchKey, fetchPromise);
+  
+  try {
+    const response = await fetchPromise;
+    return response.clone();
+  } finally {
+    activeFetches.delete(fetchKey);
   }
 }
 
@@ -29,6 +97,21 @@ export async function onRequest(context) {
         'Access-Control-Allow-Headers': '*',
       },
     });
+  }
+
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const isM3u8Request = targetUrl.toLowerCase().includes('.m3u8');
+
+  // Fix 1 & 2: Match from Cloudflare Edge Cache first (for GET requests)
+  if (cache && request.method === 'GET') {
+    try {
+      const cachedResponse = await cache.match(request);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+    } catch (e) {
+      console.error('Cache match error:', e);
+    }
   }
 
   try {
@@ -63,17 +146,30 @@ export async function onRequest(context) {
     const isAynaott = targetUrl.includes('aynaott.com');
     const channelKey = getChannelKey(targetUrl);
 
-    if (isAynaott && channelKey && resolvedSubdomains[channelKey]) {
-      try {
-        const u = new URL(targetUrl);
-        u.host = resolvedSubdomains[channelKey];
-        finalTargetUrl = u.toString();
-      } catch {}
+    // Fix 3: Subdomain Edge caching persistence
+    let resolvedSubdomain = null;
+    if (isAynaott && channelKey) {
+      if (resolvedSubdomains[channelKey]) {
+        resolvedSubdomain = resolvedSubdomains[channelKey];
+      } else if (cache) {
+        resolvedSubdomain = await getCachedSubdomain(channelKey, cache);
+        if (resolvedSubdomain) {
+          resolvedSubdomains[channelKey] = resolvedSubdomain; // Keep memory cache warm
+        }
+      }
+
+      if (resolvedSubdomain) {
+        try {
+          const u = new URL(targetUrl);
+          u.host = resolvedSubdomain;
+          finalTargetUrl = u.toString();
+        } catch {}
+      }
     }
 
-    // Try initial request
+    // Try initial request using our deduplicated coalesced fetch (Fix 4)
     try {
-      response = await fetch(finalTargetUrl, {
+      response = await deduplicatedFetch(finalTargetUrl, {
         method: request.method,
         headers: headers,
         redirect: 'follow',
@@ -93,7 +189,7 @@ export async function onRequest(context) {
           u.host = `${subdomain}.aynaott.com`;
           const testUrl = u.toString();
           
-          const testResponse = await fetch(testUrl, {
+          const testResponse = await deduplicatedFetch(testUrl, {
             method: request.method,
             headers: headers,
             redirect: 'follow',
@@ -102,6 +198,9 @@ export async function onRequest(context) {
           if (testResponse && testResponse.status === 200) {
             console.log(`Successfully auto-resolved ${channelKey} to ${subdomain}.aynaott.com in Cloudflare Worker`);
             resolvedSubdomains[channelKey] = `${subdomain}.aynaott.com`;
+            if (cache) {
+              await setCachedSubdomain(channelKey, `${subdomain}.aynaott.com`, cache, context);
+            }
             resolvedUrl = testUrl;
             response = testResponse;
             break;
@@ -123,14 +222,16 @@ export async function onRequest(context) {
     const contentType = response.headers.get('content-type') || '';
     const isM3u8 = finalTargetUrl.toLowerCase().includes('.m3u8') || 
                    contentType.includes('mpegurl') || 
-                   contentType.includes('x-mpegURL');
+                   contentType.includes('x-mpegURL') ||
+                   contentType.includes('application/vnd.apple.mpegurl');
 
     const newHeaders = new Headers(response.headers);
     newHeaders.set('Access-Control-Allow-Origin', '*');
     newHeaders.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    newHeaders.set('Access-Control-Allow-Headers', '*',);
+    newHeaders.set('Access-Control-Allow-Headers', '*');
     newHeaders.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
 
+    // Fix 1: m3u8 playlist edge caching (cache for 3 seconds)
     if (isM3u8) {
       let body = await response.text();
       const lines = body.split('\n');
@@ -168,17 +269,34 @@ export async function onRequest(context) {
         }
       }).join('\n');
 
-      return new Response(rewritten, {
+      newHeaders.set('Cache-Control', 'public, max-age=3, s-maxage=3');
+
+      const finalResponse = new Response(rewritten, {
         status: response.status,
         headers: newHeaders,
       });
+
+      if (cache && request.method === 'GET' && response.status === 200) {
+        context.waitUntil(cache.put(request, finalResponse.clone()));
+      }
+
+      return finalResponse;
     }
 
-    // For non-m3u8 (segments), just stream through
-    return new Response(response.body, {
+    // Fix 2: video segment (.ts, etc) caching (cache for 60 seconds)
+    newHeaders.set('Cache-Control', 'public, max-age=60, s-maxage=60');
+
+    const finalResponse = new Response(response.body, {
       status: response.status,
       headers: newHeaders,
     });
+
+    if (cache && request.method === 'GET' && response.status === 200) {
+      context.waitUntil(cache.put(request, finalResponse.clone()));
+    }
+
+    return finalResponse;
+
   } catch (error) {
     return new Response(`Proxy error: ${error.message}`, { status: 502 });
   }

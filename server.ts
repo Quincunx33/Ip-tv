@@ -107,6 +107,97 @@ async function startServer() {
     }
   };
 
+  const parseServer4M3U = () => {
+    const filePath = path.join(process.cwd(), 'iptv-master', 'server4.m3u');
+    if (!fs.existsSync(filePath)) return [];
+    
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lines = content.split('\n');
+    const channels: any[] = [];
+    let currentItem: any = {};
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('#EXTINF:')) {
+        const parts = line.split(',');
+        currentItem.name = parts.length > 1 ? parts[parts.length - 1].trim() : 'Unknown';
+        const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+        if (logoMatch) currentItem.logo = logoMatch[1];
+      } else if (line.startsWith('http')) {
+        if (currentItem.name) {
+          const nameLc = currentItem.name.toLowerCase();
+          const urlLc = line.toLowerCase();
+          let detectedCountry = 'int'; // default to international
+          
+          if (nameLc.includes('🇧🇩') || nameLc.includes('bangla') || nameLc.includes('btv') || nameLc.includes('somoy') || nameLc.includes('jamuna') || nameLc.includes('ekattor') || nameLc.includes('independent') || nameLc.includes('ntv') || nameLc.includes('deepto') || nameLc.includes('rajdhani') || nameLc.includes('bengali') || nameLc.includes('projapoti') || nameLc.includes('t sports') || urlLc.includes('tsports')) {
+            detectedCountry = 'bd';
+          } else if (nameLc.includes('🇮🇳') || nameLc.includes('star sports') || nameLc.includes('sony sports') || nameLc.includes('willow') || nameLc.includes('fancode') || nameLc.includes('criclife')) {
+            detectedCountry = 'in';
+          } else if (nameLc.includes('🇺🇸') || nameLc.includes('fox') || nameLc.includes('nbc') || nameLc.includes('telemundo') || nameLc.includes('fubo') || nameLc.includes('nba') || nameLc.includes('dazn')) {
+            detectedCountry = 'us';
+          } else if (nameLc.includes('🇧🇷') || nameLc.includes('caze')) {
+            detectedCountry = 'br';
+          } else if (nameLc.includes('🇪🇸') || nameLc.includes('laliga')) {
+            detectedCountry = 'es';
+          } else if (nameLc.includes('🇦🇺')) {
+            detectedCountry = 'au';
+          } else if (nameLc.includes('🇹🇷') || nameLc.includes('idman')) {
+            detectedCountry = 'tr';
+          } else if (nameLc.includes('🇵🇰') || nameLc.includes('ptv')) {
+            detectedCountry = 'pk';
+          } else if (nameLc.includes('🇬🇧') || nameLc.includes('sky sport')) {
+            detectedCountry = 'uk';
+          } else if (nameLc.includes('🇵🇹')) {
+            detectedCountry = 'pt';
+          } else if (nameLc.includes('ru') || nameLc.includes('🇷🇺') || nameLc.includes('матч')) {
+            detectedCountry = 'ru';
+          } else if (nameLc.includes('fr') || nameLc.includes('🇫🇷') || nameLc.includes('eurosport')) {
+            detectedCountry = 'fr';
+          } else if (nameLc.includes('colombia') || nameLc.includes('🇨🇴') || nameLc.includes('caracol') || nameLc.includes('rcn') || nameLc.includes('win sport')) {
+            detectedCountry = 'co';
+          } else if (nameLc.includes('🇦🇱') || nameLc.includes('super sport')) {
+            detectedCountry = 'al';
+          } else if (nameLc.includes('🇨🇿') || nameLc.includes('sport 1 hd') || nameLc.includes('sport 2 hd')) {
+            detectedCountry = 'cz';
+          } else if (nameLc.includes('🇧🇬') || nameLc.includes('max sport')) {
+            detectedCountry = 'bg';
+          } else if (nameLc.includes('🇭🇺') || nameLc.includes('m4 sport')) {
+            detectedCountry = 'hu';
+          } else if (nameLc.includes('🇳🇱') || nameLc.includes('ziggo')) {
+            detectedCountry = 'nl';
+          } else if (nameLc.includes('🇦🇹') || nameLc.includes('orf')) {
+            detectedCountry = 'at';
+          } else if (nameLc.includes('🇺🇦') || nameLc.includes('suspilne') || nameLc.includes('setanta')) {
+            detectedCountry = 'ua';
+          }
+
+          channels.push({
+            name: currentItem.name,
+            url: line,
+            logo: currentItem.logo || "",
+            source: '4',
+            country: detectedCountry
+          });
+          currentItem = {};
+        }
+      }
+    }
+    return channels;
+  };
+
+  let cachedServer4Channels: any[] | null = null;
+  const getServer4Channels = () => {
+    if (cachedServer4Channels) return cachedServer4Channels;
+    try {
+      const parsed = parseServer4M3U();
+      cachedServer4Channels = parsed;
+      return parsed;
+    } catch (e) {
+      console.error("Error parsing Server 4 channels:", e);
+      return [];
+    }
+  };
+
   const getChannelKey = (urlStr: string) => {
     try {
       const u = new URL(urlStr);
@@ -134,67 +225,80 @@ async function startServer() {
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 
-  app.get('/api/parse-m3u', (req, res) => {
-    const urlStr = req.query.url as string;
-    if (!urlStr) return res.status(400).send('URL required');
+  // In-memory cache for playlists and segments in local Express
+  interface LocalCacheEntry {
+    body: any;
+    statusCode: number;
+    headers: Record<string, string>;
+    expiresAt: number;
+  }
+  const proxyLocalCache = new Map<string, LocalCacheEntry>();
 
-    const client = urlStr.startsWith('https') ? https : http;
-    try {
-      const remoteReq = client.get(urlStr, { timeout: 15000 }, (remoteRes) => {
-        let body = '';
-        remoteRes.on('data', chunk => body += chunk);
-        remoteRes.on('end', () => {
-          const lines = body.split('\n');
-          const parsedChannels: any[] = [];
-          let currentItem: any = {};
+  // Tracks active in-progress proxy requests to deduplicate concurrent requests
+  const activeLocalIncomingRequests = new Map<string, boolean>();
+  const pendingCoalescedLocalRequests = new Map<string, Array<(entry: { body: any; statusCode: number; headers: Record<string, string> }) => void>>();
 
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (line.startsWith('#EXTINF:')) {
-              const parts = line.split(',');
-              currentItem.name = parts.length > 1 ? parts[parts.length - 1].trim() : 'Unknown';
-              const logoMatch = line.match(/tvg-logo="([^"]+)"/);
-              if (logoMatch) currentItem.logo = logoMatch[1];
-            } else if (line.startsWith('http')) {
-              if (currentItem.name) {
-                parsedChannels.push({
-                  name: currentItem.name,
-                  url: line,
-                  logo: currentItem.logo || "",
-                });
-                currentItem = {};
-              } else {
-                // If direct link line without EXTINF, extract name from filename or use a generic name
-                const filename = line.split('/').pop()?.split('?')[0] || 'Custom Stream';
-                parsedChannels.push({
-                  name: filename.replace(/\.[^/.]+$/, ""),
-                  url: line,
-                  logo: ""
-                });
-              }
-            }
-          }
-          res.json(parsedChannels);
-        });
-      });
-
-      remoteReq.on('error', (err) => {
-        console.error('Error fetching M3U via proxy:', err.message);
-        res.status(500).json({ error: 'Failed to retrieve remote playlist: ' + err.message });
-      });
-
-      remoteReq.on('timeout', () => {
-        remoteReq.destroy();
-        res.status(504).json({ error: 'Request timed out fetching live playlist' });
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Proxy to help playing other streams if needed
 
   app.get('/api/proxy', async (req, res) => {
     const originalTargetUrl = req.query.url as string;
     if (!originalTargetUrl) return res.status(400).send('URL required');
+
+    const cacheKey = req.originalUrl;
+    const now = Date.now();
+
+    // Check In-Memory Local Cache
+    const cachedEntry = proxyLocalCache.get(cacheKey);
+    if (cachedEntry && cachedEntry.expiresAt > now) {
+      if (cachedEntry.headers['content-type']) {
+        res.setHeader('Content-Type', cachedEntry.headers['content-type']);
+      }
+      if (cachedEntry.headers['content-range']) {
+        res.setHeader('Content-Range', cachedEntry.headers['content-range']);
+        res.status(206);
+      } else {
+        res.status(cachedEntry.statusCode || 200);
+      }
+      if (cachedEntry.headers['accept-ranges']) {
+        res.setHeader('Accept-Ranges', cachedEntry.headers['accept-ranges']);
+      }
+      if (cachedEntry.headers['content-length']) {
+        res.setHeader('Content-Length', cachedEntry.headers['content-length']);
+      }
+      res.send(cachedEntry.body);
+      return;
+    }
+
+    // Coalesce Concurrent Request if there's another active download for the same segment/playlist
+    if (activeLocalIncomingRequests.get(cacheKey)) {
+      return new Promise<void>((resolve) => {
+        if (!pendingCoalescedLocalRequests.has(cacheKey)) {
+          pendingCoalescedLocalRequests.set(cacheKey, []);
+        }
+        pendingCoalescedLocalRequests.get(cacheKey)!.push((entry) => {
+          if (entry.headers['content-type']) {
+            res.setHeader('Content-Type', entry.headers['content-type']);
+          }
+          if (entry.headers['content-range']) {
+            res.setHeader('Content-Range', entry.headers['content-range']);
+            res.status(206);
+          } else {
+            res.status(entry.statusCode || 200);
+          }
+          if (entry.headers['accept-ranges']) {
+            res.setHeader('Accept-Ranges', entry.headers['accept-ranges']);
+          }
+          if (entry.headers['content-length']) {
+            res.setHeader('Content-Length', entry.headers['content-length']);
+          }
+          res.send(entry.body);
+          resolve();
+        });
+      });
+    }
+
+    // Mark as active
+    activeLocalIncomingRequests.set(cacheKey, true);
 
     const proxyHost = req.query.proxyHost as string;
     const proxyPort = req.query.proxyPort as string;
@@ -232,7 +336,7 @@ async function startServer() {
         } catch {}
 
         const reqHeaders: Record<string, string> = {
-          'User-Agent': (req.query.userAgent as string) || 'VLC/3.0.9 LibVLC/3.0.9',
+          'User-Agent': (req.query.userAgent as string) || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
           'Accept': '*/*',
           'Connection': 'keep-alive'
         };
@@ -279,10 +383,20 @@ async function startServer() {
           });
         });
 
+        const cleanupError = () => {
+          activeLocalIncomingRequests.delete(cacheKey);
+          const resolvePending = pendingCoalescedLocalRequests.get(cacheKey);
+          if (resolvePending) {
+            resolvePending.forEach(cb => cb({ body: Buffer.alloc(0), statusCode: 502, headers: {} }));
+            pendingCoalescedLocalRequests.delete(cacheKey);
+          }
+        };
+
         clientReq.on('timeout', () => {
           if (!isResolved) {
             isResolved = true;
             clientReq.destroy();
+            cleanupError();
             resolve(null);
           }
         });
@@ -291,6 +405,7 @@ async function startServer() {
           console.error(`Proxy request error for ${urlStr}:`, e.message);
           if (!isResolved) {
             isResolved = true;
+            cleanupError();
             resolve(null);
           }
         });
@@ -299,6 +414,7 @@ async function startServer() {
           if (!isResolved) {
             isResolved = true;
             clientReq.destroy();
+            cleanupError();
             resolve(null);
           }
         }, 8000); // 8s timeout per attempt
@@ -359,6 +475,12 @@ async function startServer() {
     }
 
     if (!result) {
+      activeLocalIncomingRequests.delete(cacheKey);
+      const resolvePending = pendingCoalescedLocalRequests.get(cacheKey);
+      if (resolvePending) {
+        resolvePending.forEach(cb => cb({ body: Buffer.alloc(0), statusCode: 502, headers: {} }));
+        pendingCoalescedLocalRequests.delete(cacheKey);
+      }
       return res.status(502).send('Error connecting to target stream host');
     }
 
@@ -392,6 +514,16 @@ async function startServer() {
     const userAgentParam = req.query.userAgent ? `&userAgent=${encodeURIComponent(req.query.userAgent as string)}` : '';
     const refererParam = req.query.referer ? `&referer=${encodeURIComponent(req.query.referer as string)}` : '';
     const proxyParams = (proxyHost && proxyPort ? `&proxyHost=${proxyHost}&proxyPort=${proxyPort}&proxyType=${proxyType}` : '') + userAgentParam + refererParam;
+
+    const cleanupError = () => {
+      activeLocalIncomingRequests.delete(cacheKey);
+      const resolvePending = pendingCoalescedLocalRequests.get(cacheKey);
+      if (resolvePending) {
+        resolvePending.forEach(cb => cb({ body: Buffer.alloc(0), statusCode: 502, headers: {} }));
+        pendingCoalescedLocalRequests.delete(cacheKey);
+      }
+    };
+    resStream.on('error', cleanupError);
 
     if (isM3u8) {
       let body = '';
@@ -438,10 +570,60 @@ async function startServer() {
            
            return line;
          }).join('\n');
+
+         // Cache playlist response for 3 seconds
+         const cacheVal: LocalCacheEntry = {
+           body: rewritten,
+           statusCode: statusCode || 200,
+           headers: {
+             'content-type': headers['content-type'] as string || 'application/vnd.apple.mpegurl',
+             'content-length': String(Buffer.byteLength(rewritten))
+           },
+           expiresAt: Date.now() + 3000
+         };
+         proxyLocalCache.set(cacheKey, cacheVal);
+
+         // Clean up active requests and resolve pending subscribers
+         activeLocalIncomingRequests.delete(cacheKey);
+         const resolvePending = pendingCoalescedLocalRequests.get(cacheKey);
+         if (resolvePending) {
+           resolvePending.forEach(cb => cb(cacheVal));
+           pendingCoalescedLocalRequests.delete(cacheKey);
+         }
+
          res.send(rewritten);
       });
     } else {
-      // For video segments (.ts, .aac, etc), pipe directly but ensure proper headers
+      // Stream segment, accumulate buffer in parallel to cache it for 60 seconds
+      const chunks: Buffer[] = [];
+      resStream.on('data', chunk => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      });
+
+      resStream.on('end', () => {
+         const fullBuffer = Buffer.concat(chunks);
+         const cacheVal: LocalCacheEntry = {
+           body: fullBuffer,
+           statusCode: statusCode || 200,
+           headers: {
+             'content-type': headers['content-type'] as string || 'video/mp2t',
+             'content-length': String(fullBuffer.length),
+             'content-range': headers['content-range'] as string || '',
+             'accept-ranges': headers['accept-ranges'] as string || 'bytes'
+           },
+           expiresAt: Date.now() + 60000
+         };
+         proxyLocalCache.set(cacheKey, cacheVal);
+
+         // Clean up active requests and resolve pending subscribers
+         activeLocalIncomingRequests.delete(cacheKey);
+         const resolvePending = pendingCoalescedLocalRequests.get(cacheKey);
+         if (resolvePending) {
+           resolvePending.forEach(cb => cb(cacheVal));
+           pendingCoalescedLocalRequests.delete(cacheKey);
+         }
+      });
+
       if (headers['content-length']) res.setHeader('Content-Length', headers['content-length']);
       resStream.pipe(res);
     }
@@ -571,6 +753,24 @@ async function startServer() {
         }
       });
 
+      // 4. Search in Server 4 M3U
+      const server4List = getServer4Channels();
+      server4List.forEach(ch => {
+        if (ch.name.toLowerCase().includes(query)) {
+          const uniqueKey = `${ch.country}_4_${ch.url}`;
+          if (!seenUrls.has(uniqueKey)) {
+            seenUrls.add(uniqueKey);
+            matched.push({
+              name: ch.name,
+              url: ch.url,
+              logo: ch.logo || "",
+              source: '4',
+              country: ch.country
+            });
+          }
+        }
+      });
+
       // Sort matched results to prioritize exact matches, begins-with, and (new) tags
       matched.sort((a, b) => {
         const aLower = a.name.toLowerCase();
@@ -628,8 +828,12 @@ async function startServer() {
     if (!url) return res.status(400).json({ error: "Missing URL" });
 
     try {
-      const response = await fetch(url as string);
-      if (!response.ok) throw new Error("Failed to fetch M3U");
+      const response = await fetch(url as string, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+        }
+      });
+      if (!response.ok) throw new Error("Failed to fetch M3U playlist");
       const content = await response.text();
       
       const lines = content.split('\n');
@@ -667,6 +871,56 @@ async function startServer() {
       res.json(channels);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  // API for testing / pinging remote playlist URLs or stream links
+  app.get('/api/test-link', async (req, res) => {
+    const { url } = req.query;
+    if (!url) {
+      return res.status(400).json({ error: "URL is required" });
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const response = await fetch(url as string, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+          'Accept': '*/*'
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      const contentType = response.headers.get('content-type') || 'unknown';
+      const isM3U = contentType.includes('mpegurl') || contentType.includes('mpegURL') || (url as string).toLowerCase().includes('.m3u');
+      const isStream = contentType.includes('video') || contentType.includes('audio') || contentType.includes('mpegurl') || contentType.includes('octet-stream') || (url as string).toLowerCase().includes('.m3u8') || (url as string).toLowerCase().includes('.ts') || (url as string).toLowerCase().includes('.mp4');
+
+      res.json({
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        contentType: contentType,
+        isM3U,
+        isStream,
+        message: response.ok ? "Link is reachable and online!" : `Reachable but returned status ${response.status} (${response.statusText})`
+      });
+    } catch (err: any) {
+      console.error(`Link test error for ${url}:`, err);
+      let errorMsg = err.message || String(err);
+      if (err.name === 'AbortError') {
+        errorMsg = "Request timed out (server took too long to respond)";
+      }
+      res.json({
+        ok: false,
+        status: 0,
+        error: errorMsg,
+        message: `Failed to connect: ${errorMsg}`
+      });
     }
   });
 
@@ -744,17 +998,24 @@ async function startServer() {
 
       // 3. Load Server 3 channels
       const server3List = getServer3Channels();
+      // 4. Load Server 4 channels
+      const server4List = getServer4Channels();
+
       if (country === 'fifa') {
-        // Find channels matching FIFA in Server 3
+        // Find channels matching FIFA in Server 3 & 4
         const server3Fifa = server3List.filter(ch => {
           const nameLc = ch.name.toLowerCase();
           return nameLc.includes('fifa') || nameLc.includes('world cup') || nameLc.includes('fwc') || nameLc.includes('bein sports 1');
         });
-        channels = channels.concat(server3Fifa);
+        const server4Fifa = server4List.filter(ch => {
+          const nameLc = ch.name.toLowerCase();
+          return nameLc.includes('fifa') || nameLc.includes('world cup') || nameLc.includes('fwc') || nameLc.includes('bein sports 1');
+        });
+        channels = channels.concat(server3Fifa).concat(server4Fifa);
         
         // Custom order for FIFA:
         // - "bein sports 1" goes first
-        // - "t sports" from Server 3 goes next
+        // - "t sports" from Server 3/4 goes next
         // - others go last
         channels.sort((a, b) => {
           const aName = a.name.toLowerCase();
@@ -765,8 +1026,8 @@ async function startServer() {
           if (aBein && !bBein) return -1;
           if (!aBein && bBein) return 1;
 
-          const aTS = (a.source === '3' && (aName.includes('t sports') || aName.includes('tsports')));
-          const bTS = (b.source === '3' && (bName.includes('t sports') || bName.includes('tsports')));
+          const aTS = ((a.source === '3' || a.source === '4') && (aName.includes('t sports') || aName.includes('tsports')));
+          const bTS = ((b.source === '3' || b.source === '4') && (bName.includes('t sports') || bName.includes('tsports')));
           if (aTS && !bTS) return -1;
           if (!aTS && bTS) return 1;
 
@@ -774,18 +1035,24 @@ async function startServer() {
         });
 
       } else if (country === 'sports') {
-        // Find channels matching sports in Server 3
+        // Find channels matching sports in Server 3 & 4
         const server3Sports = server3List.filter(ch => {
           const nameLc = ch.name.toLowerCase();
           const urlLc = ch.url.toLowerCase();
           return nameLc.includes('sports') || nameLc.includes('sport') || nameLc.includes('dazn') || nameLc.includes('football') || nameLc.includes('cup') || nameLc.includes('star sports') || nameLc.includes('sony sports') || nameLc.includes('ptv sports') || nameLc.includes('criclife') || nameLc.includes('fancode') || nameLc.includes('t sports') || urlLc.includes('tsports') || nameLc.includes('fs1') || nameLc.includes('fuel tv');
         });
-        channels = channels.concat(server3Sports);
+        const server4Sports = server4List.filter(ch => {
+          const nameLc = ch.name.toLowerCase();
+          const urlLc = ch.url.toLowerCase();
+          return nameLc.includes('sports') || nameLc.includes('sport') || nameLc.includes('dazn') || nameLc.includes('football') || nameLc.includes('cup') || nameLc.includes('star sports') || nameLc.includes('sony sports') || nameLc.includes('ptv sports') || nameLc.includes('criclife') || nameLc.includes('fancode') || nameLc.includes('t sports') || urlLc.includes('tsports') || nameLc.includes('fs1') || nameLc.includes('fuel tv');
+        });
+        channels = channels.concat(server3Sports).concat(server4Sports);
         
       } else {
-        // Standard country: filter Server 3 channels by language/country detected
+        // Standard country: filter Server 3 & 4 channels by language/country detected
         const server3Country = server3List.filter(ch => ch.country === country);
-        channels = channels.concat(server3Country);
+        const server4Country = server4List.filter(ch => ch.country === country);
+        channels = channels.concat(server3Country).concat(server4Country);
       }
 
       res.json(channels);

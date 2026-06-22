@@ -21,6 +21,8 @@ if (typeof Intl !== 'undefined' && Intl.DisplayNames) {
   }
 }
 
+import { Channel } from './types';
+
 export const getCountryFlag = (code: string) => {
   if (!code || code.length !== 2) return '🌐';
   const lower = code.toLowerCase();
@@ -58,3 +60,58 @@ export const formatCountryName = (filename: string) => {
     return filename?.toUpperCase() || 'Select Country';
   }
 };
+
+export function parseM3UContent(text: string, serverSource: string = '4'): Channel[] {
+  const lines = text.split('\n');
+  const list: Channel[] = [];
+  let currentItem: any = {};
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    if (line.startsWith('#EXTINF:')) {
+      // Parse name (usually after stage or comma)
+      const commaIndex = line.lastIndexOf(',');
+      if (commaIndex !== -1) {
+        currentItem.name = line.substring(commaIndex + 1).trim();
+      } else {
+        currentItem.name = 'Unknown Channel';
+      }
+      
+      // Parse logo: tvg-logo="..."
+      const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+      if (logoMatch) {
+        currentItem.logo = logoMatch[1];
+      }
+      
+      // Parse country/group, or check tvg-country="..."
+      const countryMatch = line.match(/tvg-country="([^"]+)"/) || line.match(/group-title="([^"]+)"/);
+      if (countryMatch) {
+        currentItem.country = countryMatch[1].toLowerCase().slice(0, 5);
+      }
+    } else if (line.startsWith('http') || line.startsWith('rtmp') || line.startsWith('rtsp') || line.includes('.m3u8')) {
+      const channelUrl = line;
+      if (!currentItem.name) {
+        // extract name from url
+        try {
+          const parts = channelUrl.split('/');
+          const filename = parts[parts.length - 1] || 'Custom Stream';
+          currentItem.name = filename.replace(/\.[^/.]+$/, "") || 'Custom Stream';
+        } catch {
+          currentItem.name = 'Custom Stream';
+        }
+      }
+      
+      list.push({
+        name: currentItem.name || 'Custom Stream',
+        url: channelUrl,
+        logo: currentItem.logo || '',
+        source: serverSource,
+        country: currentItem.country || 'custom'
+      });
+      currentItem = {};
+    }
+  }
+  return list;
+}
