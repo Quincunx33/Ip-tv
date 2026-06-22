@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<browserconfig>
+  <msapplication>
+    <tile>
+      <square150x150logo src="/streamtube_logo.jpg"/>
+      <TileColor>#0f0f0f</TileColor>
+    </tile>
+  </msapplication>
+</browserconfig>

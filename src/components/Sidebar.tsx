@@ -217,6 +217,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsServer1Enabled(!isServer1Enabled); }}
+                aria-label="Toggle Server 1 feed visibility"
                 className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isServer1Enabled ? 'bg-indigo-600' : 'bg-zinc-700'}`}
               >
                 <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isServer1Enabled ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -239,6 +240,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsServer2Enabled(!isServer2Enabled); }}
+                aria-label="Toggle Server 2 feed visibility"
                 className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isServer2Enabled ? 'bg-indigo-600' : 'bg-zinc-700'}`}
               >
                 <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isServer2Enabled ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -263,6 +265,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsServer3Enabled(!isServer3Enabled); }}
+                aria-label="Toggle Server 3 feed visibility"
                 className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isServer3Enabled ? 'bg-teal-500' : 'bg-zinc-700'}`}
               >
                 <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isServer3Enabled ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -287,6 +290,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsServer4Enabled(!isServer4Enabled); }}
+                aria-label="Toggle Server 4 feed visibility"
                 className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isServer4Enabled ? 'bg-fuchsia-500' : 'bg-zinc-700'}`}
               >
                 <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isServer4Enabled ? 'translate-x-5' : 'translate-x-0'}`} />

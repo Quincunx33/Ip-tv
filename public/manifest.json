@@ -8,12 +8,12 @@
   "theme_color": "#0f0f0f",
   "icons": [
     {
-      "src": "/src/assets/images/streamtube_app_icon_png_1781369762835.jpg",
+      "src": "/streamtube_logo.jpg",
       "sizes": "512x512",
       "type": "image/jpeg"
     },
     {
-      "src": "/src/assets/images/streamtube_app_icon_png_1781369762835.jpg",
+      "src": "/streamtube_logo.jpg",
       "sizes": "192x192",
       "type": "image/jpeg"
     },

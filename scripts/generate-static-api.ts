@@ -702,6 +702,54 @@ async function run() {
 
     console.log(`Generated ${countries.length} country channel files.`);
 
+    // Generate Sitemap
+    const baseUrl = 'https://streamtube.live';
+    let sitemapEntries = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    sitemapEntries += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+    // 1. Home
+    sitemapEntries += `  <url>\n    <loc>${baseUrl}/</loc>\n    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n`;
+
+    // 2. Categories
+    const categories = ['sports', 'fifa', 'news'];
+    categories.forEach(tab => {
+      sitemapEntries += `  <url>\n    <loc>${baseUrl}/?tab=${tab}</loc>\n    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>\n`;
+    });
+
+    // 3. Country Pages
+    finalCountries.forEach(country => {
+      sitemapEntries += `  <url>\n    <loc>${baseUrl}/?country=${country}</loc>\n    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+    });
+
+    // 4. Premium Popular channels (limit to top 150 unique popular channels to avoid sitemap bloat)
+    const premiumChannels = allChannels.filter(ch => 
+      ch.name && ch.url && (
+        ch.name.toLowerCase().includes('bein sports') || 
+        ch.name.toLowerCase().includes('tsports') || 
+        ch.name.toLowerCase().includes('somoy') || 
+        ch.name.toLowerCase().includes('sony') || 
+        ch.name.toLowerCase().includes('star sports')
+      )
+    );
+    const seenSitemapUrls = new Set<string>();
+    let channelsAdded = 0;
+    
+    premiumChannels.forEach(ch => {
+      if (channelsAdded >= 150) return;
+      const escapedUrl = encodeURIComponent(ch.url).replace(/'/g, "%27");
+      const escapedName = encodeURIComponent(ch.name).replace(/'/g, "%27");
+      const chUrl = `${baseUrl}/?ch=${escapedUrl}&amp;name=${escapedName}`;
+      if (!seenSitemapUrls.has(chUrl)) {
+        seenSitemapUrls.add(chUrl);
+        sitemapEntries += `  <url>\n    <loc>${chUrl}</loc>\n    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n`;
+        channelsAdded++;
+      }
+    });
+
+    sitemapEntries += `</urlset>\n`;
+    fs.writeFileSync(path.join(process.cwd(), 'public', 'sitemap.xml'), sitemapEntries);
+    console.log('Generated sitemap.xml in public folder with ' + (1 + categories.length + finalCountries.length + channelsAdded) + ' entries!');
+
   } catch (error) {
     console.error('Error generating static data:', error);
     process.exit(1);

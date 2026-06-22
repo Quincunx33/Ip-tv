@@ -371,8 +371,20 @@ export default function App() {
     detectCountry();
   }, []);
 
-  // Sync selected country with auto-detected country
+  // Sync selected country with auto-detected country, or URL query parameters
   useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlCountry = searchParams.get('country') || searchParams.get('c');
+      if (urlCountry) {
+        const lowerCountry = urlCountry.toLowerCase();
+        setSelectedCountry(lowerCountry);
+        return;
+      }
+    } catch (e) {
+      console.error("Failed to parse country URL query param:", e);
+    }
+
     if (countries.length > 0) {
       if (countries.includes(detectedCountry)) {
         setSelectedCountry(detectedCountry);
@@ -383,6 +395,22 @@ export default function App() {
       }
     }
   }, [countries, detectedCountry]);
+
+  // Sync active category tab with URL query parameter override
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlTab = searchParams.get('tab') || searchParams.get('t');
+      if (urlTab) {
+        const cleanTab = urlTab.toLowerCase();
+        if (['all', 'favorites', 'sports', 'news', 'fifa', 'custom'].includes(cleanTab)) {
+          setActiveTab(cleanTab as any);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse tab URL query param:", e);
+    }
+  }, []);
 
   // Universal Global Search Hook
   useEffect(() => {

@@ -12,35 +12,87 @@
     <meta name="author" content="StreamTube Teams" />
     <link rel="canonical" href="https://streamtube.live" />
 
+    <!-- Google Fonts Optimization to accelerate first paint, prefetching dns lookups -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet" />
+
     <!-- Open Graph / Facebook / Discord SEO -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="StreamTube - Free Live World IPTV Player | Watch M3U Streams" />
     <meta property="og:description" content="Stream and watch your favorite live M3U channels online for free. Support for custom M3U file upload, direct streaming, multiple server sources, and Chrome/VLC user-agent bypass." />
-    <meta property="og:image" content="/streamtube_logo.jpg" />
+    <meta property="og:image" content="https://streamtube.live/streamtube_logo.jpg" />
     <meta property="og:site_name" content="StreamTube" />
 
     <!-- Twitter Card SEO -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="StreamTube - Free Live World IPTV Player" />
     <meta name="twitter:description" content="Watch live IPTV streams & upload custom M3U files instantly with zero configuration." />
-    <meta name="twitter:image" content="/streamtube_logo.jpg" />
+    <meta name="twitter:image" content="https://streamtube.live/streamtube_logo.jpg" />
 
     <!-- JSON-LD Structured Data for Google search discovery -->
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "StreamTube",
-      "operatingSystem": "All",
-      "applicationCategory": "MultimediaApplication",
-      "browserRequirements": "Requires HTML5 Video support (HLS/M3U8 player)",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "StreamTube",
+        "operatingSystem": "All",
+        "applicationCategory": "MultimediaApplication",
+        "browserRequirements": "Requires HTML5 Video support (HLS/M3U8 player)",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "description": "Premium luxury bilingual IPTV player with multiple server source support, featuring high-quality primary stream sources & custom M3U uploads."
       },
-      "description": "Premium luxury bilingual IPTV player with multiple server source support, featuring high-quality primary stream sources & custom M3U uploads."
-    }
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "StreamTube Live",
+        "url": "https://streamtube.live",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://streamtube.live/?search={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "StreamTube Corporation",
+        "url": "https://streamtube.live",
+        "logo": "https://streamtube.live/streamtube_logo.jpg",
+        "sameAs": [
+          "https://github.com/streamtube-iptv"
+        ]
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://streamtube.live/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Sports Streams",
+            "item": "https://streamtube.live/?tab=sports"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "FIFA Matches",
+            "item": "https://streamtube.live/?tab=fifa"
+          }
+        ]
+      }
+    ]
     </script>
 
     <meta name="apple-mobile-web-app-capable" content="yes" />

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/*
+
+Host: https://streamtube.live
+Sitemap: https://streamtube.live/sitemap.xml
