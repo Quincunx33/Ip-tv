@@ -1,0 +1,37 @@
+name: IPTV daily Link Checker
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Run every day at 00:00 UTC
+  workflow_dispatch: # Enable manual triggers
+
+permissions:
+  contents: write # Grants permission to commit changes back to the repo
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-month: '3.10'
+
+      - name: Run IPTV Link Checker
+        run: python scripts/check_links.py
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/static-api/dead-channels.json
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "chore: update daily dead channels list [skip ci]"
+            git push
+            echo "Changes committed and pushed successfully!"
+          else
+            echo "No changes in dead channels list."
+          fi

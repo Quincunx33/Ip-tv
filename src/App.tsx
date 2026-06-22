@@ -55,22 +55,22 @@ const SWUpdatePrompt = ({ onUpdate }: { onUpdate: () => void }) => {
   );
 };
 
+// Deterministic background color based on name (extracted to module scope to bypass recreations)
+const getBgColor = (name: string) => {
+  const colors = [
+    'bg-red-900/40', 'bg-blue-900/40', 'bg-emerald-900/40', 'bg-purple-900/40', 
+    'bg-amber-900/40', 'bg-indigo-900/40', 'bg-rose-900/40', 'bg-cyan-900/40'
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+     hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 const ChannelLogo = React.memo(({ channel, className = "", isAvatar = false }: { channel: Channel, className?: string, isAvatar?: boolean }) => {
   const [error, setError] = useState(false);
   
-  // Deterministic background color based on name
-  const getBgColor = (name: string) => {
-    const colors = [
-      'bg-red-900/40', 'bg-blue-900/40', 'bg-emerald-900/40', 'bg-purple-900/40', 
-      'bg-amber-900/40', 'bg-indigo-900/40', 'bg-rose-900/40', 'bg-cyan-900/40'
-    ];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-       hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
-  };
-
   const bgColor = React.useMemo(() => getBgColor(channel.name), [channel.name]);
 
   if (channel.logo && !error) {
@@ -199,12 +199,13 @@ const ChannelCard = React.memo(({
 
   return (
     <div 
-      className={`flex flex-col cursor-pointer group transition-all duration-300 ${isDead ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100' : ''}`} 
+      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 240px' }}
+      className={`flex flex-col cursor-pointer group transition-[opacity,filter] duration-300 ${isDead ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100' : ''}`} 
       onClick={() => onClick(channel)}
     >
-      <div className="w-full aspect-video bg-zinc-900 rounded-xl overflow-hidden relative mb-2.5 shadow-sm border border-zinc-800/60 group-hover:border-zinc-700 transition-all duration-300 flex items-center justify-center">
+      <div className="w-full aspect-video bg-zinc-900 rounded-xl overflow-hidden relative mb-2.5 shadow-sm border border-zinc-800/60 group-hover:border-zinc-700 transition-[border-color] duration-300 flex items-center justify-center">
          <ChannelLogo channel={channel} className="w-full h-full" />
-         <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300">
+         <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
            <Play className="w-12 h-12 text-white/80 scale-90 group-hover:scale-100 transition-transform" fill="currentColor" />
          </div>
          <div className="absolute bottom-1.5 right-1.5 bg-black/80 px-1.5 py-0.5 rounded text-xs font-bold font-mono tracking-wider text-white shadow-sm flex items-center space-x-1.5">
@@ -819,6 +820,20 @@ export default function App() {
       const savedType = localStorage.getItem('iptv_proxy_type');
       if (savedType === 'socks5' || savedType === 'http') setProxyType(savedType);
     } catch { }
+
+    // Synchronize with the daily crawler checked offline channel URLs
+    fetch('/static-api/dead-channels.json')
+      .then(res => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDeadChannels(prev => {
+            const next = new Set(prev);
+            data.forEach((url: string) => next.add(url));
+            return next;
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Sync Media Session API for system controls and background PiP support
@@ -1233,12 +1248,12 @@ export default function App() {
         }
 
         if (activeMode === 'proxy') {
-          targetUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}${headerParams}${proxyConfigParams}`;
+          targetUrl = window.location.origin + `/api/proxy?url=${encodeURIComponent(streamUrl)}${headerParams}${proxyConfigParams}`;
         } else if (activeMode === 'custom') {
           if (proxyType === 'url' && customProxyUrl) {
             targetUrl = `${customProxyUrl}${encodeURIComponent(streamUrl)}`;
           } else if (proxyHost && proxyPort) {
-            targetUrl = `/api/proxy?url=${encodeURIComponent(streamUrl)}${headerParams}${proxyConfigParams}`;
+            targetUrl = window.location.origin + `/api/proxy?url=${encodeURIComponent(streamUrl)}${headerParams}${proxyConfigParams}`;
           }
         }
 
