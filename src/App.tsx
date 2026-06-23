@@ -1497,48 +1497,89 @@ export default function App() {
             if (watchdogAttempts === 1) {
               console.log("HLS Stall Recovery (Step 1): Nudging playhead and calling startLoad()...");
               try {
-                video.currentTime = video.currentTime + 0.1;
+                if (video.buffered && video.buffered.length > 0) {
+                  const end = video.buffered.end(video.buffered.length - 1);
+                  if (video.currentTime >= end - 0.5) {
+                    video.currentTime = Math.max(0, end - 1.0);
+                  } else {
+                    video.currentTime = video.currentTime + 0.2;
+                  }
+                } else {
+                  video.currentTime = video.currentTime + 0.2;
+                }
               } catch (e) {}
               try {
                 hlsRef.current.startLoad();
               } catch (e) {}
-              stallTimer = setTimeout(executeWatchdogStep, 4000);
+              stallTimer = setTimeout(executeWatchdogStep, 5000);
             } else if (watchdogAttempts === 2) {
               console.log("HLS Stall Recovery (Step 2): Calling recoverMediaError()...");
               try {
                 hlsRef.current.recoverMediaError();
               } catch (e) {}
-              stallTimer = setTimeout(executeWatchdogStep, 4000);
+              stallTimer = setTimeout(executeWatchdogStep, 5000);
             } else {
               console.log("HLS Stall Recovery (Step 3): Full source reload...");
               try {
                 hlsRef.current.loadSource(targetUrl);
                 hlsRef.current.startLoad();
               } catch (e) {}
-              watchdogAttempts = 0;
+              stallTimer = setTimeout(executeWatchdogStep, 8000);
+              watchdogAttempts = 0; // cycle back
             }
           } else if (streamFormat === 'mpegts' && mpegtsRef.current) {
-            try {
-              mpegtsRef.current.unload();
-              mpegtsRef.current.load();
-              mpegtsRef.current.play();
-            } catch (e) {
-              console.warn("Mpegts watchdog recovery failed:", e);
+            if (watchdogAttempts === 1) {
+              console.log("Mpegts Stall Recovery (Step 1): Pausing and resuming player...");
+              try {
+                mpegtsRef.current.pause();
+                mpegtsRef.current.play();
+              } catch (e) {}
+              stallTimer = setTimeout(executeWatchdogStep, 5000);
+            } else {
+              console.log("Mpegts Stall Recovery (Step 2): Full unload and reload...");
+              try {
+                mpegtsRef.current.unload();
+                mpegtsRef.current.load();
+                mpegtsRef.current.play();
+              } catch (e) {}
+              stallTimer = setTimeout(executeWatchdogStep, 8000);
+              watchdogAttempts = 0; // cycle back
             }
           } else if (streamFormat === 'dash' && dashRef.current) {
-            try {
-              dashRef.current.attachSource(targetUrl);
-            } catch (e) {
-              console.warn("Dash watchdog recovery failed:", e);
+            if (watchdogAttempts === 1) {
+              console.log("Dash Stall Recovery (Step 1): Pausing and resuming player...");
+              try {
+                dashRef.current.pause();
+                dashRef.current.play();
+              } catch (e) {}
+              stallTimer = setTimeout(executeWatchdogStep, 5000);
+            } else {
+              console.log("Dash Stall Recovery (Step 2): Full attach source reload...");
+              try {
+                dashRef.current.attachSource(targetUrl);
+              } catch (e) {}
+              stallTimer = setTimeout(executeWatchdogStep, 8000);
+              watchdogAttempts = 0; // cycle back
             }
           } else {
-            // Native fallback
-            try {
-              const currentSrc = video.src;
-              video.src = '';
-              video.src = currentSrc;
-              video.play().catch(() => {});
-            } catch (e) {}
+            // Native fallback or direct streams
+            if (watchdogAttempts === 1) {
+              console.log("Native Stall Recovery (Step 1): Nudging playhead slightly...");
+              try {
+                video.currentTime = video.currentTime + 0.2;
+              } catch (e) {}
+              stallTimer = setTimeout(executeWatchdogStep, 5000);
+            } else {
+              console.log("Native Stall Recovery (Step 2): Reloading src element...");
+              try {
+                const currentSrc = video.src;
+                video.src = '';
+                video.src = currentSrc;
+                video.play().catch(() => {});
+              } catch (e) {}
+              stallTimer = setTimeout(executeWatchdogStep, 8000);
+              watchdogAttempts = 0; // cycle back
+            }
           }
         };
 
