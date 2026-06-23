@@ -1473,6 +1473,7 @@ export default function App() {
       setValidationDetails(lang === 'en' ? 'Direct playback active' : 'সরাসরি প্লেব্যাক সক্রিয়');
 
       let stallTimer: NodeJS.Timeout | null = null;
+      let watchdogAttempts = 0;
       let boundEvents: { name: string; handler: any }[] = [];
 
       const clearStallWatchdog = () => {
@@ -1480,18 +1481,42 @@ export default function App() {
           clearTimeout(stallTimer);
           stallTimer = null;
         }
+        watchdogAttempts = 0;
       };
 
       const startStallWatchdog = (streamFormat: string, targetUrl: string) => {
         if (stallTimer) clearTimeout(stallTimer);
-        stallTimer = setTimeout(async () => {
+        
+        const executeWatchdogStep = () => {
           if (!active) return;
-          console.warn("Video stall watchdog triggered. No progress for 12s. Attempting reload...");
+          watchdogAttempts++;
+          console.warn(`Video stall watchdog triggered. Step ${watchdogAttempts}.`);
           setIsBuffering(true);
 
           if (streamFormat === 'hls' && hlsRef.current) {
-            hlsRef.current.loadSource(targetUrl);
-            hlsRef.current.startLoad();
+            if (watchdogAttempts === 1) {
+              console.log("HLS Stall Recovery (Step 1): Nudging playhead and calling startLoad()...");
+              try {
+                video.currentTime = video.currentTime + 0.1;
+              } catch (e) {}
+              try {
+                hlsRef.current.startLoad();
+              } catch (e) {}
+              stallTimer = setTimeout(executeWatchdogStep, 4000);
+            } else if (watchdogAttempts === 2) {
+              console.log("HLS Stall Recovery (Step 2): Calling recoverMediaError()...");
+              try {
+                hlsRef.current.recoverMediaError();
+              } catch (e) {}
+              stallTimer = setTimeout(executeWatchdogStep, 4000);
+            } else {
+              console.log("HLS Stall Recovery (Step 3): Full source reload...");
+              try {
+                hlsRef.current.loadSource(targetUrl);
+                hlsRef.current.startLoad();
+              } catch (e) {}
+              watchdogAttempts = 0;
+            }
           } else if (streamFormat === 'mpegts' && mpegtsRef.current) {
             try {
               mpegtsRef.current.unload();
@@ -1508,12 +1533,16 @@ export default function App() {
             }
           } else {
             // Native fallback
-            const currentSrc = video.src;
-            video.src = '';
-            video.src = currentSrc;
-            video.play().catch(() => {});
+            try {
+              const currentSrc = video.src;
+              video.src = '';
+              video.src = currentSrc;
+              video.play().catch(() => {});
+            } catch (e) {}
           }
-        }, 12000); // 12 seconds watchdog
+        };
+
+        stallTimer = setTimeout(executeWatchdogStep, 10000); // Trigger step 1 after 10s of stalling
       };
 
       const handleWaiting = (streamFormat: string, targetUrl: string) => {
