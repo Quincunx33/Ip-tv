@@ -391,19 +391,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Sidebar Footer */}
-      <div className="p-4 border-t border-white/5 bg-[#09090b]/80 backdrop-blur-xl shrink-0">
-        <div className="flex items-center justify-between px-2">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Version</span>
-            <span className="text-xs font-mono text-zinc-400">1.4.2-stable</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Live</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

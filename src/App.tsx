@@ -18,9 +18,6 @@ import Sidebar from './components/Sidebar';
 import { Channel } from './types';
 import { getCountryFlag, formatCountryName, parseM3UContent } from './utils';
 
-// Firebase imports
-import { auth, db } from './firebase';
-import { doc, getDoc, setDoc, collection, onSnapshot } from 'firebase/firestore';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -53,6 +50,15 @@ const SWUpdatePrompt = ({ onUpdate }: { onUpdate: () => void }) => {
       </button>
     </motion.div>
   );
+};
+
+export const CAZE_TV_CHANNEL: Channel = {
+  name: 'CazéTV',
+  url: 'UCZiYbVptd3PVPf4f6eR6UaQ',
+  type: 'youtube-iframe',
+  logo: 'https://logodownload.org/wp-content/uploads/2023/07/caze-tv-logo.png',
+  country: 'br',
+  language: 'Portuguese'
 };
 
 // Deterministic background color based on name (extracted to module scope to bypass recreations)
@@ -135,7 +141,14 @@ const TRANSLATIONS = {
     retryConnection: "Retry Connection",
     customProxy: "Custom Proxy",
     customProxyPlaceholder: "e.g. https://myproxy.com/?url=",
-    customProxyDesc: "Enter a proxy URL that will be prefixed to the stream URL."
+    customProxyDesc: "Enter a proxy URL that will be prefixed to the stream URL.",
+    matchSchedule: "FIFA Match Schedule",
+    liveMatches: "LIVE Matches",
+    upcomingMatches: "Upcoming",
+    finishedMatches: "Completed",
+    allMatches: "All Matches",
+    searchMatch: "Search Teams...",
+    timeLabel: "Time"
   },
   bn: {
     title: "স্ট্রিমটিউব",
@@ -165,7 +178,14 @@ const TRANSLATIONS = {
     retryConnection: "পুনরায় চেষ্টা করুন",
     customProxy: "কাস্টম প্রক্সি",
     customProxyPlaceholder: "উদাঃ https://myproxy.com/?url=",
-    customProxyDesc: "একটি প্রক্সি URL লিখুন যা স্ট্রিম URL এর আগে যুক্ত হবে।"
+    customProxyDesc: "একটি প্রক্সি URL লিখুন যা স্ট্রিম URL এর আগে যুক্ত হবে।",
+    matchSchedule: "ফিফার ম্যাচের সময়সূচী ফিক্সচার",
+    liveMatches: "লাইভ ম্যাচ",
+    upcomingMatches: "আসন্ন ম্যাচ",
+    finishedMatches: "সম্পন্ন ম্যাচ",
+    allMatches: "সব ম্যাচ",
+    searchMatch: "দল খুঁজুন...",
+    timeLabel: "সময়"
   }
 };
 
@@ -230,6 +250,11 @@ const ChannelCard = React.memo(({
                   <span>{channel.country}</span>
                 </span>
               )}
+              {channel.language && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-500/20 text-[9px] font-extrabold text-indigo-400 shrink-0 border border-indigo-500/30">
+                  <span>{channel.language}</span>
+                </span>
+              )}
               <span>{channel.name}</span>
             </h3>
             <div className="flex items-center space-x-1.5 mt-1">
@@ -259,8 +284,15 @@ const checkIsInternetConnected = async (): Promise<boolean> => {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const response = await fetch('/api/health', { signal: controller.signal, cache: 'no-store' })
-      .catch(() => fetch('/static-api/channels.json', { signal: controller.signal, cache: 'no-store' }));
+    let response;
+    try {
+      response = await fetch('/robots.txt', { method: 'HEAD', signal: controller.signal, cache: 'no-store' });
+      if (!response.ok) {
+        response = await fetch('/robots.txt', { signal: controller.signal, cache: 'no-store' });
+      }
+    } catch (e) {
+      response = await fetch('/static-api/channels.json', { signal: controller.signal, cache: 'no-store' });
+    }
     clearTimeout(timeoutId);
     return response.ok;
   } catch (e) {
@@ -550,7 +582,7 @@ export default function App() {
 
   const [validationStatus, setValidationStatus] = useState<'checking' | 'direct' | 'fallback-local' | 'fallback-public' | 'failed'>('checking');
   const [validationDetails, setValidationDetails] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'sports' | 'news' | 'fifa' | 'custom'>('fifa');
+  const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'sports' | 'news' | 'fifa' | 'schedule' | 'custom'>('fifa');
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [isClosingMiniPlayer, setIsClosingMiniPlayer] = useState(false);
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
@@ -1111,6 +1143,13 @@ export default function App() {
 
   useEffect(() => {
     const baseChannels = [...channels, ...customChannels];
+    const hasCaze = baseChannels.some(c => c.url === CAZE_TV_CHANNEL.url);
+    if (!hasCaze && (activeTab === 'fifa' || activeTab === 'sports' || activeTab === 'all' || selectedCountry === 'br' || selectedCountry === 'all')) {
+      baseChannels.unshift({
+        ...CAZE_TV_CHANNEL,
+        source: serverSource
+      });
+    }
     let list = baseChannels;
     if (activeTab === 'favorites') {
       list = favorites;
@@ -1167,8 +1206,8 @@ export default function App() {
       if (c.source === '3' && isServer3Enabled) return true;
       if (c.source === '4' && isServer4Enabled) return true;
       
-      // Keep bein sports 1 channels visible
-      if (c.name.toLowerCase().includes('bein sports 1')) {
+      // Keep bein sports 1 and CazéTV channels visible
+      if (c.name.toLowerCase().includes('bein sports 1') || c.url === CAZE_TV_CHANNEL.url || c.name.toLowerCase().includes('cazétv')) {
         return true;
       }
       return false;
@@ -1184,6 +1223,12 @@ export default function App() {
     if (activeTab === 'fifa') {
       const priorityKeywords = ['fifa', 'world cup', 'fwc', 'plus', 'star'];
       sorted.sort((a, b) => {
+        // CazéTV comes first
+        const isA_Caze = a.url === CAZE_TV_CHANNEL.url || a.name.toLowerCase().includes('cazétv');
+        const isB_Caze = b.url === CAZE_TV_CHANNEL.url || b.name.toLowerCase().includes('cazétv');
+        if (isA_Caze && !isB_Caze) return -1;
+        if (!isA_Caze && isB_Caze) return 1;
+
         const isA_beIn1 = a.name.toLowerCase().includes('bein sports 1');
         const isB_beIn1 = b.name.toLowerCase().includes('bein sports 1');
         if (isA_beIn1 && !isB_beIn1) return -1;
@@ -1201,6 +1246,18 @@ export default function App() {
       });
     } else {
       sorted.sort((a, b) => {
+        // CazéTV comes first
+        const isA_Caze = a.url === CAZE_TV_CHANNEL.url || a.name.toLowerCase().includes('cazétv');
+        const isB_Caze = b.url === CAZE_TV_CHANNEL.url || b.name.toLowerCase().includes('cazétv');
+        if (isA_Caze && !isB_Caze) return -1;
+        if (!isA_Caze && isB_Caze) return 1;
+
+        // Then beIn sports 1
+        const isA_beIn1 = a.name.toLowerCase().includes('bein sports 1');
+        const isB_beIn1 = b.name.toLowerCase().includes('bein sports 1');
+        if (isA_beIn1 && !isB_beIn1) return -1;
+        if (!isA_beIn1 && isB_beIn1) return 1;
+
         const aDead = deadChannels.has(a.url);
         const bDead = deadChannels.has(b.url);
         
@@ -1366,6 +1423,35 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
+    if (currentChannel) {
+      if (currentChannel.type === 'youtube-iframe') {
+        setIsBuffering(false);
+        setIsPlaying(true);
+        setPlayerError('none');
+        setValidationStatus('direct');
+        setValidationDetails(lang === 'en' ? 'YouTube Live Embed active' : 'ইউটিউব লাইভ এমবেড সক্রিয়');
+        
+        // Reset previous players
+        if (hlsRef.current) {
+          try { hlsRef.current.destroy(); } catch (e) {}
+          hlsRef.current = null;
+        }
+        if (dashRef.current) {
+          try { dashRef.current.reset(); } catch (e) {}
+          dashRef.current = null;
+        }
+        if (mpegtsRef.current) {
+          try {
+            mpegtsRef.current.unload();
+            mpegtsRef.current.detachMediaElement();
+            mpegtsRef.current.destroy();
+          } catch (e) {}
+          mpegtsRef.current = null;
+        }
+        return;
+      }
+    }
+
     if (currentChannel && videoRef.current) {
       const video = videoRef.current;
       try {
@@ -1385,6 +1471,64 @@ export default function App() {
       setIsBuffering(true);
       setValidationStatus('direct');
       setValidationDetails(lang === 'en' ? 'Direct playback active' : 'সরাসরি প্লেব্যাক সক্রিয়');
+
+      let stallTimer: NodeJS.Timeout | null = null;
+      let boundEvents: { name: string; handler: any }[] = [];
+
+      const clearStallWatchdog = () => {
+        if (stallTimer) {
+          clearTimeout(stallTimer);
+          stallTimer = null;
+        }
+      };
+
+      const startStallWatchdog = (streamFormat: string, targetUrl: string) => {
+        if (stallTimer) clearTimeout(stallTimer);
+        stallTimer = setTimeout(async () => {
+          if (!active) return;
+          console.warn("Video stall watchdog triggered. No progress for 12s. Attempting reload...");
+          setIsBuffering(true);
+
+          if (streamFormat === 'hls' && hlsRef.current) {
+            hlsRef.current.loadSource(targetUrl);
+            hlsRef.current.startLoad();
+          } else if (streamFormat === 'mpegts' && mpegtsRef.current) {
+            try {
+              mpegtsRef.current.unload();
+              mpegtsRef.current.load();
+              mpegtsRef.current.play();
+            } catch (e) {
+              console.warn("Mpegts watchdog recovery failed:", e);
+            }
+          } else if (streamFormat === 'dash' && dashRef.current) {
+            try {
+              dashRef.current.attachSource(targetUrl);
+            } catch (e) {
+              console.warn("Dash watchdog recovery failed:", e);
+            }
+          } else {
+            // Native fallback
+            const currentSrc = video.src;
+            video.src = '';
+            video.src = currentSrc;
+            video.play().catch(() => {});
+          }
+        }, 12000); // 12 seconds watchdog
+      };
+
+      const handleWaiting = (streamFormat: string, targetUrl: string) => {
+        if (active) {
+          setIsBuffering(true);
+          startStallWatchdog(streamFormat, targetUrl);
+        }
+      };
+
+      const handlePlayingOrProgress = () => {
+        if (active) {
+          setIsBuffering(false);
+          clearStallWatchdog();
+        }
+      };
 
       const runLoader = async () => {
         const streamUrl = currentChannel.urls && currentChannel.urls[selectedServer] 
@@ -1462,14 +1606,32 @@ export default function App() {
           setValidationStatus('direct');
           setValidationDetails(lang === 'en' ? 'Direct playback active' : 'সরাসরি প্লেব্যাক সক্রিয়');
         }
+
+        // Bind watchdog events
+        const handleWaitingFn = () => handleWaiting(streamFormat, targetUrl);
+        const handlePlayingOrProgressFn = handlePlayingOrProgress;
+
+        video.addEventListener('waiting', handleWaitingFn);
+        video.addEventListener('playing', handlePlayingOrProgressFn);
+        video.addEventListener('timeupdate', handlePlayingOrProgressFn);
+        video.addEventListener('seeking', handlePlayingOrProgressFn);
+
+        boundEvents = [
+          { name: 'waiting', handler: handleWaitingFn },
+          { name: 'playing', handler: handlePlayingOrProgressFn },
+          { name: 'timeupdate', handler: handlePlayingOrProgressFn },
+          { name: 'seeking', handler: handlePlayingOrProgressFn }
+        ];
         
         if (streamFormat === 'hls') {
           if (Hls.isSupported()) {
             const hls = new Hls({ 
-              maxBufferLength: 10, 
-              maxMaxBufferLength: 30,
+              maxBufferLength: 30, 
+              maxMaxBufferLength: 60,
+              maxBufferSize: 60 * 1000 * 1000,
+              maxBufferHole: 0.5,
               enableWorker: true, 
-              lowLatencyMode: true,
+              lowLatencyMode: false,
               backBufferLength: 30,
               progressive: true,
               fragLoadingTimeOut: 20000,
@@ -1478,6 +1640,31 @@ export default function App() {
             hlsRef.current = hls;
             hls.loadSource(targetUrl);
             hls.attachMedia(video);
+
+            const handleFatalFailure = async () => {
+              setIsBuffering(false); 
+              if (hlsRef.current) {
+                try { hlsRef.current.destroy(); } catch (e) {}
+                hlsRef.current = null;
+              }
+              const isConnected = await checkIsInternetConnected();
+              if (!isConnected) {
+                setPlayerError('no-internet');
+              } else {
+                setPlayerError('stream-error');
+                setErrorMsg(true); 
+              }
+            };
+
+            let networkRetryCount = 0;
+            let mediaRetryCount = 0;
+            const maxRetries = 3;
+
+            hls.on(Hls.Events.FRAG_BUFFERED, () => {
+              networkRetryCount = 0;
+              mediaRetryCount = 0;
+            });
+
             hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
               if (!active) return;
               setQualityLevels([
@@ -1512,19 +1699,40 @@ export default function App() {
                 setCurrentQuality(data.level);
               }
             });
+
             hls.on(Hls.Events.ERROR, async (event, data) => {
               if (data.fatal) {
                 if (!active) return;
-                setIsBuffering(false); 
-                hls.destroy(); 
+                console.warn(`HLS fatal error encountered: ${data.type}`, data);
                 
-                const isConnected = await checkIsInternetConnected();
-                if (!isConnected) {
-                  setPlayerError('no-internet');
-                } else {
-                  setPlayerError('stream-error');
-                  setErrorMsg(true); 
+                switch (data.type) {
+                  case Hls.ErrorTypes.NETWORK_ERROR:
+                    if (networkRetryCount < maxRetries) {
+                      networkRetryCount++;
+                      console.log(`Attempting to recover from fatal network error (Retry ${networkRetryCount}/${maxRetries})...`);
+                      hls.startLoad();
+                    } else {
+                      console.error("Max HLS network retries reached. Failing.");
+                      handleFatalFailure();
+                    }
+                    break;
+                  case Hls.ErrorTypes.MEDIA_ERROR:
+                    if (mediaRetryCount < maxRetries) {
+                      mediaRetryCount++;
+                      console.log(`Attempting to recover from fatal media error (Retry ${mediaRetryCount}/${maxRetries})...`);
+                      hls.recoverMediaError();
+                    } else {
+                      console.error("Max HLS media retries reached. Failing.");
+                      handleFatalFailure();
+                    }
+                    break;
+                  default:
+                    console.error("Unrecoverable fatal HLS error. Failing.");
+                    handleFatalFailure();
+                    break;
                 }
+              } else {
+                console.warn("HLS non-fatal error encountered (retaining player):", data.type, data.details);
               }
             });
           } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -1562,21 +1770,34 @@ export default function App() {
             const player = dashjs.MediaPlayer().create();
             dashRef.current = player;
             player.initialize(video, targetUrl, true);
+            
+            let dashRetryCount = 0;
+            const maxDashRetries = 3;
+
             player.on(dashjs.MediaPlayer.events.PLAYBACK_PLAYING, () => {
               if (active) {
                 setIsPlaying(true);
                 setIsBuffering(false);
+                dashRetryCount = 0;
               }
             });
-            player.on(dashjs.MediaPlayer.events.ERROR, async () => {
+            player.on(dashjs.MediaPlayer.events.ERROR, async (errorEvent: any) => {
               if (!active) return;
-              setIsBuffering(false);
-              const isConnected = await checkIsInternetConnected();
-              if (!isConnected) {
-                setPlayerError('no-internet');
+              console.warn("DashJS error:", errorEvent);
+              if (dashRetryCount < maxDashRetries) {
+                dashRetryCount++;
+                console.log(`Attempting to recover from Dash error (Retry ${dashRetryCount}/${maxDashRetries})...`);
+                player.attachSource(targetUrl);
               } else {
-                setPlayerError('stream-error');
-                setErrorMsg(true);
+                console.error("Max DashJS retries reached. Failing.");
+                setIsBuffering(false);
+                const isConnected = await checkIsInternetConnected();
+                if (!isConnected) {
+                  setPlayerError('no-internet');
+                } else {
+                  setPlayerError('stream-error');
+                  setErrorMsg(true);
+                }
               }
             });
           } catch (e) {
@@ -1590,6 +1811,9 @@ export default function App() {
                 type: 'mpegts',
                 url: targetUrl,
                 isLive: true
+              }, {
+                enableStashBuffer: true,
+                stashInitialSize: 384, // KB
               });
               mpegtsRef.current = player;
               player.attachMediaElement(video);
@@ -1673,6 +1897,12 @@ export default function App() {
       
       return () => {
         active = false;
+        clearStallWatchdog();
+        boundEvents.forEach(evt => {
+          if (videoRef.current) {
+            videoRef.current.removeEventListener(evt.name, evt.handler);
+          }
+        });
         if (hlsRef.current) {
           try { hlsRef.current.destroy(); } catch (e) {}
           hlsRef.current = null;
@@ -2059,6 +2289,8 @@ export default function App() {
   return (
     <div className="flex flex-col h-[100dvh] w-screen bg-[#0f0f0f] text-white font-sans overflow-hidden select-none">
       
+
+
       {/* Top Navbar */}
       <div className="h-14 flex items-center justify-between px-4 border-b border-zinc-800/50 shrink-0 bg-[#0f0f0f] z-50">
         <div className="flex items-center space-x-4">
@@ -2202,6 +2434,7 @@ export default function App() {
           
           {/* HOME BROWSING MODE */}
           <div className={`p-4 sm:p-6 lg:p-8 max-w-[2000px] mx-auto min-h-full ${(!currentChannel || isMiniPlayer) ? '' : 'hidden'}`}>
+              
               {/* Category Pills directly below nav on mobile */}
               <div className="flex sm:hidden overflow-x-auto space-x-2 pb-3 mb-2 scrollbar-none">
                  <div className="flex items-center bg-[#222] border border-zinc-800 rounded-lg overflow-hidden flex-1 shrink-0 min-w-[200px]">
@@ -2521,152 +2754,186 @@ export default function App() {
                     </div>
                   )}
 
-
-
-                  <video
-                    ref={videoRef}
-                    className="w-full h-full object-contain pointer-events-auto bg-black"
-                    autoPlay 
-                    playsInline 
-                    webkit-playsinline="true"
-                    aria-label="Video Player"
-                  />
+                  {currentChannel.type === 'youtube-iframe' ? (
+                    <div className="relative w-full h-full">
+                      {/* Warning Warning Overlay Banner */}
+                      <div className="absolute top-4 left-4 right-4 z-40 bg-zinc-950/95 border border-zinc-700/60 p-2.5 text-[10px] sm:text-xs rounded-xl text-center text-zinc-300 backdrop-blur-md shadow-lg flex items-center justify-center gap-1.5 font-bold">
+                        {(currentChannel.url === CAZE_TV_CHANNEL.url || currentChannel.name.toLowerCase().includes('caze')) ? (
+                          <>
+                            <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shrink-0" />
+                            <span className="text-red-400">
+                              {lang === 'bn' 
+                                ? "🇧🇷 কপিরাইট ব্লকিং এড়াতে দয়া করে আপনার ভিপিএন ব্রাজিল (Brazil) সার্ভারে সেট করুন" 
+                                : "🇧🇷 Connect to a Brazil VPN to bypass copyright geo-blocking on this player"}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping shrink-0" />
+                            <span>
+                              {lang === 'bn' 
+                                ? "এই চ্যানেলটি বর্তমানে লাইভ না থাকলে এমবেডে কিছু দেখাবে না" 
+                                : "If this channel is not currently live, the embed will not display any video."}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <iframe
+                        id="youtube-embed-player"
+                        src={`https://www.youtube.com/embed/live_stream?channel=${currentChannel.url}`}
+                        className="w-full h-full object-contain pointer-events-auto bg-black"
+                        allow="autoplay; encrypted-media; fullscreen"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full object-contain pointer-events-auto bg-black"
+                      autoPlay 
+                      playsInline 
+                      webkit-playsinline="true"
+                      aria-label="Video Player"
+                    />
+                  )}
 
                   {/* Player Controls Overlay */}
-                  <div className={`absolute bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-24 pb-2 px-3 sm:px-4 flex flex-col justify-end transition-opacity duration-500 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                     <div className="relative z-10 w-full flex flex-col" onClick={e => e.stopPropagation()}>
-                     <div className="w-full h-1 sm:h-1.5 bg-zinc-600/60 cursor-pointer relative group/bar mb-2.5 sm:mb-3">
-                        <div className="absolute top-0 left-0 h-full w-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>
-                        <div className="absolute top-1/2 right-0 -translate-y-1/2 w-3 sm:w-3.5 h-3 sm:h-3.5 bg-red-600 rounded-full opacity-0 group-hover/bar:opacity-100 scale-0 group-hover/bar:scale-100 transition-all shadow-md"></div>
-                     </div>
+                  {currentChannel.type !== 'youtube-iframe' && (
+                    <div className={`absolute bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-24 pb-2 px-3 sm:px-4 flex flex-col justify-end transition-opacity duration-500 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                       <div className="relative z-10 w-full flex flex-col" onClick={e => e.stopPropagation()}>
+                       <div className="w-full h-1 sm:h-1.5 bg-zinc-600/60 cursor-pointer relative group/bar mb-2.5 sm:mb-3">
+                          <div className="absolute top-0 left-0 h-full w-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>
+                          <div className="absolute top-1/2 right-0 -translate-y-1/2 w-3 sm:w-3.5 h-3 sm:h-3.5 bg-red-600 rounded-full opacity-0 group-hover/bar:opacity-100 scale-0 group-hover/bar:scale-100 transition-all shadow-md"></div>
+                       </div>
 
-                     <div className="flex items-center justify-between text-white">
-                        <div className="flex items-center space-x-2 sm:space-x-4">
-                           <button onClick={handlePlayToggle} className="hover:opacity-80 p-1 cursor-pointer">
-                             {isPlaying ? <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-current"/> : <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />}
-                           </button>
-                           <button onClick={playNextChannel} className="hover:opacity-80 p-1 cursor-pointer hidden sm:block">
-                             <SkipForward className="w-5 h-5 fill-current" />
-                           </button>
-                           <div className="flex items-center group/volume">
-                              <button onClick={() => { setIsMuted(!isMuted); if(videoRef.current) videoRef.current.muted = !isMuted; }} className="hover:opacity-80 p-1 cursor-pointer mr-1">
-                                {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5 fill-current" />}
-                              </button>
-                              <input type="range" min="0" max="1" step="0.05" value={isMuted ? 0 : volume} onChange={(e) => {
-                                 const val = parseFloat(e.target.value);
-                                 setVolume(val); setIsMuted(val === 0);
-                                 if(videoRef.current) { videoRef.current.volume = val; videoRef.current.muted = val === 0; }
-                              }} className="w-0 scale-x-0 origin-left hidden sm:block sm:group-hover/volume:w-16 sm:group-hover/volume:scale-x-100 transition-all duration-200 accent-white h-1 cursor-pointer" />
-                           </div>
-                           <div className="text-[10px] sm:text-xs font-medium flex items-center ml-2">
-                             <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse mr-1.5 shadow-[0_0_5px_rgba(220,38,38,0.8)] hidden sm:block"></span>
-                             {t.live}
-                           </div>
-                        </div>
-
-                        <div className="flex items-center space-x-2 sm:space-x-4">
-                           <button onClick={(e) => { e.stopPropagation(); setIsMiniPlayer(!isMiniPlayer); }} className="hover:opacity-80 p-1 cursor-pointer" title="Miniplayer">
-                             {isMiniPlayer ? <Maximize className="w-5 h-5 sm:w-6 sm:h-6" /> : <Minimize className="w-5 h-5 sm:w-6 sm:h-6" />}
-                           </button>
-
-                           <div className="relative" onClick={(e) => e.stopPropagation()}>
-                             <button 
-                               onClick={() => { setShowSettingsMenu(!showSettingsMenu); }}
-                               className="hover:opacity-80 p-1 cursor-pointer flex items-center space-x-1"
-                               title="Settings"
-                             >
-                               <Settings className="w-5 h-5 animate-[spin_10s_linear_infinite]" />
-                               {currentQuality !== -1 && qualityLevels.length > 1 && (
-                                 <span className="text-[10px] bg-indigo-600 px-1 rounded font-bold">
-                                   {qualityLevels.find(q => q.id === currentQuality)?.label}
-                                 </span>
-                               )}
+                       <div className="flex items-center justify-between text-white">
+                          <div className="flex items-center space-x-2 sm:space-x-4">
+                             <button onClick={handlePlayToggle} className="hover:opacity-80 p-1 cursor-pointer">
+                               {isPlaying ? <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-current"/> : <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />}
                              </button>
-                             
-                             <AnimatePresence>
-                               {showSettingsMenu && (
-                                 <motion.div 
-                                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                   className="absolute bottom-full right-0 mb-3 bg-[#111112]/95 backdrop-blur-md border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl min-w-[245px] max-w-[280px] z-[100] font-sans p-3 text-left"
-                                 >
-                                   <div className="text-xs font-black text-zinc-100 mb-3 border-b border-zinc-900 pb-2 flex items-center justify-between">
-                                      <span>{lang === 'en' ? 'PLAYER CONFIG' : 'প্লেয়ার কনফিগারেশন'}</span>
-                                      <span className="text-[9px] bg-zinc-800 px-1.5 py-0.5 text-zinc-400 rounded-full font-mono">v2.2</span>
-                                   </div>
-                                   
-                                   {/* Section 1: Backup Server Selector */}
-                                   {currentChannel && currentChannel.urls && currentChannel.urls.length > 1 && (
-                                     <div className="mb-3.5 pt-1">
-                                       <label className="text-[10px] uppercase font-black text-zinc-400 tracking-wider block mb-1.5">
-                                         {lang === 'en' ? 'Stream Server / Feed' : 'সার্ভার বা ব্যাকআপ ফিড'}
-                                       </label>
-                                       <div className="space-y-1 max-h-[110px] overflow-y-auto scrollbar-thin">
-                                         {currentChannel.urls.map((url, index) => (
-                                           <button
-                                             key={index}
-                                             onClick={() => {
-                                               setSelectedServer(index);
-                                               setPlayerError('none');
-                                               setIsBuffering(true);
-                                             }}
-                                             className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${selectedServer === index ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-600/20' : 'bg-zinc-900/40 hover:bg-zinc-800 text-zinc-300'}`}
-                                           >
-                                             <span>{lang === 'en' ? `Server ${index + 1}` : `সার্ভার ${index + 1}`}</span>
-                                             {index === 0 && <span className="text-[8px] opacity-60 ml-1">({lang === 'en' ? 'Primary' : 'প্রধান'})</span>}
-                                             {selectedServer === index && <Check className="w-3.5 h-3.5 text-indigo-400" />}
-                                           </button>
-                                         ))}
-                                       </div>
-                                     </div>
-                                   )}
-                                   {/* Section 2: Video Quality selector */}
-                                   {qualityLevels.length > 1 && (
-                                     <div className={`${currentChannel && currentChannel.urls && currentChannel.urls.length > 1 ? 'border-t border-zinc-900 mt-3 pt-3' : ''}`}>
-                                       <label className="text-[10px] uppercase font-black text-zinc-400 tracking-wider block mb-1.5">
-                                         {lang === 'en' ? 'Quality' : 'ভিডিও কোয়ালিটি'}
-                                       </label>
-                                       <div className="grid grid-cols-2 gap-1 max-h-[110px] overflow-y-auto scrollbar-thin">
-                                         {qualityLevels.map((level) => (
-                                           <button
-                                             key={level.id}
-                                             onClick={() => {
-                                               if (hlsRef.current) {
-                                                 hlsRef.current.currentLevel = level.id;
-                                                 setCurrentQuality(level.id);
-                                               }
-                                             }}
-                                             className={`text-center px-1.5 py-1 text-[10px] font-bold rounded-lg hover:bg-zinc-800/80 transition-all cursor-pointer border ${currentQuality === level.id ? 'text-indigo-400 border-indigo-500/30 bg-indigo-500/10' : 'text-zinc-400 border-transparent bg-zinc-900/20'}`}
-                                           >
-                                             {level.label}
-                                           </button>
-                                         ))}
-                                       </div>
-                                     </div>
-                                   )}
-                                   
-                                   {/* Status Info */}
-                                   <div className="mt-3.5 border-t border-zinc-900 pt-2 text-[8px] font-mono text-zinc-500 flex justify-between">
-                                      <span>MODE: {streamMode.toUpperCase()}</span>
-                                      <span>SRV: {selectedServer + 1} / {currentChannel?.urls?.length || 1}</span>
-                                   </div>
-                                 </motion.div>
-                               )}
-                             </AnimatePresence>
-                           </div>
+                             <button onClick={playNextChannel} className="hover:opacity-80 p-1 cursor-pointer hidden sm:block">
+                               <SkipForward className="w-5 h-5 fill-current" />
+                             </button>
+                             <div className="flex items-center group/volume">
+                                <button onClick={() => { setIsMuted(!isMuted); if(videoRef.current) videoRef.current.muted = !isMuted; }} className="hover:opacity-80 p-1 cursor-pointer mr-1">
+                                  {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5 fill-current" />}
+                                </button>
+                                <input type="range" min="0" max="1" step="0.05" value={isMuted ? 0 : volume} onChange={(e) => {
+                                   const val = parseFloat(e.target.value);
+                                   setVolume(val); setIsMuted(val === 0);
+                                   if(videoRef.current) { videoRef.current.volume = val; videoRef.current.muted = val === 0; }
+                                }} className="w-0 scale-x-0 origin-left hidden sm:block sm:group-hover/volume:w-16 sm:group-hover/volume:scale-x-100 transition-all duration-200 accent-white h-1 cursor-pointer" />
+                             </div>
+                             <div className="text-[10px] sm:text-xs font-medium flex items-center ml-2">
+                               <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse mr-1.5 shadow-[0_0_5px_rgba(220,38,38,0.8)] hidden sm:block"></span>
+                               {t.live}
+                             </div>
+                          </div>
 
-                           <button onClick={handlePiPClick} className="hover:opacity-80 p-1 cursor-pointer" title="Picture in Picture">
-                             <PictureInPicture className="w-5 h-5" />
-                           </button>
-                           <button onClick={toggleFullscreen} className="hover:opacity-80 p-1 cursor-pointer">
-                             {(isFullscreen || isCssFullscreen) ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-                           </button>
-                        </div>
-                     </div>
+                          <div className="flex items-center space-x-2 sm:space-x-4">
+                             <button onClick={(e) => { e.stopPropagation(); setIsMiniPlayer(!isMiniPlayer); }} className="hover:opacity-80 p-1 cursor-pointer" title="Miniplayer">
+                               {isMiniPlayer ? <Maximize className="w-5 h-5 sm:w-6 sm:h-6" /> : <Minimize className="w-5 h-5 sm:w-6 sm:h-6" />}
+                             </button>
+
+                             <div className="relative" onClick={(e) => e.stopPropagation()}>
+                               <button 
+                                 onClick={() => { setShowSettingsMenu(!showSettingsMenu); }}
+                                 className="hover:opacity-80 p-1 cursor-pointer flex items-center space-x-1"
+                                 title="Settings"
+                               >
+                                 <Settings className="w-5 h-5 animate-[spin_10s_linear_infinite]" />
+                                 {currentQuality !== -1 && qualityLevels.length > 1 && (
+                                   <span className="text-[10px] bg-indigo-600 px-1 rounded font-bold">
+                                     {qualityLevels.find(q => q.id === currentQuality)?.label}
+                                   </span>
+                                 )}
+                               </button>
+                               
+                               <AnimatePresence>
+                                 {showSettingsMenu && (
+                                   <motion.div 
+                                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                     animate={{ opacity: 1, y: 0, scale: 1 }}
+                                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                     className="absolute bottom-full right-0 mb-3 bg-[#111112]/95 backdrop-blur-md border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl min-w-[245px] max-w-[280px] z-[100] font-sans p-3 text-left"
+                                   >
+                                     <div className="text-xs font-black text-zinc-100 mb-3 border-b border-zinc-900 pb-2 flex items-center justify-between">
+                                        <span>{lang === 'en' ? 'PLAYER CONFIG' : 'প্লেয়ার কনফিগারেশন'}</span>
+                                        <span className="text-[9px] bg-zinc-800 px-1.5 py-0.5 text-zinc-400 rounded-full font-mono">v2.2</span>
+                                     </div>
+                                     
+                                     {/* Section 1: Backup Server Selector */}
+                                     {currentChannel && currentChannel.urls && currentChannel.urls.length > 1 && (
+                                       <div className="mb-3.5 pt-1">
+                                         <label className="text-[10px] uppercase font-black text-zinc-400 tracking-wider block mb-1.5">
+                                           {lang === 'en' ? 'Stream Server / Feed' : 'সার্ভার বা ব্যাকআপ ফিড'}
+                                         </label>
+                                         <div className="space-y-1 max-h-[110px] overflow-y-auto scrollbar-thin">
+                                           {currentChannel.urls.map((url, index) => (
+                                             <button
+                                               key={index}
+                                               onClick={() => {
+                                                 setSelectedServer(index);
+                                                 setPlayerError('none');
+                                                 setIsBuffering(true);
+                                               }}
+                                               className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${selectedServer === index ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-600/20' : 'bg-zinc-900/40 hover:bg-zinc-800 text-zinc-300'}`}
+                                             >
+                                               <span>{lang === 'en' ? `Server ${index + 1}` : `সার্ভার ${index + 1}`}</span>
+                                               {index === 0 && <span className="text-[8px] opacity-60 ml-1">({lang === 'en' ? 'Primary' : 'প্রধান'})</span>}
+                                               {selectedServer === index && <Check className="w-3.5 h-3.5 text-indigo-400" />}
+                                             </button>
+                                           ))}
+                                         </div>
+                                       </div>
+                                     )}
+                                     {/* Section 2: Video Quality selector */}
+                                     {qualityLevels.length > 1 && (
+                                       <div className={`${currentChannel && currentChannel.urls && currentChannel.urls.length > 1 ? 'border-t border-zinc-900 mt-3 pt-3' : ''}`}>
+                                         <label className="text-[10px] uppercase font-black text-zinc-400 tracking-wider block mb-1.5">
+                                           {lang === 'en' ? 'Quality' : 'ভিডিও কোয়ালিটি'}
+                                         </label>
+                                         <div className="grid grid-cols-2 gap-1 max-h-[110px] overflow-y-auto scrollbar-thin">
+                                           {qualityLevels.map((level) => (
+                                             <button
+                                               key={level.id}
+                                               onClick={() => {
+                                                 if (hlsRef.current) {
+                                                    hlsRef.current.currentLevel = level.id;
+                                                    setCurrentQuality(level.id);
+                                                 }
+                                               }}
+                                               className={`text-center px-1.5 py-1 text-[10px] font-bold rounded-lg hover:bg-zinc-800/80 transition-all cursor-pointer border ${currentQuality === level.id ? 'text-indigo-400 border-indigo-500/30 bg-indigo-500/10' : 'text-zinc-400 border-transparent bg-zinc-900/20'}`}
+                                             >
+                                               {level.label}
+                                             </button>
+                                           ))}
+                                         </div>
+                                       </div>
+                                     )}
+                                     
+                                     {/* Status Info */}
+                                     <div className="mt-3.5 border-t border-zinc-900 pt-2 text-[8px] font-mono text-zinc-500 flex justify-between">
+                                        <span>MODE: {streamMode.toUpperCase()}</span>
+                                        <span>SRV: {selectedServer + 1} / {currentChannel?.urls?.length || 1}</span>
+                                     </div>
+                                   </motion.div>
+                                 )}
+                               </AnimatePresence>
+                             </div>
+
+                             <button onClick={handlePiPClick} className="hover:opacity-80 p-1 cursor-pointer" title="Picture in Picture">
+                               <PictureInPicture className="w-5 h-5" />
+                             </button>
+                             <button onClick={toggleFullscreen} className="hover:opacity-80 p-1 cursor-pointer">
+                               {(isFullscreen || isCssFullscreen) ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                             </button>
+                          </div>
+                       </div>
+                    </div>
                   </div>
-               </div>
-                </div>
+                  )}
+                  </div>
 
 
 
@@ -2712,6 +2979,30 @@ export default function App() {
                         </p>
                       )}
                     </div>
+
+                    {/* Brazil VPN Warning Card specifically for CazéTV */}
+                    {(currentChannel.url === CAZE_TV_CHANNEL.url || currentChannel.name.toLowerCase().includes('caze')) && (
+                      <div className="mb-5 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-start gap-3 shadow-md">
+                        <span className="text-2xl mt-0.5 shrink-0 select-none">🇧🇷</span>
+                        <div className="text-xs space-y-1.5 text-zinc-300">
+                          <p className="font-bold text-yellow-500 flex items-center gap-1.5">
+                            {lang === 'bn' 
+                              ? "ব্রাজিল ভিপিএন (Brazil VPN) প্রয়োজন!" 
+                              : "Brazil VPN Required!"}
+                          </p>
+                          <p className="leading-relaxed text-zinc-300">
+                            {lang === 'bn' 
+                              ? "CazéTV ইউটিউবে লাইভ খেলার সম্প্রচার শুধুমাত্র ব্রাজিলের জন্য সীমাবদ্ধ রাখে। তাই ভিপিএন ছাড়া এখানে 'Video is unavailable' দেখাতে পারে।" 
+                              : "CazéTV live broadcasts on YouTube are strictly geo-blocked to Brazil due to official digital copyrights."}
+                          </p>
+                          <p className="text-[11px] text-zinc-400 leading-normal border-t border-zinc-800/80 pt-1.5">
+                            {lang === 'bn' 
+                              ? "💡 সমাধান: যেকোনো ফ্রি ভিপিএন (যেমন ProtonVPN, Urban VPN, ও Tuxler) ইন্সটল করে 'Brazil' সার্ভার সিলেক্ট ও কানেক্ট করুন, এরপর প্লেয়ারটি রিফ্রেশ করুন।" 
+                              : "💡 Solution: Install a free VPN (like ProtonVPN, Urban VPN, or Tuxler Browser Extension), connect to 'Brazil', and then reload this page."}
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-center space-x-3">

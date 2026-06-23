@@ -10,6 +10,18 @@ export interface Channel {
   logo?: string;
   source?: string;
   country?: string;
+  type?: string;
+  language?: string;
+}
+
+export interface FootballMatch {
+  id: string;
+  group: string;
+  team1: string;
+  team1Flag: string;
+  team2: string;
+  team2Flag: string;
+  time: string; // ISO String
 }
 
 export interface SidebarProps {

@@ -269,7 +269,7 @@ export async function onRequest(context) {
         }
       }).join('\n');
 
-      newHeaders.set('Cache-Control', 'public, max-age=3, s-maxage=3');
+      newHeaders.set('Cache-Control', 'public, max-age=6, s-maxage=6');
 
       const finalResponse = new Response(rewritten, {
         status: response.status,
