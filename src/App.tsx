@@ -1474,6 +1474,8 @@ export default function App() {
 
       let stallTimer: NodeJS.Timeout | null = null;
       let watchdogAttempts = 0;
+      let totalWatchdogCycles = 0;
+      const maxWatchdogCycles = 3;
       let boundEvents: { name: string; handler: any }[] = [];
 
       const clearStallWatchdog = () => {
@@ -1482,6 +1484,38 @@ export default function App() {
           stallTimer = null;
         }
         watchdogAttempts = 0;
+        totalWatchdogCycles = 0;
+      };
+
+      const handleStreamFailure = async () => {
+        if (!active) return;
+        setIsBuffering(false);
+        clearStallWatchdog();
+        
+        if (hlsRef.current) {
+          try { hlsRef.current.destroy(); } catch (e) {}
+          hlsRef.current = null;
+        }
+        if (dashRef.current) {
+          try { dashRef.current.reset(); } catch (e) {}
+          dashRef.current = null;
+        }
+        if (mpegtsRef.current) {
+          try {
+            mpegtsRef.current.unload();
+            mpegtsRef.current.detachMediaElement();
+            mpegtsRef.current.destroy();
+          } catch (e) {}
+          mpegtsRef.current = null;
+        }
+        
+        const isConnected = await checkIsInternetConnected();
+        if (!isConnected) {
+          setPlayerError('no-internet');
+        } else {
+          setPlayerError('stream-error');
+          setErrorMsg(true); 
+        }
       };
 
       const startStallWatchdog = (streamFormat: string, targetUrl: string) => {
@@ -1519,6 +1553,12 @@ export default function App() {
               } catch (e) {}
               stallTimer = setTimeout(executeWatchdogStep, 5000);
             } else {
+              totalWatchdogCycles++;
+              if (totalWatchdogCycles >= maxWatchdogCycles) {
+                console.error("Max watchdog cycles reached for HLS. Giving up.");
+                handleStreamFailure();
+                return;
+              }
               console.log("HLS Stall Recovery (Step 3): Full source reload...");
               try {
                 hlsRef.current.loadSource(targetUrl);
@@ -1536,6 +1576,12 @@ export default function App() {
               } catch (e) {}
               stallTimer = setTimeout(executeWatchdogStep, 5000);
             } else {
+              totalWatchdogCycles++;
+              if (totalWatchdogCycles >= maxWatchdogCycles) {
+                console.error("Max watchdog cycles reached for Mpegts. Giving up.");
+                handleStreamFailure();
+                return;
+              }
               console.log("Mpegts Stall Recovery (Step 2): Full unload and reload...");
               try {
                 mpegtsRef.current.unload();
@@ -1554,6 +1600,12 @@ export default function App() {
               } catch (e) {}
               stallTimer = setTimeout(executeWatchdogStep, 5000);
             } else {
+              totalWatchdogCycles++;
+              if (totalWatchdogCycles >= maxWatchdogCycles) {
+                console.error("Max watchdog cycles reached for Dash. Giving up.");
+                handleStreamFailure();
+                return;
+              }
               console.log("Dash Stall Recovery (Step 2): Full attach source reload...");
               try {
                 dashRef.current.attachSource(targetUrl);
@@ -1570,6 +1622,12 @@ export default function App() {
               } catch (e) {}
               stallTimer = setTimeout(executeWatchdogStep, 5000);
             } else {
+              totalWatchdogCycles++;
+              if (totalWatchdogCycles >= maxWatchdogCycles) {
+                console.error("Max watchdog cycles reached for Native fallback. Giving up.");
+                handleStreamFailure();
+                return;
+              }
               console.log("Native Stall Recovery (Step 2): Reloading src element...");
               try {
                 const currentSrc = video.src;
@@ -1711,21 +1769,6 @@ export default function App() {
             hls.loadSource(targetUrl);
             hls.attachMedia(video);
 
-            const handleFatalFailure = async () => {
-              setIsBuffering(false); 
-              if (hlsRef.current) {
-                try { hlsRef.current.destroy(); } catch (e) {}
-                hlsRef.current = null;
-              }
-              const isConnected = await checkIsInternetConnected();
-              if (!isConnected) {
-                setPlayerError('no-internet');
-              } else {
-                setPlayerError('stream-error');
-                setErrorMsg(true); 
-              }
-            };
-
             let networkRetryCount = 0;
             let mediaRetryCount = 0;
             const maxRetries = 3;
@@ -1783,7 +1826,7 @@ export default function App() {
                       hls.startLoad();
                     } else {
                       console.error("Max HLS network retries reached. Failing.");
-                      handleFatalFailure();
+                      handleStreamFailure();
                     }
                     break;
                   case Hls.ErrorTypes.MEDIA_ERROR:
@@ -1793,12 +1836,12 @@ export default function App() {
                       hls.recoverMediaError();
                     } else {
                       console.error("Max HLS media retries reached. Failing.");
-                      handleFatalFailure();
+                      handleStreamFailure();
                     }
                     break;
                   default:
                     console.error("Unrecoverable fatal HLS error. Failing.");
-                    handleFatalFailure();
+                    handleStreamFailure();
                     break;
                 }
               } else {
@@ -1807,18 +1850,7 @@ export default function App() {
             });
           } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = targetUrl;
-            video.onerror = async () => {
-              if (!active) return;
-              setIsBuffering(false);
-              
-              const isConnected = await checkIsInternetConnected();
-              if (!isConnected) {
-                setPlayerError('no-internet');
-              } else {
-                setPlayerError('stream-error');
-                setErrorMsg(true);
-              }
-            };
+            video.onerror = handleStreamFailure;
             video.play()
               .then(() => {
                 if (active) {
@@ -1860,14 +1892,7 @@ export default function App() {
                 player.attachSource(targetUrl);
               } else {
                 console.error("Max DashJS retries reached. Failing.");
-                setIsBuffering(false);
-                const isConnected = await checkIsInternetConnected();
-                if (!isConnected) {
-                  setPlayerError('no-internet');
-                } else {
-                  setPlayerError('stream-error');
-                  setErrorMsg(true);
-                }
+                handleStreamFailure();
               }
             });
           } catch (e) {
@@ -1919,30 +1944,12 @@ export default function App() {
 
               player.on(mpegts.Events.ERROR, async (type: any, detail: any, info: any) => {
                 console.error("Mpegts error:", type, detail, info);
-                if (!active) return;
-                setIsBuffering(false);
-                const isConnected = await checkIsInternetConnected();
-                if (!isConnected) {
-                  setPlayerError('no-internet');
-                } else {
-                  setPlayerError('stream-error');
-                  setErrorMsg(true);
-                }
+                handleStreamFailure();
               });
             } else {
               // native TS stream fallback
               video.src = targetUrl;
-              video.onerror = async () => {
-                if (!active) return;
-                setIsBuffering(false);
-                const isConnected = await checkIsInternetConnected();
-                if (!isConnected) {
-                  setPlayerError('no-internet');
-                } else {
-                  setPlayerError('stream-error');
-                  setErrorMsg(true);
-                }
-              };
+              video.onerror = handleStreamFailure;
               video.play()
                 .then(() => {
                   if (active) {

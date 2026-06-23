@@ -109,7 +109,7 @@ const isStaticAsset = (url: string): boolean => {
 };
 
 const isApiRequest = (url: string): boolean => {
-  return url.includes("/api/") || url.includes("/static-api/");
+  return (url.includes("/api/") || url.includes("/static-api/")) && !url.includes("/api/proxy");
 };
 
 // Intercept fetch requests and apply caching strategies
@@ -118,6 +118,11 @@ sw.addEventListener("fetch", (event: FetchEvent) => {
   const url: string = request.url;
 
   if (request.method !== "GET") {
+    return;
+  }
+
+  // Bypass caching for proxy requests and common streaming formats
+  if (url.includes("/api/proxy") || url.includes(".m3u8") || url.includes(".ts") || url.includes(".mpd")) {
     return;
   }
 
@@ -174,26 +179,29 @@ sw.addEventListener("fetch", (event: FetchEvent) => {
   }
 
   // Strategy 3: HTML documents - Network-First, caching shell
-  event.respondWith(
-    fetch(request)
-      .then((networkResponse: Response) => {
-        if (networkResponse.status === 200 && url.includes("index.html")) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME_STATIC).then((cache) => {
-            cache.put(request, responseClone);
-          });
-        }
-        return networkResponse;
-      })
-      .catch(() => {
-        return caches.match("./index.html").then((fallback: Response | undefined) => {
-          if (fallback) {
-            return fallback;
+  if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse: Response) => {
+          if (networkResponse.status === 200 && url.includes("index.html")) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME_STATIC).then((cache) => {
+              cache.put(request, responseClone);
+            });
           }
-          return caches.match(request).then((cached: Response | undefined) => {
-            return cached || new Response("You are offline. StreamTube shell failed to load.", { status: 503 });
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match("./index.html").then((fallback: Response | undefined) => {
+            if (fallback) {
+              return fallback;
+            }
+            return caches.match(request).then((cached: Response | undefined) => {
+              return cached || new Response("You are offline. StreamTube shell failed to load.", { status: 503 });
+            });
           });
-        });
-      })
-  );
+        })
+    );
+    return;
+  }
 });
