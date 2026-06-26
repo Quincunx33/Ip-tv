@@ -61,6 +61,25 @@ export const CAZE_TV_CHANNEL: Channel = {
   language: 'Portuguese'
 };
 
+export const HARDCODED_CHANNELS: Channel[] = [
+  {
+    name: 'beIN sports',
+    url: 'https://hd.muesra.sbs/albaplayer/oooe/?serv=4',
+    type: 'hls',
+    logo: 'https://assets.bein.com/wp-content/uploads/2020/06/bein-sports-logo.png',
+    country: 'ar',
+    language: 'Arabic'
+  },
+  {
+    name: 'Koora Live',
+    url: 'https://vod.yagaverse.net/isc.php',
+    type: 'hls',
+    logo: 'https://cdn-icons-png.flaticon.com/512/5358/5358652.png',
+    country: 'ar',
+    language: 'Arabic'
+  }
+];
+
 // Deterministic background color based on name (extracted to module scope to bypass recreations)
 const getBgColor = (name: string) => {
   const colors = [
@@ -1204,7 +1223,11 @@ export default function App() {
   }, [selectedCountry, serverSource, activeTab]);
 
   useEffect(() => {
-    const baseChannels = [...channels, ...customChannels];
+    const hardcodedWithSource = HARDCODED_CHANNELS.map(ch => ({
+      ...ch,
+      source: serverSource
+    }));
+    const baseChannels = [...hardcodedWithSource, ...channels, ...customChannels];
     const hasCaze = baseChannels.some(c => c.url === CAZE_TV_CHANNEL.url);
     if (!hasCaze && (activeTab === 'fifa' || activeTab === 'sports' || activeTab === 'all' || selectedCountry === 'br' || selectedCountry === 'all')) {
       baseChannels.unshift({
@@ -1260,6 +1283,12 @@ export default function App() {
     });
 
     const finalFilteredList = uniqueList.filter(c => {
+      // Keep hardcoded channels always visible
+      const isHardcoded = HARDCODED_CHANNELS.some(hc => hc.url === c.url);
+      if (isHardcoded) {
+        return true;
+      }
+
       if (activeTab === 'all') {
         return c.source === serverSource;
       }
@@ -1285,7 +1314,18 @@ export default function App() {
     if (activeTab === 'fifa') {
       const priorityKeywords = ['fifa', 'world cup', 'fwc', 'plus', 'star'];
       sorted.sort((a, b) => {
-        // CazéTV comes first
+        // Hardcoded channels come first!
+        const isA_Hard1 = a.url === 'https://hd.muesra.sbs/albaplayer/oooe/?serv=4';
+        const isB_Hard1 = b.url === 'https://hd.muesra.sbs/albaplayer/oooe/?serv=4';
+        if (isA_Hard1 && !isB_Hard1) return -1;
+        if (!isA_Hard1 && isB_Hard1) return 1;
+
+        const isA_Hard2 = a.url === 'https://vod.yagaverse.net/isc.php';
+        const isB_Hard2 = b.url === 'https://vod.yagaverse.net/isc.php';
+        if (isA_Hard2 && !isB_Hard2) return -1;
+        if (!isA_Hard2 && isB_Hard2) return 1;
+
+        // CazéTV comes next
         const isA_Caze = a.url === CAZE_TV_CHANNEL.url || a.name.toLowerCase().includes('cazétv');
         const isB_Caze = b.url === CAZE_TV_CHANNEL.url || b.name.toLowerCase().includes('cazétv');
         if (isA_Caze && !isB_Caze) return -1;
@@ -1308,7 +1348,18 @@ export default function App() {
       });
     } else {
       sorted.sort((a, b) => {
-        // CazéTV comes first
+        // Hardcoded channels come first!
+        const isA_Hard1 = a.url === 'https://hd.muesra.sbs/albaplayer/oooe/?serv=4';
+        const isB_Hard1 = b.url === 'https://hd.muesra.sbs/albaplayer/oooe/?serv=4';
+        if (isA_Hard1 && !isB_Hard1) return -1;
+        if (!isA_Hard1 && isB_Hard1) return 1;
+
+        const isA_Hard2 = a.url === 'https://vod.yagaverse.net/isc.php';
+        const isB_Hard2 = b.url === 'https://vod.yagaverse.net/isc.php';
+        if (isA_Hard2 && !isB_Hard2) return -1;
+        if (!isA_Hard2 && isB_Hard2) return 1;
+
+        // CazéTV comes next
         const isA_Caze = a.url === CAZE_TV_CHANNEL.url || a.name.toLowerCase().includes('cazétv');
         const isB_Caze = b.url === CAZE_TV_CHANNEL.url || b.name.toLowerCase().includes('cazétv');
         if (isA_Caze && !isB_Caze) return -1;
@@ -1837,13 +1888,18 @@ export default function App() {
               maxBufferLength: 30, 
               maxMaxBufferLength: 60,
               maxBufferSize: 60 * 1000 * 1000,
-              maxBufferHole: 0.5,
+              maxBufferHole: 0.6, // raised slightly to handle minor holes automatically
               enableWorker: true, 
               lowLatencyMode: false,
               backBufferLength: 30,
               progressive: true,
               fragLoadingTimeOut: 20000,
-              manifestLoadingTimeOut: 20000
+              manifestLoadingTimeOut: 20000,
+              fragLoadingMaxRetry: 5, // retry more aggressively on temporary dropouts
+              manifestLoadingMaxRetry: 5,
+              levelLoadingMaxRetry: 5,
+              fragLoadingRetryDelay: 1000,
+              manifestLoadingRetryDelay: 1000
             });
             hlsRef.current = hls;
             hls.loadSource(targetUrl);
@@ -1851,11 +1907,15 @@ export default function App() {
 
             let networkRetryCount = 0;
             let mediaRetryCount = 0;
+            let nonFatalNetworkRetryCount = 0;
+            let nonFatalStallCount = 0;
             const maxRetries = 3;
 
             hls.on(Hls.Events.FRAG_BUFFERED, () => {
               networkRetryCount = 0;
               mediaRetryCount = 0;
+              nonFatalNetworkRetryCount = 0;
+              nonFatalStallCount = 0;
             });
 
             hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
@@ -1926,6 +1986,42 @@ export default function App() {
                 }
               } else {
                 console.warn("HLS non-fatal error encountered (retaining player):", data.type, data.details);
+                
+                if (!active) return;
+
+                // Active auto-recovery for non-fatal errors that cause endless buffering/stalls
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                  nonFatalNetworkRetryCount++;
+                  console.log(`Non-fatal network error (${data.details}). Attempting recovery (Attempt ${nonFatalNetworkRetryCount}/5)...`);
+                  
+                  if (nonFatalNetworkRetryCount >= 5) {
+                    console.error("Too many non-fatal network errors/timeouts. Triggering fatal fallback.");
+                    handleStreamFailure();
+                  } else {
+                    // levelLoadTimeOut, fragLoadTimeOut, manifestLoadTimeOut can be resolved by calling startLoad()
+                    hls.startLoad();
+                  }
+                } else if (data.details === 'bufferStalledError') {
+                  nonFatalStallCount++;
+                  console.log(`Non-fatal buffer stall. Buffer stalled count: ${nonFatalStallCount}/5`);
+                  setIsBuffering(true);
+
+                  if (nonFatalStallCount >= 5) {
+                    console.error("Continuous buffer stalling with no playback progress. Failing stream.");
+                    handleStreamFailure();
+                  } else if (nonFatalStallCount >= 2) {
+                    // Try to nudge the video playhead slightly forward to cross potential silent gaps or corrupted timestamps
+                    if (video && !video.paused) {
+                      const currentPos = video.currentTime;
+                      const nudgeOffset = 0.3;
+                      video.currentTime = currentPos + nudgeOffset;
+                      console.log(`Nudged playhead from ${currentPos} to ${video.currentTime} to bypass stall.`);
+                    } else {
+                      // Attempt a decoder/media recovery if paused/stalled
+                      hls.recoverMediaError();
+                    }
+                  }
+                }
               }
             });
           } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
