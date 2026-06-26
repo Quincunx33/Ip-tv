@@ -295,16 +295,56 @@ const ChannelCard = React.memo(({
   countryName: string, 
   t: any 
 }) => {
+  const [isVisible, setIsVisible] = useState(() => typeof window === 'undefined' || !('IntersectionObserver' in window));
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      {
+        rootMargin: '300px 0px 300px 0px',
+        threshold: 0.01
+      }
+    );
+
+    observer.observe(el);
+    return () => {
+      if (el) {
+        observer.unobserve(el);
+      }
+    };
+  }, []);
+
   const viewers = React.useMemo(() => getDeterministicViewers(channel.url), [channel.url]);
+
+  if (!isVisible) {
+    return (
+      <div 
+        ref={containerRef}
+        style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 200px' }}
+        className="w-full flex flex-col items-center justify-center min-h-[160px] sm:min-h-[190px] md:min-h-[200px] py-4"
+      >
+        <div className="w-24 sm:w-28 md:w-32 max-w-full aspect-square bg-zinc-900/60 rounded-full animate-pulse border-2 border-zinc-800/40" />
+        <div className="w-20 h-3 bg-zinc-900/60 rounded mt-3 animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div 
+      ref={containerRef}
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 200px' }}
       className={`flex flex-col items-center text-center cursor-pointer group transition-[opacity,filter] duration-300 ${isDead ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100' : ''}`} 
       onClick={() => onClick(channel)}
     >
       {/* Circle Thumbnail / Logo Container */}
-      <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-zinc-900 rounded-full overflow-hidden relative mb-3 shadow-md border-2 border-zinc-800/80 group-hover:border-indigo-500 group-hover:scale-105 transition-all duration-300 flex items-center justify-center">
+      <div className="w-24 sm:w-28 md:w-32 max-w-full aspect-square bg-zinc-900 rounded-full overflow-hidden relative mb-3 shadow-md border-2 border-zinc-800/80 group-hover:border-indigo-500 group-hover:scale-105 transition-all duration-300 flex items-center justify-center">
          <ChannelLogo channel={channel} className="w-full h-full rounded-full" />
          
          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -334,7 +374,7 @@ const ChannelCard = React.memo(({
          {/* Live Indicator and Viewer Count */}
          <div className="flex items-center justify-center space-x-1.5 mt-1 text-[10px] text-zinc-500 font-medium">
            <span className={`w-1.5 h-1.5 rounded-full ${isDead ? 'bg-zinc-500' : 'bg-red-600 animate-pulse'}`}></span>
-           <span className="text-[10px] font-semibold">{isDead ? 'OFFLINE' : `${viewers}K ${t.watching}`}</span>
+           <span className="text-[10px] font-semibold">{isDead ? 'OFFLINE' : t.live}</span>
          </div>
       </div>
     </div>
@@ -426,6 +466,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [universalSearchResults, setUniversalSearchResults] = useState<Channel[]>([]);
   const [isSearchingGlobally, setIsSearchingGlobally] = useState(false);
   const searchIndexRef = useRef<Channel[] | null>(null);
@@ -2517,6 +2558,46 @@ export default function App() {
         return;
       }
 
+      // 1. Search Bar shortcut (/ or Ctrl+K or Cmd+K)
+      if (e.code === 'Slash' || (e.key === 'k' && (e.ctrlKey || e.metaKey))) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      // 2. Sidebar Toggle shortcut (KeyS)
+      if (e.code === 'KeyS') {
+        e.preventDefault();
+        setIsSidebarOpen(prev => !prev);
+        return;
+      }
+
+      // 3. Channel Navigation shortcuts (ArrowRight / KeyN for Next, ArrowLeft / KeyP for Prev)
+      if (e.code === 'ArrowRight' || e.code === 'KeyN') {
+        if (displayChannelsList.length > 0) {
+          e.preventDefault();
+          const currentIndex = currentChannel 
+            ? displayChannelsList.findIndex(c => c.url === currentChannel.url) 
+            : -1;
+          const nextIndex = (currentIndex + 1) % displayChannelsList.length;
+          handleCardClick(displayChannelsList[nextIndex]);
+        }
+        return;
+      }
+
+      if (e.code === 'ArrowLeft' || e.code === 'KeyP') {
+        if (displayChannelsList.length > 0) {
+          e.preventDefault();
+          const currentIndex = currentChannel 
+            ? displayChannelsList.findIndex(c => c.url === currentChannel.url) 
+            : 0;
+          const prevIndex = (currentIndex - 1 + displayChannelsList.length) % displayChannelsList.length;
+          handleCardClick(displayChannelsList[prevIndex]);
+        }
+        return;
+      }
+
       if (currentChannel) {
         switch (e.code) {
           case 'Space':
@@ -2542,7 +2623,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentChannel, isPlaying, isMuted, isFullscreen, isCssFullscreen]);
+  }, [currentChannel, isPlaying, isMuted, isFullscreen, isCssFullscreen, displayChannelsList, handleCardClick]);
 
   return (
     <div className="flex flex-col h-[100dvh] w-screen bg-[#0f0f0f] text-white font-sans overflow-hidden select-none">
@@ -2571,6 +2652,7 @@ export default function App() {
                <span className="uppercase tracking-wider hidden md:inline">{selectedCountry}</span>
             </div>
             <input 
+              ref={searchInputRef}
               type="text" 
               placeholder={t.searchPlaceholder} 
               value={searchQuery}
