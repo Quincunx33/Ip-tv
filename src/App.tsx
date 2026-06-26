@@ -275,7 +275,6 @@ const getDeterministicViewers = (name: string) => {
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
-  // Reduce viewer count to a more realistic lower range
   return (Math.abs(hash % 25) / 10 + 0.5).toFixed(1);
 };
 
@@ -300,60 +299,42 @@ const ChannelCard = React.memo(({
 
   return (
     <div 
-      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 240px' }}
-      className={`flex flex-col cursor-pointer group transition-[opacity,filter] duration-300 ${isDead ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100' : ''}`} 
+      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 200px' }}
+      className={`flex flex-col items-center text-center cursor-pointer group transition-[opacity,filter] duration-300 ${isDead ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100' : ''}`} 
       onClick={() => onClick(channel)}
     >
-      <div className="w-full aspect-video bg-zinc-900 rounded-xl overflow-hidden relative mb-2.5 shadow-sm border border-zinc-800/60 group-hover:border-zinc-700 transition-[border-color] duration-300 flex items-center justify-center">
-         <ChannelLogo channel={channel} className="w-full h-full" />
+      {/* Circle Thumbnail / Logo Container */}
+      <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-zinc-900 rounded-full overflow-hidden relative mb-3 shadow-md border-2 border-zinc-800/80 group-hover:border-indigo-500 group-hover:scale-105 transition-all duration-300 flex items-center justify-center">
+         <ChannelLogo channel={channel} className="w-full h-full rounded-full" />
+         
          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-           <Play className="w-12 h-12 text-white/80 scale-90 group-hover:scale-100 transition-transform" fill="currentColor" />
-         </div>
-         <div className="absolute bottom-1.5 right-1.5 bg-black/80 px-1.5 py-0.5 rounded text-xs font-bold font-mono tracking-wider text-white shadow-sm flex items-center space-x-1.5">
-           <span className={`w-1.5 h-1.5 rounded-full ${isDead ? 'bg-zinc-500' : 'bg-red-600 animate-pulse'}`}></span>
-           <span className="text-[10px]">{isDead ? 'OFFLINE' : t.live}</span>
+           <Play className="w-8 h-8 text-white/90 scale-90 group-hover:scale-100 transition-transform" fill="currentColor" />
          </div>
       </div>
-      <div className="flex space-x-3 px-1">
-         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-600 to-blue-700 border border-white/10 flex items-center justify-center shrink-0 shadow-lg pointer-events-none">
-            <div className="relative">
-              <Tv className="w-5 h-5 text-white" />
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-[#0f0f0f] flex items-center justify-center">
-                <Check className="w-2 h-2 text-white" strokeWidth={5} />
-              </div>
-            </div>
-         </div>
-         <div className="flex flex-col overflow-hidden w-full">
-            <h3 className="text-sm font-semibold text-white leading-tight line-clamp-2 pr-4 flex items-center gap-1.5 flex-wrap">
-              {channel.country && (
-                <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-300 uppercase shrink-0 border border-zinc-700/60 font-mono">
-                  <span>{getCountryFlag(channel.country)}</span>
-                  <span>{channel.country}</span>
-                </span>
-              )}
-              {channel.language && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-500/20 text-[9px] font-extrabold text-indigo-400 shrink-0 border border-indigo-500/30">
-                  <span>{channel.language}</span>
-                </span>
-              )}
-              <span>{channel.name}</span>
-            </h3>
-            <div className="flex items-center space-x-1.5 mt-1">
-               <div className="w-3 h-3 rounded-full bg-blue-600 flex items-center justify-center shadow-[0_0_5px_rgba(37,99,235,0.3)] shrink-0">
-                  <Check className="w-2 h-2 text-white" strokeWidth={6} />
-               </div>
-               <p className="text-[11px] text-zinc-400 font-bold tracking-tight">Build by Taaissu</p>
-            </div>
-            <div className="text-[11px] text-zinc-500 mt-0.5 flex items-center justify-between w-full">
-              <span>{viewers}K {t.watching}</span>
-              <button 
-                onClick={(e) => onToggleFavorite(channel, e)} 
-                className={`p-1 hover:bg-zinc-800 rounded-full transition-colors z-10 ${isFavorite ? 'text-red-500' : 'hover:text-white'}`} 
-                title={t.save}
-              >
-                <MoreVertical className="w-4 h-4" />
-              </button>
-            </div>
+
+      {/* Info details below the circle */}
+      <div className="flex flex-col items-center w-full px-1">
+         <h3 className="text-xs sm:text-sm font-semibold text-white leading-tight line-clamp-2 px-1 flex flex-col items-center gap-1">
+           <span className="text-center font-semibold group-hover:text-indigo-400 transition-colors line-clamp-1">{channel.name}</span>
+           <div className="flex items-center justify-center gap-1 flex-wrap mt-0.5">
+             {channel.country && (
+               <span className="inline-flex items-center space-x-1 px-1 rounded bg-zinc-800 text-[9px] font-bold text-zinc-300 uppercase shrink-0 border border-zinc-700/60 font-mono">
+                 <span>{getCountryFlag(channel.country)}</span>
+                 <span>{channel.country}</span>
+               </span>
+             )}
+             {channel.language && (
+               <span className="inline-flex items-center px-1 rounded bg-indigo-500/20 text-[8px] font-extrabold text-indigo-400 shrink-0 border border-indigo-500/30">
+                 <span>{channel.language}</span>
+               </span>
+             )}
+           </div>
+         </h3>
+
+         {/* Live Indicator and Viewer Count */}
+         <div className="flex items-center justify-center space-x-1.5 mt-1 text-[10px] text-zinc-500 font-medium">
+           <span className={`w-1.5 h-1.5 rounded-full ${isDead ? 'bg-zinc-500' : 'bg-red-600 animate-pulse'}`}></span>
+           <span className="text-[10px] font-semibold">{isDead ? 'OFFLINE' : `${viewers}K ${t.watching}`}</span>
          </div>
       </div>
     </div>
@@ -2781,7 +2762,7 @@ export default function App() {
                       <span>🌐 Universal Search Results ({universalSearchResults.length} channels found globally)</span>
                     </div>
                   )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 pb-10">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-x-2 gap-y-6 sm:gap-x-4 sm:gap-y-8 pb-10">
                     {displayChannelsList.slice(0, visibleCount).map((channel, idx) => (
                       <ChannelCard 
                         key={`${channel.url}-${channel.name}-${idx}`}
@@ -3334,14 +3315,10 @@ export default function App() {
                     {sortedFilteredChannels.filter(c => c.url !== currentChannel.url).slice(0, 20).map((c, idx) => {
                       const isDead = deadChannels.has(c.url);
                       return (
-                      <div key={`${c.url}-${c.name}-${idx}`} className={`flex space-x-2.5 cursor-pointer group ${isDead ? 'opacity-40 grayscale' : ''}`} onClick={() => handleCardClick(c)}>
-                        <div className="w-40 sm:w-40 aspect-video bg-zinc-900 rounded-xl flex items-center justify-center relative overflow-hidden shrink-0 border border-zinc-800 group-hover:border-zinc-700">
-                           <ChannelLogo channel={c} className="w-full h-full" />
+                      <div key={`${c.url}-${c.name}-${idx}`} className={`flex items-center space-x-3 cursor-pointer group ${isDead ? 'opacity-40 grayscale' : ''}`} onClick={() => handleCardClick(c)}>
+                        <div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center relative overflow-hidden shrink-0 border border-zinc-800 group-hover:border-indigo-500 transition-all duration-300">
+                           <ChannelLogo channel={c} className="w-full h-full rounded-full" />
                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10"></div>
-                           <div className="absolute bottom-1 right-1 bg-black/80 px-1.5 py-0.5 rounded text-[10px] font-bold text-white flex items-center space-x-1 z-20">
-                              <span className={`w-1.5 h-1.5 rounded-full ${isDead ? 'bg-zinc-500' : 'bg-red-600 animate-pulse'}`}></span>
-                              <span className="leading-none">{isDead ? 'OFFLINE' : t.live}</span>
-                           </div>
                         </div>
                         <div className="flex-1 min-w-0 py-0.5">
                           <h3 className="text-[13px] font-semibold text-white leading-snug line-clamp-2 group-hover:text-blue-400 transition-colors pr-4">{c.name}</h3>
