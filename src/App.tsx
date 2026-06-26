@@ -72,7 +72,7 @@ export const HARDCODED_CHANNELS: Channel[] = [
   },
   {
     name: 'Koora Live',
-    url: 'https://vod.yagaverse.net/isc.php',
+    url: 'https://we.smarop.store/spoos1.m3u8',
     type: 'hls',
     logo: 'https://cdn-icons-png.flaticon.com/512/5358/5358652.png',
     country: 'ar',
@@ -852,6 +852,7 @@ export default function App() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const browseScrollPosRef = useRef<number>(0);
   const isProgrammaticBackRef = useRef<boolean>(false);
+  const attemptedProxyRef = useRef<Set<string>>(new Set());
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -1320,8 +1321,8 @@ export default function App() {
         if (isA_Hard1 && !isB_Hard1) return -1;
         if (!isA_Hard1 && isB_Hard1) return 1;
 
-        const isA_Hard2 = a.url === 'https://vod.yagaverse.net/isc.php';
-        const isB_Hard2 = b.url === 'https://vod.yagaverse.net/isc.php';
+        const isA_Hard2 = a.url === 'https://we.smarop.store/spoos1.m3u8';
+        const isB_Hard2 = b.url === 'https://we.smarop.store/spoos1.m3u8';
         if (isA_Hard2 && !isB_Hard2) return -1;
         if (!isA_Hard2 && isB_Hard2) return 1;
 
@@ -1354,8 +1355,8 @@ export default function App() {
         if (isA_Hard1 && !isB_Hard1) return -1;
         if (!isA_Hard1 && isB_Hard1) return 1;
 
-        const isA_Hard2 = a.url === 'https://vod.yagaverse.net/isc.php';
-        const isB_Hard2 = b.url === 'https://vod.yagaverse.net/isc.php';
+        const isA_Hard2 = a.url === 'https://we.smarop.store/spoos1.m3u8';
+        const isB_Hard2 = b.url === 'https://we.smarop.store/spoos1.m3u8';
         if (isA_Hard2 && !isB_Hard2) return -1;
         if (!isA_Hard2 && isB_Hard2) return 1;
 
@@ -1532,7 +1533,12 @@ export default function App() {
     setShowQualityMenu(false);
     setShowSettingsMenu(false);
     setPlayerError('none');
+    attemptedProxyRef.current.clear();
   }, [currentChannel]);
+
+  useEffect(() => {
+    attemptedProxyRef.current.clear();
+  }, [selectedServer]);
 
   useEffect(() => {
     let active = true;
@@ -1567,6 +1573,12 @@ export default function App() {
 
     if (currentChannel && videoRef.current) {
       const video = videoRef.current;
+      const streamUrl = currentChannel.urls && currentChannel.urls[selectedServer] 
+        ? currentChannel.urls[selectedServer] 
+        : currentChannel.url;
+      const isHttpsPage = window.location.protocol === 'https:';
+      const activeMode = (isHttpsPage && streamUrl.startsWith('http:') && streamMode === 'direct') ? 'proxy' : streamMode;
+
       try {
         (video as any).autoPictureInPicture = true;
       } catch (e) {
@@ -1634,6 +1646,10 @@ export default function App() {
         const isConnected = await checkIsInternetConnected();
         if (!isConnected) {
           setPlayerError('no-internet');
+        } else if (activeMode === 'direct' && !attemptedProxyRef.current.has(streamUrl)) {
+          attemptedProxyRef.current.add(streamUrl);
+          console.warn(`Direct stream failed. Automatically retrying with secure proxy for url: ${streamUrl}`);
+          setStreamMode('proxy');
         } else {
           setPlayerError('stream-error');
           setErrorMsg(true); 
