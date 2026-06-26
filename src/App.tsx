@@ -54,8 +54,8 @@ const SWUpdatePrompt = ({ onUpdate }: { onUpdate: () => void }) => {
 
 export const CAZE_TV_CHANNEL: Channel = {
   name: 'CazéTV',
-  url: 'UCZiYbVptd3PVPf4f6eR6UaQ',
-  type: 'youtube-iframe',
+  url: 'https://dfr80qz435crc.cloudfront.net/MNOP/Amagi/Caze/Caze_TV_BR/1080p-vtt/index.m3u8',
+  type: 'hls',
   logo: 'https://logodownload.org/wp-content/uploads/2023/07/caze-tv-logo.png',
   country: 'br',
   language: 'Portuguese'
@@ -148,7 +148,38 @@ const TRANSLATIONS = {
     finishedMatches: "Completed",
     allMatches: "All Matches",
     searchMatch: "Search Teams...",
-    timeLabel: "Time"
+    timeLabel: "Time",
+    customManagerTitle: "Custom Stream Manager",
+    customManagerSubtitle: "Add your M3U playlist link, upload an M3U file, paste raw text, or add single streams to play them instantly on Server 4.",
+    m3uUrlTab: "M3U Link / URL",
+    uploadFileTab: "Upload File",
+    pasteTextTab: "Paste Text",
+    singleChannelTab: "Single Channel",
+    playlistNameLabel: "Playlist Name",
+    playlistNamePlaceholder: "e.g. My Favorite TV List",
+    playlistUrlLabel: "M3U Playlist URL Link",
+    playlistUrlPlaceholder: "https://example.com/playlist.m3u",
+    testButton: "Test Link",
+    savePlaylistButton: "Save Playlist",
+    uploadFileLabel: "Playlist Name (Optional)",
+    dragDropText: "Drag & drop your M3U file here, or click to browse",
+    chooseFileButton: "Choose M3U File",
+    pasteTextLabel: "Paste M3U Contents",
+    pasteTextPlaceholder: "#EXTM3U\n#EXTINF:-1 tvg-logo=\"logo_url\",Channel Name\nhttps://stream-url.m3u8",
+    submitTextButton: "Parse & Save",
+    singleChannelNameLabel: "Channel Name",
+    singleChannelNamePlaceholder: "e.g. Somoy TV",
+    singleChannelGroupLabel: "Category (Optional)",
+    singleChannelGroupPlaceholder: "e.g. sports, news, music",
+    singleChannelUrlLabel: "Stream Playback URL",
+    singleChannelUrlPlaceholder: "https://example.com/stream.m3u8",
+    singleChannelLogoLabel: "Channel Logo Image URL (Optional)",
+    singleChannelLogoPlaceholder: "https://example.com/logo.png",
+    addChannelButton: "Add Channel",
+    activePlaylistsTitle: "Your Saved Custom Playlists",
+    noCustomPlaylists: "You have no custom playlists loaded.",
+    removeButton: "Delete",
+    refreshButton: "Refresh"
   },
   bn: {
     title: "স্ট্রিমটিউব",
@@ -185,7 +216,38 @@ const TRANSLATIONS = {
     finishedMatches: "সম্পন্ন ম্যাচ",
     allMatches: "সব ম্যাচ",
     searchMatch: "দল খুঁজুন...",
-    timeLabel: "সময়"
+    timeLabel: "সময়",
+    customManagerTitle: "কাস্টম চ্যানেল ম্যানেজার",
+    customManagerSubtitle: "আপনার নিজের M3U প্লেলিস্ট লিংক যোগ করুন, M3U ফাইল আপলোড করুন, সরাসরি কোড পেস্ট করুন অথবা সিঙ্গেল চ্যানেল অ্যাড করে সহজেই উপভোগ করুন।",
+    m3uUrlTab: "M3U লিংক যোগ",
+    uploadFileTab: "ফাইল আপলোড",
+    pasteTextTab: "টেক্সট পেস্ট",
+    singleChannelTab: "একটি চ্যানেল",
+    playlistNameLabel: "প্লেলিস্টের নাম",
+    playlistNamePlaceholder: "উদাঃ আমার প্রিয় চ্যানেল লিস্ট",
+    playlistUrlLabel: "M3U প্লেলিস্ট লিংক (URL)",
+    playlistUrlPlaceholder: "https://example.com/playlist.m3u",
+    testButton: "লিংক টেস্ট",
+    savePlaylistButton: "প্লেলিস্ট সেভ করুন",
+    uploadFileLabel: "প্লেলিস্টের নাম (ঐচ্ছিক)",
+    dragDropText: "এখানে আপনার .m3u ফাইলটি টেনে এনে ছেড়ে দিন, অথবা সিলেক্ট করুন",
+    chooseFileButton: "ফাইল সিলেক্ট করুন",
+    pasteTextLabel: "M3U কোড বা টেক্সট পেস্ট করুন",
+    pasteTextPlaceholder: "#EXTM3U\n#EXTINF:-1 tvg-logo=\"logo_url\",আমার প্রিয় চ্যানেল\nhttps://stream-url.m3u8",
+    submitTextButton: "কোড সেভ করুন",
+    singleChannelNameLabel: "চ্যানেলের নাম",
+    singleChannelNamePlaceholder: "উদাঃ সময় টিভি",
+    singleChannelGroupLabel: "ক্যাটাগরি (ঐচ্ছিক)",
+    singleChannelGroupPlaceholder: "উদাঃ sports, news, entertainment",
+    singleChannelUrlLabel: "স্ট্রিম লিংক (Stream URL)",
+    singleChannelUrlPlaceholder: "https://example.com/stream.m3u8",
+    singleChannelLogoLabel: "চ্যানেল লোগো লিংক (ঐচ্ছিক)",
+    singleChannelLogoPlaceholder: "https://example.com/logo.png",
+    addChannelButton: "চ্যানেল যোগ করুন",
+    activePlaylistsTitle: "আপনার সংরক্ষিত কাস্টম প্লেলিস্টসমূহ",
+    noCustomPlaylists: "এখনো কোনো কাস্টম প্লেলিস্ট যোগ করা হয়নি।",
+    removeButton: "ডিলিট",
+    refreshButton: "রিফ্রেশ"
   }
 };
 
@@ -1473,10 +1535,18 @@ export default function App() {
       setValidationDetails(lang === 'en' ? 'Direct playback active' : 'সরাসরি প্লেব্যাক সক্রিয়');
 
       let stallTimer: NodeJS.Timeout | null = null;
+      let loadTimeoutTimer: NodeJS.Timeout | null = null;
       let watchdogAttempts = 0;
       let totalWatchdogCycles = 0;
-      const maxWatchdogCycles = 3;
+      const maxWatchdogCycles = 1;
       let boundEvents: { name: string; handler: any }[] = [];
+
+      const clearLoadTimeout = () => {
+        if (loadTimeoutTimer) {
+          clearTimeout(loadTimeoutTimer);
+          loadTimeoutTimer = null;
+        }
+      };
 
       const clearStallWatchdog = () => {
         if (stallTimer) {
@@ -1491,6 +1561,7 @@ export default function App() {
         if (!active) return;
         setIsBuffering(false);
         clearStallWatchdog();
+        clearLoadTimeout();
         
         if (hlsRef.current) {
           try { hlsRef.current.destroy(); } catch (e) {}
@@ -1655,6 +1726,7 @@ export default function App() {
         if (active) {
           setIsBuffering(false);
           clearStallWatchdog();
+          clearLoadTimeout();
         }
       };
 
@@ -1738,17 +1810,25 @@ export default function App() {
         // Bind watchdog events
         const handleWaitingFn = () => handleWaiting(streamFormat, targetUrl);
         const handlePlayingOrProgressFn = handlePlayingOrProgress;
+        const handleVideoErrorFn = (e: any) => {
+          if (active) {
+            console.error("Native video error event triggered:", video.error || e);
+            handleStreamFailure();
+          }
+        };
 
         video.addEventListener('waiting', handleWaitingFn);
         video.addEventListener('playing', handlePlayingOrProgressFn);
         video.addEventListener('timeupdate', handlePlayingOrProgressFn);
         video.addEventListener('seeking', handlePlayingOrProgressFn);
+        video.addEventListener('error', handleVideoErrorFn);
 
         boundEvents = [
           { name: 'waiting', handler: handleWaitingFn },
           { name: 'playing', handler: handlePlayingOrProgressFn },
           { name: 'timeupdate', handler: handlePlayingOrProgressFn },
-          { name: 'seeking', handler: handlePlayingOrProgressFn }
+          { name: 'seeking', handler: handlePlayingOrProgressFn },
+          { name: 'error', handler: handleVideoErrorFn }
         ];
         
         if (streamFormat === 'hls') {
@@ -1970,11 +2050,19 @@ export default function App() {
         }
       };
 
+      loadTimeoutTimer = setTimeout(() => {
+        if (active && isBuffering) {
+          console.warn("Initial stream load timeout reached (18s). Stream is offline or blocked.");
+          handleStreamFailure();
+        }
+      }, 18000);
+
       runLoader();
       
       return () => {
         active = false;
         clearStallWatchdog();
+        clearLoadTimeout();
         boundEvents.forEach(evt => {
           if (videoRef.current) {
             videoRef.current.removeEventListener(evt.name, evt.handler);
@@ -3069,8 +3157,8 @@ export default function App() {
                           </p>
                           <p className="leading-relaxed text-zinc-300">
                             {lang === 'bn' 
-                              ? "CazéTV ইউটিউবে লাইভ খেলার সম্প্রচার শুধুমাত্র ব্রাজিলের জন্য সীমাবদ্ধ রাখে। তাই ভিপিএন ছাড়া এখানে 'Video is unavailable' দেখাতে পারে।" 
-                              : "CazéTV live broadcasts on YouTube are strictly geo-blocked to Brazil due to official digital copyrights."}
+                              ? "CazéTV লাইভ খেলার সম্প্রচার শুধুমাত্র ব্রাজিলের জন্য সীমাবদ্ধ রাখে। তাই ভিপিএন ছাড়া এখানে স্ট্রিমটি লোড না-ও হতে পারে।" 
+                              : "CazéTV live broadcasts are strictly geo-blocked to Brazil due to official digital copyrights."}
                           </p>
                           <p className="text-[11px] text-zinc-400 leading-normal border-t border-zinc-800/80 pt-1.5">
                             {lang === 'bn' 
@@ -3151,7 +3239,10 @@ export default function App() {
                              </div>
                              <p className="text-[11px] text-zinc-400 font-medium">Build by Taaissu</p>
                           </div>
-                          <p className="text-[10px] text-zinc-500 mt-1 flex items-center"><Users className="w-3 h-3 mr-1 opacity-70"/> {(Math.random() * 8 + 1).toFixed(1)}K views</p>
+                          <p className="text-[10px] text-zinc-500 mt-1 flex items-center">
+                            <Users className="w-3 h-3 mr-1 opacity-70"/> 
+                            {(Math.random() * 8 + 1).toFixed(1)}K views
+                          </p>
                         </div>
                       </div>
                     );
@@ -3165,6 +3256,689 @@ export default function App() {
           )}
         </div>
       </div>
+      <AnimatePresence>
+        {isCustomModalOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-[#0d0d10] rounded-3xl max-w-2xl w-full p-5 sm:p-7 relative border border-zinc-800 shadow-[0_30px_70px_rgba(0,0,0,0.9)] max-h-[92vh] flex flex-col overflow-hidden"
+            >
+              {/* Close Button */}
+              <button 
+                onClick={() => setIsCustomModalOpen(false)} 
+                className="absolute top-5 right-5 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 p-2.5 rounded-full transition-all cursor-pointer shadow-lg z-10"
+                title={lang === 'en' ? 'Close' : 'বন্ধ করুন'}
+              >
+                <X className="w-5 h-5"/>
+              </button>
+
+              {/* Header */}
+              <div className="pb-5 border-b border-zinc-800 flex items-start sm:items-center space-x-4 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                  <span className="text-2xl" role="img" aria-label="TV">📺</span>
+                </div>
+                <div className="pr-10">
+                  <h3 className="text-xl font-bold tracking-tight text-white">
+                    {t.customManagerTitle}
+                  </h3>
+                  <p className="text-zinc-400 text-xs sm:text-sm mt-1 leading-relaxed">
+                    {t.customManagerSubtitle}
+                  </p>
+                </div>
+              </div>
+
+              {/* Tab Selector Inside Modal */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-zinc-950 border border-zinc-900 rounded-2xl mb-6">
+                <button
+                  type="button"
+                  onClick={() => setCustomModalTab('url')}
+                  className={`flex items-center justify-center space-x-2 py-3 px-3 rounded-xl cursor-pointer transition-all ${
+                    customModalTab === 'url'
+                      ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/10'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50'
+                  }`}
+                >
+                  <Link2 className="w-4 h-4 shrink-0" />
+                  <span className="text-xs tracking-wide font-medium">{t.m3uUrlTab}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomModalTab('file')}
+                  className={`flex items-center justify-center space-x-2 py-3 px-3 rounded-xl cursor-pointer transition-all ${
+                    customModalTab === 'file'
+                      ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/10'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50'
+                  }`}
+                >
+                  <Upload className="w-4 h-4 shrink-0" />
+                  <span className="text-xs tracking-wide font-medium">{t.uploadFileTab}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomModalTab('text')}
+                  className={`flex items-center justify-center space-x-2 py-3 px-3 rounded-xl cursor-pointer transition-all ${
+                    customModalTab === 'text'
+                      ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/10'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 shrink-0" />
+                  <span className="text-xs tracking-wide font-medium">{t.pasteTextTab}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomModalTab('single')}
+                  className={`flex items-center justify-center space-x-2 py-3 px-3 rounded-xl cursor-pointer transition-all ${
+                    customModalTab === 'single'
+                      ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/10'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50'
+                  }`}
+                >
+                  <Plus className="w-4 h-4 shrink-0" />
+                  <span className="text-xs tracking-wide font-medium">{t.singleChannelTab}</span>
+                </button>
+              </div>
+
+              {/* Scrollable Form Container */}
+              <div className="flex-1 overflow-y-auto space-y-6 pr-1.5 custom-scrollbar pb-2">
+                
+                {/* Modal Forms block */}
+                <div className="p-5 sm:p-6 bg-zinc-900/40 border border-zinc-800/60 rounded-2xl">
+                  {customModalTab === 'url' && (
+                    <div className="space-y-4">
+                      {/* Interactive Welcoming Helper Guide */}
+                      <div className="bg-indigo-600/5 border border-indigo-500/10 rounded-xl p-4 text-xs text-indigo-300 space-y-1">
+                        <p className="font-bold text-sm text-indigo-200 mb-1 flex items-center gap-1.5">
+                          <span>🔗</span> 
+                          {lang === 'en' ? 'How to Add a Link?' : 'লিংক কিভাবে যোগ করবেন?'}
+                        </p>
+                        <p className="leading-relaxed">
+                          {lang === 'en' 
+                            ? "Just paste any public IPTV playlist (.m3u) link from the internet. Give it a simple name, test the link to ensure it is online, and click save. The app will automatically read all live channels for you!"
+                            : "ইন্টারনেট থেকে যেকোনো পাবলিক IPTV প্লেলিস্টের (.m3u) লিংক এনে এখানে পেস্ট করুন। আপনার চেনার সুবিধার্থে একটি নাম দিন, লিংকটি সচল আছে কিনা টেস্ট করুন এবং সেভ করুন। সব চ্যানেল অটোমেটিক কাস্টম ট্যাবে চলে আসবে!"}
+                        </p>
+                      </div>
+
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const form = e.currentTarget;
+                        const formData = new FormData(form);
+                        const name = formData.get('playlist-name') as string;
+                        const url = playlistUrlInput;
+
+                        if (!name || !url) {
+                          setToastMessage(lang === 'en' ? "Please fill in all fields." : "দয়া করে সব ঘর পূরণ করুন।");
+                          setTimeout(() => setToastMessage(''), 3000);
+                          return;
+                        }
+
+                        const newPlaylist = {
+                          id: 'm3u_' + Date.now(),
+                          name: name.trim(),
+                          url: url.trim(),
+                          server: '4',
+                          type: 'url',
+                          createdAt: new Date().toISOString()
+                        };
+
+                        setCustomPlaylists(prev => [...prev, newPlaylist]);
+                        form.reset();
+                        setPlaylistUrlInput('');
+                        setTestUrls(prev => {
+                          const copy = { ...prev };
+                          delete copy['playlist'];
+                          return copy;
+                        });
+                        setToastMessage(lang === 'en' ? "Playlist successfully saved!" : "প্লেলিস্ট সফলভাবে সেভ করা হয়েছে!");
+                        setTimeout(() => setToastMessage(''), 3000);
+                      }} className="space-y-5">
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold text-zinc-200">
+                            {t.playlistNameLabel}
+                          </label>
+                          <input 
+                            type="text" 
+                            name="playlist-name"
+                            placeholder={t.playlistNamePlaceholder}
+                            required
+                            className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/10 text-white font-medium transition-all"
+                          />
+                          <p className="text-zinc-500 text-xs pl-0.5">
+                            {lang === 'en' 
+                              ? "Enter any name of your choice to easily find this list later." 
+                              : "আপনার পছন্দমতো যেকোনো নাম দিন যাতে পরে সহজে এই লিস্টটি খুঁজে পান।"}
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold text-zinc-200">
+                            {t.playlistUrlLabel}
+                          </label>
+                          <div className="flex space-x-2">
+                            <input 
+                              type="url" 
+                              name="playlist-url"
+                              value={playlistUrlInput}
+                              onChange={(e) => setPlaylistUrlInput(e.target.value)}
+                              placeholder={t.playlistUrlPlaceholder}
+                              required
+                              className="flex-1 bg-zinc-950 border border-zinc-800 focus:border-indigo-500 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/10 text-white font-mono transition-all"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleTestLink(playlistUrlInput, 'playlist')}
+                              disabled={testUrls['playlist']?.testing}
+                              className={`px-5 py-3.5 font-bold text-xs rounded-xl cursor-pointer select-none transition-all border shrink-0 flex items-center justify-center space-x-1 ${
+                                testUrls['playlist']?.testing
+                                  ? 'bg-zinc-900 border-zinc-800 text-zinc-500 cursor-not-allowed'
+                                  : 'bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border-indigo-500/20 active:scale-95'
+                              }`}
+                            >
+                              {testUrls['playlist']?.testing ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" />
+                                  <span>{lang === 'en' ? 'Testing...' : 'টেস্ট হচ্ছে...'}</span>
+                                </>
+                              ) : (
+                                <span>{t.testButton}</span>
+                              )}
+                            </button>
+                          </div>
+                          <p className="text-zinc-500 text-xs pl-0.5">
+                            {lang === 'en' 
+                              ? "Paste the link here. It must start with http:// or https://" 
+                              : "প্লেলিস্টের লিংকটি এখানে পেস্ট করুন। এটি অবশ্যই http:// বা https:// দিয়ে শুরু হতে হবে।"}
+                          </p>
+
+                          {/* Test feedback container with modern alert UI */}
+                          {testUrls['playlist']?.result && (
+                            <div className={`mt-3 p-4 rounded-xl border text-xs font-medium leading-relaxed transition-all ${
+                              testUrls['playlist'].result.ok 
+                                ? 'bg-emerald-950/20 border-emerald-500/20 text-emerald-300 shadow-md shadow-emerald-950/10' 
+                                : 'bg-rose-950/20 border-rose-500/20 text-rose-300 shadow-md shadow-rose-950/10'
+                            }`}>
+                              <div className="flex items-center space-x-2 font-bold uppercase tracking-wider text-[11px] mb-1.5">
+                                <span className="text-base">{testUrls['playlist'].result.ok ? '✅' : '❌'}</span>
+                                <span>
+                                  {testUrls['playlist'].result.ok 
+                                    ? (lang === 'en' ? 'Link is Active & Online!' : 'লিংকটি সচল আছে এবং অনলাইন!') 
+                                    : (lang === 'en' ? 'Connection Failed' : 'কানেকশন করা যায়নি')}
+                                </span>
+                              </div>
+                              <p className="opacity-95 text-[13px]">
+                                {testUrls['playlist'].result.ok 
+                                  ? (lang === 'en' 
+                                      ? "Great! The link is reachable. You can save this playlist safely." 
+                                      : "অসাধারণ! লিংকটি সচল আছে এবং লোড করা যাচ্ছে। আপনি নিশ্চিন্তে সেভ করতে পারেন।")
+                                  : testUrls['playlist'].result.message}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-2">
+                          <button 
+                            type="submit"
+                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg hover:shadow-indigo-600/20 cursor-pointer active:scale-98 flex items-center justify-center space-x-2"
+                          >
+                            <span>📥</span>
+                            <span>{t.savePlaylistButton}</span>
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
+                  {customModalTab === 'file' && (
+                    <div className="space-y-4">
+                      {/* Interactive Welcoming Helper Guide */}
+                      <div className="bg-indigo-600/5 border border-indigo-500/10 rounded-xl p-4 text-xs text-indigo-300 space-y-1">
+                        <p className="font-bold text-sm text-indigo-200 mb-1 flex items-center gap-1.5">
+                          <span>📁</span> 
+                          {lang === 'en' ? 'How to Upload a File?' : 'ফাইল কিভাবে আপলোড করবেন?'}
+                        </p>
+                        <p className="leading-relaxed">
+                          {lang === 'en' 
+                            ? "If you have a downloaded IPTV playlist file (.m3u, .m3u8, or plain text) on your device, you can upload it here directly. Give it a name, select the file, and the app will import all channels locally for you."
+                            : "আপনার মোবাইল বা কম্পিউটারে কোনো IPTV প্লেলিস্ট ফাইল (.m3u, .m3u8 বা টেক্সট ফাইল) ডাউনলোড করা থাকলে তা সরাসরি এখানে আপলোড করতে পারেন। একটি নাম দিয়ে ফাইলটি সিলেক্ট করুন এবং চ্যানেলগুলো কাস্টম ট্যাবে চলে আসবে।"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-5">
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold text-zinc-200">
+                            {t.uploadFileLabel}
+                          </label>
+                          <input 
+                            type="text" 
+                            id="file-playlist-name"
+                            placeholder={t.playlistNamePlaceholder}
+                            className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/10 text-white font-medium transition-all"
+                          />
+                        </div>
+                        
+                        <div 
+                          onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); }}
+                          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); }}
+                          onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDragActive(false);
+                            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                              const nameInput = document.getElementById('file-playlist-name') as HTMLInputElement | null;
+                              handleM3UFileLoad(e.dataTransfer.files[0], nameInput?.value || '');
+                              if(nameInput) nameInput.value = '';
+                            }
+                          }}
+                          className={`relative border-2 border-dashed rounded-2xl p-8 sm:p-10 flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+                            dragActive 
+                              ? 'border-indigo-500 bg-indigo-500/5 shadow-[inset_0_0_20px_rgba(99,102,241,0.25)]' 
+                              : 'border-zinc-800 hover:border-zinc-700 bg-zinc-950/40 hover:bg-zinc-950/60'
+                          }`}
+                          onClick={() => document.getElementById('m3u-file-input')?.click()}
+                        >
+                          <input 
+                            type="file"
+                            id="m3u-file-input"
+                            accept=".m3u,.m3u8,text/plain"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                const nameInput = document.getElementById('file-playlist-name') as HTMLInputElement | null;
+                                handleM3UFileLoad(e.target.files[0], nameInput?.value || '');
+                                if(nameInput) nameInput.value = '';
+                              }
+                            }}
+                          />
+                          <div className={`w-14 h-14 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4 shadow-lg transition-transform duration-300 ${dragActive ? 'scale-110 text-indigo-400' : 'text-zinc-400'}`}>
+                            <Upload className="w-6 h-6" />
+                          </div>
+                          <p className="text-sm sm:text-base font-bold text-zinc-200 mb-1">
+                            {t.dragDropText}
+                          </p>
+                          <p className="text-zinc-500 text-xs uppercase tracking-widest font-semibold my-2">or</p>
+                          <span 
+                            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all active:scale-95 shadow-md shadow-indigo-600/10 cursor-pointer"
+                          >
+                            {t.chooseFileButton}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {customModalTab === 'text' && (
+                    <div className="space-y-4">
+                      {/* Interactive Welcoming Helper Guide */}
+                      <div className="bg-indigo-600/5 border border-indigo-500/10 rounded-xl p-4 text-xs text-indigo-300 space-y-1">
+                        <p className="font-bold text-sm text-indigo-200 mb-1 flex items-center gap-1.5">
+                          <span>📝</span> 
+                          {lang === 'en' ? 'How to Paste Text?' : 'কোড কিভাবে পেস্ট করবেন?'}
+                        </p>
+                        <p className="leading-relaxed">
+                          {lang === 'en' 
+                            ? "If you have copied IPTV codes (M3U format text) from a message, clipboard, or document, you can paste the entire content directly in the text area below. The app will immediately parse and save the channels."
+                            : "আপনি যদি কোনো মেসেজ বা ডকুমেন্ট থেকে IPTV কোড (M3U ফরম্যাট) কপি করে থাকেন, তবে পুরো লেখাটি সরাসরি নিচের বক্সে পেস্ট করে দিন। অ্যাপটি প্রতিটি লাইন পড়ে আপনার জন্য চ্যানেলগুলো রেডি করে দেবে।"}
+                        </p>
+                      </div>
+
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const form = e.currentTarget;
+                        const formData = new FormData(form);
+                        const name = formData.get('text-playlist-name') as string;
+                        const content = formData.get('text-playlist-content') as string;
+
+                        if (!name || !content) {
+                          setToastMessage(lang === 'en' ? "Please fill in all the input fields" : "দয়া করে সব ঘর পূরণ করুন");
+                          setTimeout(() => setToastMessage(''), 3000);
+                          return;
+                        }
+
+                        const parsed = parseM3UContent(content, '4');
+                        if (parsed.length === 0) {
+                          setToastMessage(lang === 'en' ? "Could not parse any valid stream lines." : "কোনো সঠিক চ্যানেল খুঁজে পাওয়া যায়নি।");
+                          setTimeout(() => setToastMessage(''), 3000);
+                          return;
+                        }
+
+                        const newPlaylist = {
+                          id: 'm3u_' + Date.now(),
+                          name: name.trim(),
+                          server: '4',
+                          type: 'text',
+                          channels: parsed,
+                          createdAt: new Date().toISOString()
+                        };
+
+                        setCustomPlaylists(prev => [...prev, newPlaylist]);
+                        form.reset();
+                        setToastMessage(lang === 'en' ? `Parsed ${parsed.length} channels successfully!` : `${parsed.length}টি চ্যানেল সফলভাবে যোগ করা হয়েছে!`);
+                        setTimeout(() => setToastMessage(''), 3000);
+                      }} className="space-y-5">
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold text-zinc-200">
+                            {t.playlistNameLabel}
+                          </label>
+                          <input 
+                            type="text" 
+                            name="text-playlist-name"
+                            placeholder={t.playlistNamePlaceholder}
+                            required
+                            className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/10 text-white font-medium transition-all"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold text-zinc-200">
+                            {t.pasteTextLabel}
+                          </label>
+                          <textarea 
+                            name="text-playlist-content"
+                            rows={6}
+                            placeholder={t.pasteTextPlaceholder}
+                            required
+                            className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/10 text-white font-mono transition-all custom-scrollbar"
+                          />
+                        </div>
+                        <div className="pt-2">
+                          <button 
+                            type="submit"
+                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg hover:shadow-indigo-600/20 cursor-pointer active:scale-98 flex items-center justify-center space-x-2"
+                          >
+                            <span>📝</span>
+                            <span>{t.submitTextButton}</span>
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
+                  {customModalTab === 'single' && (
+                    <div className="space-y-4">
+                      {/* Interactive Welcoming Helper Guide */}
+                      <div className="bg-indigo-600/5 border border-indigo-500/10 rounded-xl p-4 text-xs text-indigo-300 space-y-1">
+                        <p className="font-bold text-sm text-indigo-200 mb-1 flex items-center gap-1.5">
+                          <span>📺</span> 
+                          {lang === 'en' ? 'Add a Single Stream Link' : 'একটিমাত্র চ্যানেল লিংক যোগ করুন'}
+                        </p>
+                        <p className="leading-relaxed">
+                          {lang === 'en' 
+                            ? "If you only have one single live channel link (like a .m3u8 link or HLS live feed), you don't need a full playlist. Just enter the channel name, its category (optional), and paste the stream link directly."
+                            : "আপনার কাছে যদি পুরো প্লেলিস্ট না থেকে শুধুমাত্র একটি নির্দিষ্ট লাইভ চ্যানেলের লিংক (যেমন .m3u8 বা লাইভ ফিড লিংক) থাকে, তবে সরাসরি এখানে নাম এবং লিংক লিখে একটি চ্যানেল খুব সহজেই তৈরি করে নিতে পারেন।"}
+                        </p>
+                      </div>
+
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const form = e.currentTarget;
+                        const formData = new FormData(form);
+                        const name = formData.get('single-name') as string;
+                        const url = singleStreamUrlInput;
+                        const logo = formData.get('single-logo') as string;
+                        const group = formData.get('single-group') as string;
+
+                        if (!name || !url) {
+                          setToastMessage(lang === 'en' ? "Name and Stream URL are required" : "নাম এবং স্ট্রিম লিংক আবশ্যক");
+                          setTimeout(() => setToastMessage(''), 3000);
+                          return;
+                        }
+
+                        const newChannel: Channel = {
+                          name: name.trim(),
+                          url: url.trim(),
+                          logo: (logo || '').trim(),
+                          source: '4',
+                          country: (group || 'custom').trim().toLowerCase()
+                        };
+
+                        const newPlaylist = {
+                          id: 'm3u_' + Date.now(),
+                          name: name.trim(),
+                          server: '4',
+                          type: 'single',
+                          channels: [newChannel],
+                          createdAt: new Date().toISOString()
+                        };
+
+                        setCustomPlaylists(prev => [...prev, newPlaylist]);
+                        form.reset();
+                        setSingleStreamUrlInput('');
+                        setTestUrls(prev => {
+                          const copy = { ...prev };
+                          delete copy['single'];
+                          return copy;
+                        });
+                        setToastMessage(lang === 'en' ? "Channel successfully added!" : "চ্যানেল সফলভাবে যোগ করা হয়েছে!");
+                        setTimeout(() => setToastMessage(''), 3000);
+                      }} className="space-y-5">
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="block text-sm font-semibold text-zinc-200">
+                              {t.singleChannelNameLabel}
+                            </label>
+                            <input 
+                              type="text" 
+                              name="single-name"
+                              placeholder={t.singleChannelNamePlaceholder}
+                              required
+                              className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/10 text-white font-medium transition-all"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="block text-sm font-semibold text-zinc-200">
+                              {t.singleChannelGroupLabel}
+                            </label>
+                            <input 
+                              type="text" 
+                              name="single-group"
+                              placeholder={t.singleChannelGroupPlaceholder}
+                              className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/10 text-white font-medium transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold text-zinc-200">
+                            {t.singleChannelUrlLabel}
+                          </label>
+                          <div className="flex space-x-2">
+                            <input 
+                              type="url" 
+                              name="single-url"
+                              value={singleStreamUrlInput}
+                              onChange={(e) => setSingleStreamUrlInput(e.target.value)}
+                              placeholder={t.singleChannelUrlPlaceholder}
+                              required
+                              className="flex-1 bg-zinc-950 border border-zinc-800 focus:border-indigo-500 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/10 text-white font-mono transition-all"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleTestLink(singleStreamUrlInput, 'single')}
+                              disabled={testUrls['single']?.testing}
+                              className={`px-5 py-3.5 font-bold text-xs rounded-xl cursor-pointer select-none transition-all border shrink-0 flex items-center justify-center space-x-1 ${
+                                testUrls['single']?.testing
+                                  ? 'bg-zinc-900 border-zinc-800 text-zinc-500 cursor-not-allowed'
+                                  : 'bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border-indigo-500/20 active:scale-95'
+                              }`}
+                            >
+                              {testUrls['single']?.testing ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" />
+                                  <span>{lang === 'en' ? 'Testing...' : 'টেস্ট হচ্ছে...'}</span>
+                                </>
+                              ) : (
+                                <span>{t.testButton}</span>
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Test feedback container with modern alert UI */}
+                          {testUrls['single']?.result && (
+                            <div className={`mt-3 p-4 rounded-xl border text-xs font-medium leading-relaxed transition-all ${
+                              testUrls['single'].result.ok 
+                                ? 'bg-emerald-950/20 border-emerald-500/20 text-emerald-300 shadow-md shadow-emerald-950/10' 
+                                : 'bg-rose-950/20 border-rose-500/20 text-rose-300 shadow-md shadow-rose-950/10'
+                            }`}>
+                              <div className="flex items-center space-x-2 font-bold uppercase tracking-wider text-[11px] mb-1.5">
+                                <span className="text-base">{testUrls['single'].result.ok ? '✅' : '❌'}</span>
+                                <span>
+                                  {testUrls['single'].result.ok 
+                                    ? (lang === 'en' ? 'Channel Link is Active!' : 'চ্যানেল লিংকটি সচল আছে!') 
+                                    : (lang === 'en' ? 'Stream Offline / Unreachable' : 'চ্যানেলটি অফলাইন বা অচল')}
+                                </span>
+                              </div>
+                              <p className="opacity-95 text-[13px]">
+                                {testUrls['single'].result.ok 
+                                  ? (lang === 'en' 
+                                      ? "Great! The live stream URL responded successfully and can be played." 
+                                      : "চমৎকার! লাইভ স্ট্রিম লিংকটি সচল আছে এবং এটি প্লে করা যাবে।")
+                                  : testUrls['single'].result.message}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold text-zinc-200">
+                            {t.singleChannelLogoLabel}
+                          </label>
+                          <input 
+                            type="url" 
+                            name="single-logo"
+                            placeholder={t.singleChannelLogoPlaceholder}
+                            className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 rounded-xl px-4 py-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/10 text-white font-mono transition-all"
+                          />
+                        </div>
+
+                        <div className="pt-2">
+                          <button 
+                            type="submit"
+                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg hover:shadow-indigo-600/20 cursor-pointer active:scale-98 flex items-center justify-center space-x-2"
+                          >
+                            <span>➕</span>
+                            <span>{t.addChannelButton}</span>
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+                </div>
+
+                {/* Registered Playlists Listing Section */}
+                <div className="space-y-4 pb-4">
+                  <div className="flex items-center justify-between px-1">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>🗂️</span>
+                      <span>{t.activePlaylistsTitle}</span>
+                      <span className="bg-zinc-850 text-zinc-300 text-xs px-2 py-0.5 rounded-full font-semibold">
+                        {customPlaylists.length}
+                      </span>
+                    </h4>
+                  </div>
+                  
+                  {customPlaylists.length === 0 ? (
+                    <div className="py-10 bg-zinc-900/10 border-2 border-dashed border-zinc-850 rounded-2xl flex flex-col items-center justify-center text-zinc-500">
+                      <span className="text-4xl mb-3">📭</span>
+                      <p className="text-sm font-semibold text-zinc-400 text-center px-4">
+                        {t.noCustomPlaylists}
+                      </p>
+                      <p className="text-xs text-zinc-500 mt-1 text-center px-6">
+                        {lang === 'en' 
+                          ? "Use any of the options above to add channels and they will appear here." 
+                          : "চ্যানেল অ্যাড করার জন্য উপরের যেকোনো একটি অপশন ব্যবহার করুন এবং সেভ করুন।"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3">
+                      {customPlaylists.map((playlist, idx) => (
+                        <div 
+                          key={playlist.id || idx}
+                          className="flex items-center justify-between p-4 bg-zinc-900/20 hover:bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700/60 rounded-2xl transition-all group"
+                        >
+                          <div className="flex flex-col space-y-1.5 flex-1 min-w-0 pr-4">
+                            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                              <span className="text-sm font-bold text-white truncate">{playlist.name}</span>
+                              <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-bold uppercase text-indigo-400 rounded-md">
+                                {playlist.type === 'single' ? (lang === 'en' ? 'Single' : 'সিঙ্গেল') : (lang === 'en' ? 'M3U Feed' : 'এম৩ইউ ফিড')}
+                              </span>
+                              <span className="px-2 py-0.5 bg-zinc-800 border border-zinc-750 text-[9px] font-bold text-zinc-300 rounded-md">
+                                {playlist.channels?.length || 0} {lang === 'en' ? 'Channels' : 'টি চ্যানেল'}
+                              </span>
+                            </div>
+                            <span className="text-xs text-zinc-500 truncate font-mono max-w-md">
+                              {playlist.url || (lang === 'en' ? 'Uploaded Local content' : 'ডিভাইস থেকে আপলোড করা ফাইল/কোড')}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center space-x-1.5 shrink-0">
+                            {playlist.type === 'url' && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    setToastMessage(lang === 'en' ? "Refreshing remote playlist..." : "প্লেলিস্ট রিফ্রেশ করা হচ্ছে...");
+                                    const res = await fetch(`/api/parse-m3u?url=${encodeURIComponent(playlist.url)}`);
+                                    if (res.ok) {
+                                      const parsedList = await res.json();
+                                      if (parsedList && parsedList.length > 0) {
+                                        setCustomPlaylists(prev => prev.map(p => p.id === playlist.id ? { ...p, channels: parsedList } : p));
+                                        setToastMessage(lang === 'en' ? `Refreshed! Found ${parsedList.length} channels.` : `রিফ্রেশ সম্পন্ন! ${parsedList.length}টি চ্যানেল পাওয়া গেছে।`);
+                                      } else {
+                                        setToastMessage(lang === 'en' ? "Could not parse any channels." : "কোনো চ্যানেল পাওয়া যায়নি।");
+                                      }
+                                    } else {
+                                      setToastMessage(lang === 'en' ? "Failed to fetch remote playlist." : "লিংক থেকে প্লেলিস্ট লোড করতে ব্যর্থ হয়েছে।");
+                                    }
+                                    setTimeout(() => setToastMessage(''), 3000);
+                                  } catch (err) {
+                                    console.error("Refresh error:", err);
+                                  }
+                                }}
+                                title={t.refreshButton}
+                                className="p-3 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white rounded-xl transition-all cursor-pointer shadow-sm active:scale-95"
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            <button 
+                              onClick={() => {
+                                setCustomPlaylists(prev => prev.filter(p => p.id !== playlist.id));
+                                setToastMessage(lang === 'en' ? "Playlist removed" : "প্লেলিস্ট ডিলিট করা হয়েছে");
+                                setTimeout(() => setToastMessage(''), 3000);
+                              }}
+                              title={t.removeButton}
+                              className="p-3 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 border border-zinc-950 hover:border-rose-500/20 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Concluding Footer */}
+              <div className="pt-4 border-t border-zinc-850 flex items-center justify-between mt-5 shrink-0 text-zinc-500 font-medium text-[11px]">
+                <span className="flex items-center gap-1">
+                  <span>💾</span>
+                  <span>{lang === 'en' ? 'Saved Locally on Device' : 'আপনার ডিভাইসে সুরক্ষিতভাবে সংরক্ষিত'}</span>
+                </span>
+                <span className="text-indigo-400 flex items-center gap-1.5 font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                  {lang === 'en' ? 'Custom Server 4 Ready' : 'কাস্টম সার্ভার ৪ প্রস্তুত'}
+                </span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Select Country Modal (Desktop Dialog) */}
       <AnimatePresence>
@@ -3178,7 +3952,7 @@ export default function App() {
                     <Globe className="w-5 h-5 text-zinc-400" />
                     {t.explore}
                   </h3>
-                  <button onClick={() => setIsCountryModalOpen(false)} className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer">
+                  <button onClick={() => setIsCountryModalOpen(false)} className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer font-bold">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
@@ -3199,627 +3973,6 @@ export default function App() {
                     );
                   })}
                 </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Install Popup */}
-      <AnimatePresence>
-        {showInstallPopup && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[#121212] rounded-2xl max-w-sm w-full p-6 relative border border-zinc-800 shadow-2xl"
-            >
-              <button 
-                onClick={dismissInstallPopup} 
-                className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-zinc-800 p-1.5 rounded-full transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg border border-zinc-800/50 bg-[#0f0f0f] flex items-center justify-center">
-                  <img src="/icon.svg" alt="App Icon" className="w-[80%] h-[80%] object-contain drop-shadow-md p-1" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold tracking-tight text-white mb-2">Install StreamTube App</h3>
-                  <p className="text-zinc-400 text-sm leading-relaxed px-2">
-                    {deviceOS === 'iOS' 
-                      ? "To install on iOS, tap the Share button below and select 'Add to Home Screen'."
-                      : `Install the app on your ${deviceOS} for a faster, full-screen experience.`}
-                  </p>
-                </div>
-                
-                <div className="w-full pt-4">
-                  {deviceOS !== 'iOS' ? (
-                    <button 
-                      onClick={() => {
-                        setShowInstallPopup(false);
-                        handleInstallApp();
-                      }}
-                      className="w-full py-3.5 bg-white hover:bg-zinc-200 text-black font-bold tracking-wide rounded-xl transition-colors shadow-[0_0_15px_rgba(255,255,255,0.1)] flex items-center justify-center space-x-2"
-                    >
-                      <span>Install Now</span>
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={dismissInstallPopup}
-                      className="w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-xl transition-colors"
-                    >
-                      Got it
-                    </button>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Custom M3U Manager Modal */}
-      <AnimatePresence>
-        {isCustomModalOpen && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-[#09090b] rounded-3xl max-w-2xl w-full p-6 relative border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.9)] max-h-[90vh] flex flex-col"
-            >
-              {/* Close Button */}
-              <button 
-                onClick={() => setIsCustomModalOpen(false)} 
-                className="absolute top-5 right-5 text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-all cursor-pointer"
-              >
-                <X className="w-5 h-5"/>
-              </button>
-
-              {/* Header */}
-              <div className="pb-4 border-b border-white/5 flex items-center space-x-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-fuchsia-600/20 border border-fuchsia-500/30 flex items-center justify-center">
-                  <span className="text-lg">📺</span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-black tracking-tight text-white uppercase sm:text-xl">Custom Server 4 Manager</h3>
-                  <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest leading-none">All custom streams are mapped to Server 4 (VIP)</p>
-                </div>
-              </div>
-
-              {/* Tab Selector inside Modal */}
-              <div className="grid grid-cols-4 gap-1.5 p-1 bg-zinc-950 border border-white/5 rounded-2xl mb-6">
-                <button
-                  type="button"
-                  onClick={() => setCustomModalTab('url')}
-                  className={`flex flex-col items-center justify-center py-2.5 rounded-xl cursor-pointer transition-all ${
-                    customModalTab === 'url'
-                      ? 'bg-fuchsia-600/10 text-fuchsia-400 border border-fuchsia-500/20 shadow-inner'
-                      : 'text-zinc-500 hover:text-zinc-300'
-                  }`}
-                >
-                  <Link2 className="w-4 h-4 mb-1" />
-                  <span className="text-[8px] font-bold uppercase tracking-wider">M3U URL</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCustomModalTab('file')}
-                  className={`flex flex-col items-center justify-center py-2.5 rounded-xl cursor-pointer transition-all ${
-                    customModalTab === 'file'
-                      ? 'bg-fuchsia-600/10 text-fuchsia-400 border border-fuchsia-500/20 shadow-inner'
-                      : 'text-zinc-500 hover:text-zinc-300'
-                  }`}
-                >
-                  <Upload className="w-4 h-4 mb-1" />
-                  <span className="text-[8px] font-bold uppercase tracking-wider">Upload File</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCustomModalTab('text')}
-                  className={`flex flex-col items-center justify-center py-2.5 rounded-xl cursor-pointer transition-all ${
-                    customModalTab === 'text'
-                      ? 'bg-fuchsia-600/10 text-fuchsia-400 border border-fuchsia-500/20 shadow-inner'
-                      : 'text-zinc-500 hover:text-zinc-300'
-                  }`}
-                >
-                  <FileText className="w-4 h-4 mb-1" />
-                  <span className="text-[8px] font-bold uppercase tracking-wider">Paste Text</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCustomModalTab('single')}
-                  className={`flex flex-col items-center justify-center py-2.5 rounded-xl cursor-pointer transition-all ${
-                    customModalTab === 'single'
-                      ? 'bg-fuchsia-600/10 text-fuchsia-400 border border-fuchsia-500/20 shadow-inner'
-                      : 'text-zinc-500 hover:text-zinc-300'
-                  }`}
-                >
-                  <Plus className="w-4 h-4 mb-1" />
-                  <span className="text-[8px] font-bold uppercase tracking-wider">One Channel</span>
-                </button>
-              </div>
-
-              {/* Scrollable Container */}
-              <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
-                
-                {/* Adding New Playlist Form */}
-                <div className="p-5 bg-[#121214] border border-white/5 rounded-2xl">
-                  {customModalTab === 'url' && (
-                    <div>
-                      <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Add M3U Playlist URL</h4>
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const form = e.currentTarget;
-                        const formData = new FormData(form);
-                        const name = formData.get('playlist-name') as string;
-                        const url = playlistUrlInput; // Use current state
-
-                        if (!name || !url) {
-                          setToastMessage("Please fill in all fields.");
-                          setTimeout(() => setToastMessage(''), 3000);
-                          return;
-                        }
-
-                        const newPlaylist = {
-                          id: 'm3u_' + Date.now(),
-                          name: name.trim(),
-                          url: url.trim(),
-                          server: '4', // Locked to Server 4
-                          type: 'url',
-                          createdAt: new Date().toISOString()
-                        };
-
-                        setCustomPlaylists(prev => [...prev, newPlaylist]);
-                        form.reset();
-                        setPlaylistUrlInput(''); // Reset state
-                        // Reset test status for this key
-                        setTestUrls(prev => {
-                          const copy = { ...prev };
-                          delete copy['playlist'];
-                          return copy;
-                        });
-                        setToastMessage("Playlist successfully registered to Server 4!");
-                        setTimeout(() => setToastMessage(''), 3000);
-                      }} className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-1.5 flex-[2]">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Playlist Name</label>
-                            <input 
-                              type="text" 
-                              name="playlist-name"
-                              placeholder="e.g. My Custom M3U URL"
-                              required
-                              className="w-full bg-zinc-950 border border-white/5 focus:border-fuchsia-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-fuchsia-500/20 text-fuchsia-300 font-medium transition-all"
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Destination Server</label>
-                            <div className="w-full bg-zinc-900/50 border border-fuchsia-500/20 rounded-xl px-4 py-3 text-xs text-fuchsia-400 font-black flex items-center justify-between select-none">
-                              <span>Server 4 (VIP)</span>
-                              <span className="text-[8px] bg-fuchsia-500/10 px-1 py-0.2 rounded text-fuchsia-400 uppercase font-black">Locked</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">M3U Playlist URL</label>
-                          <div className="flex space-x-2">
-                            <input 
-                              type="url" 
-                              name="playlist-url"
-                              value={playlistUrlInput}
-                              onChange={(e) => setPlaylistUrlInput(e.target.value)}
-                              placeholder="https://example.com/playlist.m3u"
-                              required
-                              className="flex-1 bg-zinc-950 border border-white/5 focus:border-fuchsia-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-fuchsia-500/20 text-fuchsia-300 font-mono transition-all"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleTestLink(playlistUrlInput, 'playlist')}
-                              disabled={testUrls['playlist']?.testing}
-                              className={`px-4 py-3 font-bold uppercase tracking-wider text-[9px] rounded-xl cursor-pointer select-none transition-all border shrink-0 ${
-                                testUrls['playlist']?.testing
-                                  ? 'bg-zinc-900 border-zinc-800 text-zinc-600'
-                                  : 'bg-fuchsia-600/10 hover:bg-fuchsia-600/20 text-fuchsia-400 border-fuchsia-500/20 active:scale-98'
-                              }`}
-                            >
-                              {testUrls['playlist']?.testing ? 'Testing...' : 'Test Link'}
-                            </button>
-                          </div>
-
-                          {/* Test feedback container with luxurious card styling */}
-                          {testUrls['playlist']?.result && (
-                            <div className={`mt-2 p-3 rounded-xl border text-[11px] font-medium leading-normal ${
-                              testUrls['playlist'].result.ok 
-                                ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' 
-                                : 'bg-rose-500/5 border-rose-500/20 text-rose-400'
-                            }`}>
-                              <div className="flex items-center space-x-1.5 font-bold uppercase tracking-wider text-[9px] mb-1">
-                                <span>{testUrls['playlist'].result.ok ? '✓ Reachable & Online' : '✗ Unreachable'}</span>
-                                {testUrls['playlist'].result.status ? (
-                                  <span className={`px-1 rounded text-[8px] font-black ${
-                                    testUrls['playlist'].result.ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
-                                  }`}>Code {testUrls['playlist'].result.status}</span>
-                                ) : null}
-                              </div>
-                              <p className="font-sans text-xs opacity-90">{testUrls['playlist'].result.message}</p>
-                              {testUrls['playlist'].result.contentType && (
-                                <p className="font-mono text-[9px] mt-1 opacity-60">Type: {testUrls['playlist'].result.contentType}</p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="pt-2">
-                          <button 
-                            type="submit"
-                            className="w-full py-3 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold tracking-widest uppercase text-[10px] rounded-xl transition-all shadow-lg shadow-fuchsia-600/25 cursor-pointer active:scale-98"
-                          >
-                            + Save M3U Playlist to S4
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  )}
-
-                  {customModalTab === 'file' && (
-                    <div>
-                      <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Upload Local M3U File</h4>
-                      <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Playlist Name (Optional)</label>
-                          <input 
-                            type="text" 
-                            id="file-playlist-name"
-                            placeholder="e.g. My Offline Local Channels"
-                            className="w-full bg-zinc-950 border border-white/5 focus:border-fuchsia-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-fuchsia-500/20 text-fuchsia-300 font-medium transition-all"
-                          />
-                        </div>
-                        
-                        <div 
-                          onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); }}
-                          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); }}
-                          onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); }}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setDragActive(false);
-                            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                              const nameInput = document.getElementById('file-playlist-name') as HTMLInputElement | null;
-                              handleM3UFileLoad(e.dataTransfer.files[0], nameInput?.value || '');
-                              if(nameInput) nameInput.value = '';
-                            }
-                          }}
-                          className={`relative border border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all ${
-                            dragActive 
-                              ? 'border-fuchsia-500 bg-fuchsia-500/5 shadow-[inset_0_0_15px_rgba(217,70,239,0.2)]' 
-                              : 'border-white/10 hover:border-white/20 bg-zinc-950/40 hover:bg-zinc-950/60'
-                          }`}
-                        >
-                          <input 
-                            type="file"
-                            id="m3u-file-input"
-                            accept=".m3u,.m3u8,text/plain"
-                            className="hidden"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                const nameInput = document.getElementById('file-playlist-name') as HTMLInputElement | null;
-                                handleM3UFileLoad(e.target.files[0], nameInput?.value || '');
-                                if(nameInput) nameInput.value = '';
-                              }
-                            }}
-                          />
-                          <Upload className={`w-8 h-8 mb-3 transition-transform duration-300 ${dragActive ? 'scale-110 text-fuchsia-400' : 'text-zinc-500'}`} />
-                          <p className="text-xs font-bold text-zinc-300 mb-1">Drag and drop your M3U file here</p>
-                          <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-3">or</p>
-                          <button 
-                            type="button"
-                            onClick={() => document.getElementById('m3u-file-input')?.click()}
-                            className="px-4 py-2 bg-fuchsia-600 hover:bg-fuchsia-400 text-white font-bold tracking-widest text-[9px] uppercase rounded-lg transition-all active:scale-95 cursor-pointer"
-                          >
-                            Choose File
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {customModalTab === 'text' && (
-                    <div>
-                      <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Paste Raw M3U Plaintext</h4>
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const form = e.currentTarget;
-                        const formData = new FormData(form);
-                        const name = formData.get('text-playlist-name') as string;
-                        const content = formData.get('text-playlist-content') as string;
-
-                        if (!name || !content) {
-                          setToastMessage("Please fill in all the input fields");
-                          setTimeout(() => setToastMessage(''), 3000);
-                          return;
-                        }
-
-                        const parsed = parseM3UContent(content, '4');
-                        if (parsed.length === 0) {
-                          setToastMessage("Could not parse any valid stream lines.");
-                          setTimeout(() => setToastMessage(''), 3000);
-                          return;
-                        }
-
-                        const newPlaylist = {
-                          id: 'm3u_' + Date.now(),
-                          name: name.trim(),
-                          server: '4', // Locked to Server 4
-                          type: 'text',
-                          channels: parsed,
-                          createdAt: new Date().toISOString()
-                        };
-
-                        setCustomPlaylists(prev => [...prev, newPlaylist]);
-                        form.reset();
-                        setToastMessage(`Parsed ${parsed.length} channels onto Server 4!`);
-                        setTimeout(() => setToastMessage(''), 3000);
-                      }} className="space-y-4">
-                        <div className="space-y-1.5 font-sans">
-                          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Playlist Name</label>
-                          <input 
-                            type="text" 
-                            name="text-playlist-name"
-                            placeholder="e.g. My Clipboard Playlist"
-                            required
-                            className="w-full bg-zinc-950 border border-white/5 focus:border-fuchsia-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-fuchsia-500/20 text-fuchsia-300 font-medium transition-all"
-                          />
-                        </div>
-                        <div className="space-y-1.5 font-sans">
-                          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Paste M3U Contents</label>
-                          <textarea 
-                            name="text-playlist-content"
-                            rows={5}
-                            placeholder="#EXTM3U&#10;#EXTINF:-1 tvg-logo=&quot;http://&quot;,My Pasted Custom Channel&#10;http://stream.m3u8"
-                            required
-                            className="w-full bg-zinc-950 border border-white/5 focus:border-fuchsia-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-fuchsia-500/20 text-fuchsia-300 font-mono transition-all custom-scrollbar"
-                          />
-                        </div>
-                        <div className="pt-2">
-                          <button 
-                            type="submit"
-                            className="w-full py-3 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold tracking-widest uppercase text-[10px] rounded-xl transition-all shadow-lg shadow-fuchsia-600/25 cursor-pointer active:scale-98"
-                          >
-                            + Submit and Parse Raw Text
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  )}
-
-                   {customModalTab === 'single' && (
-                    <div>
-                      <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Add Single Stream Manually</h4>
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const form = e.currentTarget;
-                        const formData = new FormData(form);
-                        const name = formData.get('single-name') as string;
-                        const url = singleStreamUrlInput; // Use current state
-                        const logo = formData.get('single-logo') as string;
-                        const group = formData.get('single-group') as string;
-
-                        if (!name || !url) {
-                          setToastMessage("Name and Stream URL are required");
-                          setTimeout(() => setToastMessage(''), 3000);
-                          return;
-                        }
-
-                        const newChannel: Channel = {
-                          name: name.trim(),
-                          url: url.trim(),
-                          logo: (logo || '').trim(),
-                          source: '4', // Map directly to Server 4
-                          country: (group || 'custom').trim().toLowerCase()
-                        };
-
-                        const newPlaylist = {
-                          id: 'm3u_' + Date.now(),
-                          name: name.trim(),
-                          server: '4', // Locked to Server 4
-                          type: 'single',
-                          channels: [newChannel],
-                          createdAt: new Date().toISOString()
-                        };
-
-                        setCustomPlaylists(prev => [...prev, newPlaylist]);
-                        form.reset();
-                        setSingleStreamUrlInput(''); // Reset state
-                        // Reset test status for this key
-                        setTestUrls(prev => {
-                          const copy = { ...prev };
-                          delete copy['single'];
-                          return copy;
-                        });
-                        setToastMessage("Stream added to Server 4!");
-                        setTimeout(() => setToastMessage(''), 3000);
-                      }} className="space-y-4">
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Channel Name</label>
-                            <input 
-                              type="text" 
-                              name="single-name"
-                              placeholder="e.g. My IPTV Channel 1"
-                              required
-                              className="w-full bg-zinc-950 border border-white/5 focus:border-fuchsia-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-fuchsia-500/20 text-fuchsia-300 font-medium transition-all"
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Genre Category (Optional)</label>
-                            <input 
-                              type="text" 
-                              name="single-group"
-                              placeholder="e.g. sports, news, entertainment"
-                              className="w-full bg-zinc-950 border border-white/5 focus:border-fuchsia-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-fuchsia-500/20 text-fuchsia-300 font-medium transition-all"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Stream Link URL</label>
-                          <div className="flex space-x-2">
-                            <input 
-                              type="url" 
-                              name="single-url"
-                              value={singleStreamUrlInput}
-                              onChange={(e) => setSingleStreamUrlInput(e.target.value)}
-                              placeholder="https://example.com/index.m3u8"
-                              required
-                              className="flex-1 bg-zinc-950 border border-white/5 focus:border-fuchsia-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-fuchsia-500/20 text-fuchsia-300 font-mono transition-all"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleTestLink(singleStreamUrlInput, 'single')}
-                              disabled={testUrls['single']?.testing}
-                              className={`px-4 py-3 font-bold uppercase tracking-wider text-[9px] rounded-xl cursor-pointer select-none transition-all border shrink-0 ${
-                                testUrls['single']?.testing
-                                  ? 'bg-zinc-900 border-zinc-800 text-zinc-600'
-                                  : 'bg-fuchsia-600/10 hover:bg-fuchsia-600/20 text-fuchsia-400 border-fuchsia-500/20 active:scale-98'
-                              }`}
-                            >
-                              {testUrls['single']?.testing ? 'Testing...' : 'Test Link'}
-                            </button>
-                          </div>
-
-                          {/* Test feedback container with luxurious card styling */}
-                          {testUrls['single']?.result && (
-                            <div className={`mt-2 p-3 rounded-xl border text-[11px] font-medium leading-normal ${
-                              testUrls['single'].result.ok 
-                                ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' 
-                                : 'bg-rose-500/5 border-rose-500/20 text-rose-400'
-                            }`}>
-                              <div className="flex items-center space-x-1.5 font-bold uppercase tracking-wider text-[9px] mb-1">
-                                <span>{testUrls['single'].result.ok ? '✓ Reachable & Online' : '✗ Unreachable'}</span>
-                                {testUrls['single'].result.status ? (
-                                  <span className={`px-1 rounded text-[8px] font-black ${
-                                    testUrls['single'].result.ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
-                                  }`}>Code {testUrls['single'].result.status}</span>
-                                ) : null}
-                              </div>
-                              <p className="font-sans text-xs opacity-90">{testUrls['single'].result.message}</p>
-                              {testUrls['single'].result.contentType && (
-                                <p className="font-mono text-[9px] mt-1 opacity-60">Type: {testUrls['single'].result.contentType}</p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Logo image URL (Optional)</label>
-                          <input 
-                            type="url" 
-                            name="single-logo"
-                            placeholder="https://example.com/logo.png"
-                            className="w-full bg-zinc-950 border border-white/5 focus:border-fuchsia-500/50 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-fuchsia-500/20 text-fuchsia-300 font-mono transition-all"
-                          />
-                        </div>
-
-                        <div className="pt-2">
-                          <button 
-                            type="submit"
-                            className="w-full py-3 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold tracking-widest uppercase text-[10px] rounded-xl transition-all shadow-lg shadow-fuchsia-600/25 cursor-pointer active:scale-98"
-                          >
-                            + Add Custom Stream Input
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  )}
-                </div>
-
-                {/* Registered Playlists Listing */}
-                <div className="space-y-3 pb-4">
-                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-1">Active Playlists On Server 4 ({customPlaylists.length})</h4>
-                  
-                  {customPlaylists.length === 0 ? (
-                    <div className="py-8 bg-[#121214]/65 border border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center text-zinc-500">
-                      <span className="text-2xl mb-1.5">📭</span>
-                      <p className="text-xs font-bold uppercase tracking-wider">{lang === 'en' ? 'No custom links registered' : 'কোন কাস্টম প্লেলিস্ট নেই'}</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {customPlaylists.map((playlist, idx) => (
-                        <div 
-                          key={playlist.id || idx}
-                          className="flex items-center justify-between p-4 bg-[#121214] border border-white/5 hover:border-white/10 rounded-xl transition-all group"
-                        >
-                          <div className="flex flex-col space-y-1 flex-1 min-w-0 pr-4">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs font-bold text-white truncate">{playlist.name}</span>
-                              <span className="px-1.5 py-0.5 bg-fuchsia-900/20 border border-fuchsia-500/20 text-[7px] font-black tracking-widest uppercase text-fuchsia-400 rounded">
-                                Server {playlist.server || '4'}
-                              </span>
-                              <span className="px-1.5 py-0.5 bg-zinc-800 border border-white/5 text-[7px] font-black tracking-widest uppercase text-zinc-400 rounded">
-                                {playlist.type || 'url'} ({playlist.channels?.length || 0} Ch)
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-zinc-500 truncate font-mono">{playlist.url || 'Inserted/Uploaded local content'}</span>
-                          </div>
-
-                          <div className="flex items-center space-x-1.5">
-                            {playlist.type === 'url' && (
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    setToastMessage("Refreshing remote playlist...");
-                                    const res = await fetch(`/api/parse-m3u?url=${encodeURIComponent(playlist.url)}`);
-                                    if (res.ok) {
-                                      const parsedList = await res.json();
-                                      if (parsedList && parsedList.length > 0) {
-                                        setCustomPlaylists(prev => prev.map(p => p.id === playlist.id ? { ...p, channels: parsedList } : p));
-                                        setToastMessage(`Refreshed! Found ${parsedList.length} channels.`);
-                                      } else {
-                                        setToastMessage("Could not parse any channels.");
-                                      }
-                                    } else {
-                                      setToastMessage("Failed to fetch remote playlist.");
-                                    }
-                                    setTimeout(() => setToastMessage(''), 3000);
-                                  } catch (err) {
-                                    console.error("Refresh error:", err);
-                                  }
-                                }}
-                                title="Force Refresh URL Stream Feed"
-                                className="p-2.5 bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white hover:border-white/10 rounded-xl transition-all cursor-pointer shrink-0"
-                              >
-                                <RefreshCw className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-
-                            <button 
-                              onClick={() => {
-                                setCustomPlaylists(prev => prev.filter(p => p.id !== playlist.id));
-                                setToastMessage("Playlist removed");
-                                setTimeout(() => setToastMessage(''), 3000);
-                              }}
-                              className="p-2.5 hover:bg-rose-500/10 text-zinc-500 hover:text-rose-400 border border-zinc-900 hover:border-rose-500/20 rounded-xl transition-all cursor-pointer shrink-0"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-              {/* Concluding Footer */}
-              <div className="pt-4 border-t border-white/5 flex items-center justify-between mt-6 shrink-0 text-zinc-650 font-bold uppercase tracking-wider text-[8px]">
-                <span>Saved Locally</span>
-                <span className="text-fuchsia-500 animate-pulse">Server 4 Active</span>
               </div>
             </motion.div>
           </div>
