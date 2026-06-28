@@ -77,6 +77,22 @@ export const HARDCODED_CHANNELS: Channel[] = [
     logo: 'https://cdn-icons-png.flaticon.com/512/5358/5358652.png',
     country: 'ar',
     language: 'Arabic'
+  },
+  {
+    name: 'tuden sports',
+    url: 'https://1nyaler.streamhostingcdn.top/stream/52/index.m3u8',
+    type: 'hls',
+    logo: 'https://imglink.cc/cdn/RY7jBwPKAr.jpg',
+    country: 'fifa',
+    language: 'Spanish'
+  },
+  {
+    name: 'সময় tv',
+    url: 'https://live.thebosstv.com:30443/dwlive/Somoy-TV/playlist.m3u8',
+    type: 'hls',
+    logo: 'https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png',
+    country: 'fifa',
+    language: 'Bengali'
   }
 ];
 
@@ -1348,6 +1364,16 @@ export default function App() {
         if (isA_Hard2 && !isB_Hard2) return -1;
         if (!isA_Hard2 && isB_Hard2) return 1;
 
+        const isA_Hard3 = a.url === 'https://1nyaler.streamhostingcdn.top/stream/52/index.m3u8';
+        const isB_Hard3 = b.url === 'https://1nyaler.streamhostingcdn.top/stream/52/index.m3u8';
+        if (isA_Hard3 && !isB_Hard3) return -1;
+        if (!isA_Hard3 && isB_Hard3) return 1;
+
+        const isA_Hard4 = a.url === 'https://live.thebosstv.com:30443/dwlive/Somoy-TV/playlist.m3u8';
+        const isB_Hard4 = b.url === 'https://live.thebosstv.com:30443/dwlive/Somoy-TV/playlist.m3u8';
+        if (isA_Hard4 && !isB_Hard4) return -1;
+        if (!isA_Hard4 && isB_Hard4) return 1;
+
         // CazéTV comes next
         const isA_Caze = a.url === CAZE_TV_CHANNEL.url || a.name.toLowerCase().includes('cazétv');
         const isB_Caze = b.url === CAZE_TV_CHANNEL.url || b.name.toLowerCase().includes('cazétv');
@@ -1381,6 +1407,16 @@ export default function App() {
         const isB_Hard2 = b.url === 'https://we.smarop.store/spoos1.m3u8';
         if (isA_Hard2 && !isB_Hard2) return -1;
         if (!isA_Hard2 && isB_Hard2) return 1;
+
+        const isA_Hard3 = a.url === 'https://1nyaler.streamhostingcdn.top/stream/52/index.m3u8';
+        const isB_Hard3 = b.url === 'https://1nyaler.streamhostingcdn.top/stream/52/index.m3u8';
+        if (isA_Hard3 && !isB_Hard3) return -1;
+        if (!isA_Hard3 && isB_Hard3) return 1;
+
+        const isA_Hard4 = a.url === 'https://live.thebosstv.com:30443/dwlive/Somoy-TV/playlist.m3u8';
+        const isB_Hard4 = b.url === 'https://live.thebosstv.com:30443/dwlive/Somoy-TV/playlist.m3u8';
+        if (isA_Hard4 && !isB_Hard4) return -1;
+        if (!isA_Hard4 && isB_Hard4) return 1;
 
         // CazéTV comes next
         const isA_Caze = a.url === CAZE_TV_CHANNEL.url || a.name.toLowerCase().includes('cazétv');
