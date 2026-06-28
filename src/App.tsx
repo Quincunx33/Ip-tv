@@ -72,7 +72,7 @@ export const HARDCODED_CHANNELS: Channel[] = [
   },
   {
     name: 'Koora Live',
-    url: 'https://we.smarop.store/spoos1.m3u8',
+    url: 'https://ex.moorarts.xyz/diluoe1_480/index.m3u8',
     type: 'hls',
     logo: 'https://cdn-icons-png.flaticon.com/512/5358/5358652.png',
     country: 'ar',
@@ -1359,8 +1359,8 @@ export default function App() {
         if (isA_Hard1 && !isB_Hard1) return -1;
         if (!isA_Hard1 && isB_Hard1) return 1;
 
-        const isA_Hard2 = a.url === 'https://we.smarop.store/spoos1.m3u8';
-        const isB_Hard2 = b.url === 'https://we.smarop.store/spoos1.m3u8';
+        const isA_Hard2 = a.url === 'https://ex.moorarts.xyz/diluoe1_480/index.m3u8';
+        const isB_Hard2 = b.url === 'https://ex.moorarts.xyz/diluoe1_480/index.m3u8';
         if (isA_Hard2 && !isB_Hard2) return -1;
         if (!isA_Hard2 && isB_Hard2) return 1;
 
@@ -1403,8 +1403,8 @@ export default function App() {
         if (isA_Hard1 && !isB_Hard1) return -1;
         if (!isA_Hard1 && isB_Hard1) return 1;
 
-        const isA_Hard2 = a.url === 'https://we.smarop.store/spoos1.m3u8';
-        const isB_Hard2 = b.url === 'https://we.smarop.store/spoos1.m3u8';
+        const isA_Hard2 = a.url === 'https://ex.moorarts.xyz/diluoe1_480/index.m3u8';
+        const isB_Hard2 = b.url === 'https://ex.moorarts.xyz/diluoe1_480/index.m3u8';
         if (isA_Hard2 && !isB_Hard2) return -1;
         if (!isA_Hard2 && isB_Hard2) return 1;
 
@@ -3429,31 +3429,38 @@ export default function App() {
                     <button className="px-3 py-1.5 bg-[#222] hover:bg-zinc-800 text-xs font-bold rounded-lg whitespace-nowrap border border-zinc-800 cursor-pointer">Related</button>
                   </div>
                   
-                  <div className="space-y-3 mb-10">
-                    {sortedFilteredChannels.filter(c => c.url !== currentChannel.url).slice(0, 20).map((c, idx) => {
+                  <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-3 xl:grid-cols-4 gap-x-2 gap-y-4 justify-items-center mb-10">
+                    {sortedFilteredChannels.filter(c => c.url !== currentChannel.url).slice(0, 24).map((c, idx) => {
                       const isDead = deadChannels.has(c.url);
                       return (
-                      <div key={`${c.url}-${c.name}-${idx}`} className={`flex items-center space-x-3 cursor-pointer group ${isDead ? 'opacity-40 grayscale' : ''}`} onClick={() => handleCardClick(c)}>
-                        <div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center relative overflow-hidden shrink-0 border border-zinc-800 group-hover:border-indigo-500 transition-all duration-300">
-                           <ChannelLogo channel={c} className="w-full h-full rounded-full" />
-                           <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10"></div>
-                        </div>
-                        <div className="flex-1 min-w-0 py-0.5">
-                          <h3 className="text-[13px] font-semibold text-white leading-snug line-clamp-2 group-hover:text-blue-400 transition-colors pr-4">{c.name}</h3>
-                          <div className="flex items-center space-x-1 mt-1">
-                             <div className="w-3 h-3 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
-                                <Check className="w-2 h-2 text-white" strokeWidth={4} />
-                             </div>
-                             <p className="text-[11px] text-zinc-400 font-medium">Build by Taaissu</p>
+                        <div key={`${c.url}-${c.name}-${idx}`} className={`flex flex-col items-center cursor-pointer group text-center w-[76px] sm:w-[84px] ${isDead ? 'opacity-40 grayscale' : ''}`} onClick={() => handleCardClick(c)}>
+                          {/* Circle Container with Instagram-style animated ring */}
+                          <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full p-[2.5px] bg-gradient-to-tr from-rose-500 via-purple-600 to-indigo-500 group-hover:scale-105 transition-all duration-300 shadow-md shadow-indigo-500/10">
+                            <div className="w-full h-full bg-[#0f0f0f] rounded-full p-[1.5px] flex items-center justify-center overflow-hidden">
+                              <div className="w-full h-full rounded-full bg-zinc-900 relative overflow-hidden flex items-center justify-center">
+                                <ChannelLogo channel={c} className="w-full h-full rounded-full object-cover" />
+                                <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors z-10"></div>
+                              </div>
+                            </div>
+                            
+                            {/* Blinking Live Badge on active circle list */}
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-600 text-[7px] font-extrabold px-1.5 py-0.5 rounded-full text-white tracking-wider border border-[#0f0f0f] animate-pulse uppercase select-none">
+                              Live
+                            </div>
                           </div>
-                          <p className="text-[10px] text-zinc-500 mt-1 flex items-center">
-                            <Users className="w-3 h-3 mr-1 opacity-70"/> 
-                            {(Math.random() * 8 + 1).toFixed(1)}K views
-                          </p>
+
+                          {/* Channel Name */}
+                          <span className="text-[10px] sm:text-[11px] font-semibold text-zinc-200 mt-2 truncate w-full group-hover:text-blue-400 transition-colors px-1">
+                            {c.name}
+                          </span>
+
+                          {/* Live viewers count */}
+                          <span className="text-[9px] text-zinc-500 font-medium select-none">
+                            {(Math.random() * 5 + 1).toFixed(1)}K live
+                          </span>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
