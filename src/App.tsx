@@ -72,7 +72,7 @@ export const HARDCODED_CHANNELS: Channel[] = [
   },
   {
     name: 'Koora Live',
-    url: 'https://ex.moorarts.xyz/diluoe1_480/index.m3u8',
+    url: 'https://we.daydons.online/Japa2.m3u8',
     type: 'hls',
     logo: 'https://cdn-icons-png.flaticon.com/512/5358/5358652.png',
     country: 'ar',
@@ -1359,8 +1359,8 @@ export default function App() {
         if (isA_Hard1 && !isB_Hard1) return -1;
         if (!isA_Hard1 && isB_Hard1) return 1;
 
-        const isA_Hard2 = a.url === 'https://ex.moorarts.xyz/diluoe1_480/index.m3u8';
-        const isB_Hard2 = b.url === 'https://ex.moorarts.xyz/diluoe1_480/index.m3u8';
+        const isA_Hard2 = a.url === 'https://we.daydons.online/Japa2.m3u8';
+        const isB_Hard2 = b.url === 'https://we.daydons.online/Japa2.m3u8';
         if (isA_Hard2 && !isB_Hard2) return -1;
         if (!isA_Hard2 && isB_Hard2) return 1;
 
@@ -1403,8 +1403,8 @@ export default function App() {
         if (isA_Hard1 && !isB_Hard1) return -1;
         if (!isA_Hard1 && isB_Hard1) return 1;
 
-        const isA_Hard2 = a.url === 'https://ex.moorarts.xyz/diluoe1_480/index.m3u8';
-        const isB_Hard2 = b.url === 'https://ex.moorarts.xyz/diluoe1_480/index.m3u8';
+        const isA_Hard2 = a.url === 'https://we.daydons.online/Japa2.m3u8';
+        const isB_Hard2 = b.url === 'https://we.daydons.online/Japa2.m3u8';
         if (isA_Hard2 && !isB_Hard2) return -1;
         if (!isA_Hard2 && isB_Hard2) return 1;
 
