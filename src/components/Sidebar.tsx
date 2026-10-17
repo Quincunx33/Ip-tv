@@ -44,16 +44,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   setIsServer1Enabled,
   isServer2Enabled,
   setIsServer2Enabled,
-  isServer3Enabled,
-  setIsServer3Enabled,
-  isServer4Enabled,
-  setIsServer4Enabled,
   serverSource,
   setServerSource,
   setIsCustomModalOpen
 }) => {
   const [isClearing, setIsClearing] = useState(false);
-  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
   const clearAppCache = async () => {
     setIsClearing(true);
@@ -81,7 +76,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const navItems = [
     { id: 'all', label: t.home, icon: Home },
     { id: 'sports', label: t.sports, icon: Flame },
-    { id: 'fifa', label: t.fifa, icon: Globe, special: true },
     { id: 'custom', label: lang === 'en' ? 'Custom' : 'কাস্টম', icon: Zap, special: true },
     { id: 'news', label: t.news, icon: Radio },
     { id: 'favorites', label: t.favorites, icon: Bookmark },
@@ -244,56 +238,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isServer2Enabled ? 'bg-indigo-600' : 'bg-zinc-700'}`}
               >
                 <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isServer2Enabled ? 'translate-x-5' : 'translate-x-0'}`} />
-              </button>
-            </div>
-
-            {/* Server 3 Toggle */}
-            <div 
-              onClick={() => {if(isServer3Enabled) setServerSource('3');}}
-              className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${serverSource === '3' ? 'bg-teal-500/10 border-teal-500/30 ring-1 ring-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white/5 border-white/5 hover:bg-white/[0.08]'}`}
-            >
-              <div className="flex items-center space-x-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${serverSource === '3' ? 'bg-teal-500 text-black border-teal-400' : 'bg-zinc-800 text-zinc-400 border-zinc-700/50'}`}>
-                   <span className="text-[10px] font-black">S3</span>
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center space-x-1">
-                    <span className={`text-xs font-bold ${serverSource === '3' ? 'text-teal-400' : 'text-white'}`}>Server 3</span>
-                    <span className="px-1 py-0.2 bg-indigo-500/20 text-indigo-400 text-[7px] font-black uppercase tracking-wider rounded border border-indigo-500/10">Ultra</span>
-                  </div>
-                </div>
-              </div>
-              <button 
-                onClick={(e) => { e.stopPropagation(); setIsServer3Enabled(!isServer3Enabled); }}
-                aria-label="Toggle Server 3 feed visibility"
-                className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isServer3Enabled ? 'bg-teal-500' : 'bg-zinc-700'}`}
-              >
-                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isServer3Enabled ? 'translate-x-5' : 'translate-x-0'}`} />
-              </button>
-            </div>
-
-            {/* Server 4 Toggle */}
-            <div 
-              onClick={() => {if(isServer4Enabled) setServerSource('4');}}
-              className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${serverSource === '4' ? 'bg-fuchsia-500/10 border-fuchsia-500/30 ring-1 ring-fuchsia-500/30 shadow-[0_0_15px_rgba(217,70,239,0.1)]' : 'bg-white/5 border-white/5 hover:bg-white/[0.08]'}`}
-            >
-              <div className="flex items-center space-x-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${serverSource === '4' ? 'bg-fuchsia-500 text-black border-fuchsia-400' : 'bg-zinc-800 text-zinc-400 border-zinc-700/50'}`}>
-                   <span className="text-[10px] font-black">S4</span>
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center space-x-1">
-                    <span className={`text-xs font-bold ${serverSource === '4' ? 'text-fuchsia-400' : 'text-white'}`}>Server 4</span>
-                    <span className="px-1 py-0.2 bg-fuchsia-500/20 text-fuchsia-400 text-[7px] font-black uppercase tracking-wider rounded border border-fuchsia-500/10">Vip</span>
-                  </div>
-                </div>
-              </div>
-              <button 
-                onClick={(e) => { e.stopPropagation(); setIsServer4Enabled(!isServer4Enabled); }}
-                aria-label="Toggle Server 4 feed visibility"
-                className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${isServer4Enabled ? 'bg-fuchsia-500' : 'bg-zinc-700'}`}
-              >
-                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isServer4Enabled ? 'translate-x-5' : 'translate-x-0'}`} />
               </button>
             </div>
 

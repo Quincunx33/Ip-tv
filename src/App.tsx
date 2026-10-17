@@ -61,40 +61,6 @@ export const CAZE_TV_CHANNEL: Channel = {
   language: 'Portuguese'
 };
 
-export const HARDCODED_CHANNELS: Channel[] = [
-  {
-    name: 'beIN sports',
-    url: 'https://hd.muesra.sbs/albaplayer/oooe/?serv=4',
-    type: 'hls',
-    logo: 'https://assets.bein.com/wp-content/uploads/2020/06/bein-sports-logo.png',
-    country: 'ar',
-    language: 'Arabic'
-  },
-  {
-    name: 'Koora Live',
-    url: 'https://we.daydons.online/Japa2.m3u8',
-    type: 'hls',
-    logo: 'https://cdn-icons-png.flaticon.com/512/5358/5358652.png',
-    country: 'ar',
-    language: 'Arabic'
-  },
-  {
-    name: 'tuden sports',
-    url: 'https://1nyaler.streamhostingcdn.top/stream/52/index.m3u8',
-    type: 'hls',
-    logo: 'https://imglink.cc/cdn/RY7jBwPKAr.jpg',
-    country: 'fifa',
-    language: 'Spanish'
-  },
-  {
-    name: 'সময় tv',
-    url: 'https://live.thebosstv.com:30443/dwlive/Somoy-TV/playlist.m3u8',
-    type: 'hls',
-    logo: 'https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png',
-    country: 'fifa',
-    language: 'Bengali'
-  }
-];
 
 // Deterministic background color based on name (extracted to module scope to bypass recreations)
 const getBgColor = (name: string) => {
@@ -425,57 +391,33 @@ export default function App() {
   const [showInstallPopup, setShowInstallPopup] = useState<boolean>(false);
   const [deviceOS, setDeviceOS] = useState<'Android' | 'iOS' | 'Windows' | 'Mac' | 'Device'>('Device');
 
-  const [isServer1Enabled, setIsServer1Enabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('isServer1Enabled');
-    return saved !== null ? saved === 'true' : false;
-  });
-  const [isServer2Enabled, setIsServer2Enabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('isServer2Enabled');
-    return saved !== null ? saved === 'true' : false;
-  });
-  const [isServer3Enabled, setIsServer3Enabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('isServer3Enabled');
-    return saved !== null ? saved === 'true' : true;
-  });
-  const [isServer4Enabled, setIsServer4Enabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('isServer4Enabled');
-    return saved !== null ? saved === 'true' : true;
-  });
-  const [serverSource, setServerSource] = useState<'1' | '2' | '3' | '4'>('1');
-
-  useEffect(() => {
-    localStorage.setItem('isServer1Enabled', String(isServer1Enabled));
-    localStorage.setItem('isServer2Enabled', String(isServer2Enabled));
-    localStorage.setItem('isServer3Enabled', String(isServer3Enabled));
-    localStorage.setItem('isServer4Enabled', String(isServer4Enabled));
-  }, [isServer1Enabled, isServer2Enabled, isServer3Enabled, isServer4Enabled]);
+  const [isServer1Enabled] = useState(true);
+  const setIsServer1Enabled = () => {};
+  const [isServer2Enabled] = useState(true);
+  const setIsServer2Enabled = () => {};
+  const [serverSource, setServerSource] = useState<'1' | '2'>('1');
 
   useEffect(() => {
     if (serverSource === '1' && !isServer1Enabled) {
       if (isServer2Enabled) setServerSource('2');
-      else if (isServer3Enabled) setServerSource('3');
-      else if (isServer4Enabled) setServerSource('4');
     } else if (serverSource === '2' && !isServer2Enabled) {
       if (isServer1Enabled) setServerSource('1');
-      else if (isServer3Enabled) setServerSource('3');
-      else if (isServer4Enabled) setServerSource('4');
-    } else if (serverSource === '3' && !isServer3Enabled) {
-      if (isServer1Enabled) setServerSource('1');
-      else if (isServer2Enabled) setServerSource('2');
-      else if (isServer4Enabled) setServerSource('4');
-    } else if (serverSource === '4' && !isServer4Enabled) {
-      if (isServer1Enabled) setServerSource('1');
-      else if (isServer2Enabled) setServerSource('2');
-      else if (isServer3Enabled) setServerSource('3');
     }
-  }, [isServer1Enabled, isServer2Enabled, isServer3Enabled, isServer4Enabled, serverSource]);
+  }, [isServer1Enabled, isServer2Enabled, serverSource]);
 
   const [countries, setCountries] = useState<string[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('bd');
   const [detectedCountry, setDetectedCountry] = useState<string>('bd');
+  const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'sports' | 'news' | 'custom'>('all');
   const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
   const [countryQuery, setCountryQuery] = useState('');
   
+  useEffect(() => {
+    if (activeTab === 'all') {
+      setServerSource('1');
+    }
+  }, [activeTab]);
+
   const [channels, setChannels] = useState<Channel[]>([]);
   const [filteredChannels, setFilteredChannels] = useState<Channel[]>([]);
   const [currentChannel, setCurrentChannel] = useState<Channel | null>(null);
@@ -554,7 +496,7 @@ export default function App() {
       const urlTab = searchParams.get('tab') || searchParams.get('t');
       if (urlTab) {
         const cleanTab = urlTab.toLowerCase();
-        if (['all', 'favorites', 'sports', 'news', 'fifa', 'custom'].includes(cleanTab)) {
+        if (['all', 'favorites', 'sports', 'news', 'custom'].includes(cleanTab)) {
           setActiveTab(cleanTab as any);
         }
       }
@@ -589,7 +531,7 @@ export default function App() {
                 const data: Channel[] = await apiRes.json();
                 const filteredData = data.filter((ch: Channel) => {
                   const s = ch.source || '1';
-                  const isEnabled = s === '1' ? isServer1Enabled : s === '2' ? isServer2Enabled : s === '3' ? isServer3Enabled : isServer4Enabled;
+                  const isEnabled = s === '1' ? isServer1Enabled : isServer2Enabled;
                   return isEnabled || ch.name.toLowerCase().includes('bein sports 1');
                 });
                 setUniversalSearchResults(filteredData);
@@ -609,7 +551,7 @@ export default function App() {
 
           const filteredResults = results.filter(ch => {
             const s = ch.source || '1';
-            const isEnabled = s === '1' ? isServer1Enabled : s === '2' ? isServer2Enabled : s === '3' ? isServer3Enabled : isServer4Enabled;
+            const isEnabled = s === '1' ? isServer1Enabled : isServer2Enabled;
             return isEnabled || ch.name.toLowerCase().includes('bein sports 1');
           });
           
@@ -653,7 +595,7 @@ export default function App() {
               const data: Channel[] = await apiRes.json();
               const filteredData = data.filter((ch: Channel) => {
                 const s = ch.source || '1';
-                const isEnabled = s === '1' ? isServer1Enabled : s === '2' ? isServer2Enabled : s === '3' ? isServer3Enabled : isServer4Enabled;
+                const isEnabled = s === '1' ? isServer1Enabled : isServer2Enabled;
                 return isEnabled || ch.name.toLowerCase().includes('bein sports 1');
               });
               setUniversalSearchResults(filteredData);
@@ -668,7 +610,7 @@ export default function App() {
       }
     };
     searchGlobally();
-  }, [debouncedSearch, isServer1Enabled, isServer2Enabled, isServer3Enabled, isServer4Enabled]);
+  }, [debouncedSearch, isServer1Enabled, isServer2Enabled]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -701,7 +643,6 @@ export default function App() {
 
   const [validationStatus, setValidationStatus] = useState<'checking' | 'direct' | 'fallback-local' | 'fallback-public' | 'failed'>('checking');
   const [validationDetails, setValidationDetails] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'sports' | 'news' | 'fifa' | 'schedule' | 'custom'>('fifa');
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   const [isClosingMiniPlayer, setIsClosingMiniPlayer] = useState(false);
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
@@ -1239,7 +1180,7 @@ export default function App() {
         setLoading(false);
         return;
       }
-      const fetchId = activeTab === 'fifa' ? 'fifa' : activeTab === 'sports' ? 'sports' : selectedCountry;
+      const fetchId = activeTab === 'sports' ? 'sports' : selectedCountry;
       try {
         let res = await fetch(`/api/channels/${fetchId}?source=${serverSource}`);
         if (!res.ok) throw new Error('Not found');
@@ -1262,13 +1203,9 @@ export default function App() {
   }, [selectedCountry, serverSource, activeTab]);
 
   useEffect(() => {
-    const hardcodedWithSource = HARDCODED_CHANNELS.map(ch => ({
-      ...ch,
-      source: serverSource
-    }));
-    const baseChannels = [...hardcodedWithSource, ...channels, ...customChannels];
+    const baseChannels = [...channels, ...customChannels];
     const hasCaze = baseChannels.some(c => c.url === CAZE_TV_CHANNEL.url);
-    if (!hasCaze && (activeTab === 'fifa' || activeTab === 'sports' || activeTab === 'all' || selectedCountry === 'br' || selectedCountry === 'all')) {
+    if (!hasCaze && (activeTab === 'sports' || activeTab === 'all' || selectedCountry === 'br' || selectedCountry === 'all')) {
       baseChannels.unshift({
         ...CAZE_TV_CHANNEL,
         source: serverSource
@@ -1284,15 +1221,14 @@ export default function App() {
           playlist.channels.forEach((ch: any) => {
             allCustom.push({
               ...ch,
-              source: playlist.server || '4',
+              source: playlist.server || '2',
               country: ch.country || 'custom'
             });
           });
         }
       });
       list = allCustom;
-    } else if (activeTab === 'fifa' || activeTab === 'sports') {
-      // Use the pre-compiled global static lists without extra clientside pruning
+    } else if (activeTab === 'sports') {
       list = baseChannels;
     } else if (activeTab === 'news') {
       const kw = ['news', 'somoy', 'jamuna', 'ekattor', 'independent', 'bbc', 'cnn', 'al jazeera'];
@@ -1304,7 +1240,6 @@ export default function App() {
         const countryCode = query.substring(1);
         list = list.filter(c => c.country?.toLowerCase() === countryCode);
       } else {
-        // Standard name search. We can also include country check but name should be primary.
         list = list.filter(c => 
           c.name.toLowerCase().includes(query) || 
           (c.country && c.country.toLowerCase() === query)
@@ -1312,7 +1247,6 @@ export default function App() {
       }
     }
     
-    // Deduplicate list by url and name to ensure no duplicate key/visual items
     const seen = new Set<string>();
     const uniqueList = list.filter(c => {
       const key = `${c.url}-${c.name}`;
@@ -1322,21 +1256,14 @@ export default function App() {
     });
 
     const finalFilteredList = uniqueList.filter(c => {
-      // Keep hardcoded channels always visible
-      const isHardcoded = HARDCODED_CHANNELS.some(hc => hc.url === c.url);
-      if (isHardcoded) {
-        return true;
-      }
+
 
       if (activeTab === 'all') {
         return c.source === serverSource;
       }
       if (c.source === '1' && isServer1Enabled) return true;
       if (c.source === '2' && isServer2Enabled) return true;
-      if (c.source === '3' && isServer3Enabled) return true;
-      if (c.source === '4' && isServer4Enabled) return true;
       
-      // Keep bein sports 1 and CazéTV channels visible
       if (c.name.toLowerCase().includes('bein sports 1') || c.url === CAZE_TV_CHANNEL.url || c.name.toLowerCase().includes('cazétv')) {
         return true;
       }
@@ -1344,107 +1271,38 @@ export default function App() {
     });
 
     setFilteredChannels(finalFilteredList);
-  }, [debouncedSearch, channels, favorites, activeTab, isServer1Enabled, isServer2Enabled, isServer3Enabled, isServer4Enabled, serverSource]);
+  }, [debouncedSearch, channels, favorites, activeTab, isServer1Enabled, isServer2Enabled, serverSource]);
 
   const sortedFilteredChannels = React.useMemo(() => {
     let sorted = [...filteredChannels];
     
-    // For FIFA, prioritze specific channel keywords if they exist
-    if (activeTab === 'fifa') {
-      const priorityKeywords = ['fifa', 'world cup', 'fwc', 'plus', 'star'];
-      sorted.sort((a, b) => {
-        // Hardcoded channels come first!
-        const isA_Hard1 = a.url === 'https://hd.muesra.sbs/albaplayer/oooe/?serv=4';
-        const isB_Hard1 = b.url === 'https://hd.muesra.sbs/albaplayer/oooe/?serv=4';
-        if (isA_Hard1 && !isB_Hard1) return -1;
-        if (!isA_Hard1 && isB_Hard1) return 1;
+    sorted.sort((a, b) => {
+      // CazéTV comes next
+      const isA_Caze = a.url === CAZE_TV_CHANNEL.url || a.name.toLowerCase().includes('cazétv');
+      const isB_Caze = b.url === CAZE_TV_CHANNEL.url || b.name.toLowerCase().includes('cazétv');
+      if (isA_Caze && !isB_Caze) return -1;
+      if (!isA_Caze && isB_Caze) return 1;
 
-        const isA_Hard2 = a.url === 'https://we.daydons.online/Japa2.m3u8';
-        const isB_Hard2 = b.url === 'https://we.daydons.online/Japa2.m3u8';
-        if (isA_Hard2 && !isB_Hard2) return -1;
-        if (!isA_Hard2 && isB_Hard2) return 1;
+      // Then beIn sports 1
+      const isA_beIn1 = a.name.toLowerCase().includes('bein sports 1');
+      const isB_beIn1 = b.name.toLowerCase().includes('bein sports 1');
+      if (isA_beIn1 && !isB_beIn1) return -1;
+      if (!isA_beIn1 && isB_beIn1) return 1;
 
-        const isA_Hard3 = a.url === 'https://1nyaler.streamhostingcdn.top/stream/52/index.m3u8';
-        const isB_Hard3 = b.url === 'https://1nyaler.streamhostingcdn.top/stream/52/index.m3u8';
-        if (isA_Hard3 && !isB_Hard3) return -1;
-        if (!isA_Hard3 && isB_Hard3) return 1;
-
-        const isA_Hard4 = a.url === 'https://live.thebosstv.com:30443/dwlive/Somoy-TV/playlist.m3u8';
-        const isB_Hard4 = b.url === 'https://live.thebosstv.com:30443/dwlive/Somoy-TV/playlist.m3u8';
-        if (isA_Hard4 && !isB_Hard4) return -1;
-        if (!isA_Hard4 && isB_Hard4) return 1;
-
-        // CazéTV comes next
-        const isA_Caze = a.url === CAZE_TV_CHANNEL.url || a.name.toLowerCase().includes('cazétv');
-        const isB_Caze = b.url === CAZE_TV_CHANNEL.url || b.name.toLowerCase().includes('cazétv');
-        if (isA_Caze && !isB_Caze) return -1;
-        if (!isA_Caze && isB_Caze) return 1;
-
-        const isA_beIn1 = a.name.toLowerCase().includes('bein sports 1');
-        const isB_beIn1 = b.name.toLowerCase().includes('bein sports 1');
-        if (isA_beIn1 && !isB_beIn1) return -1;
-        if (!isA_beIn1 && isB_beIn1) return 1;
-
-        const isA_TSports = a.name.toLowerCase().includes('t sports') || a.name.toLowerCase().includes('tsports');
-        const isB_TSports = b.name.toLowerCase().includes('t sports') || b.name.toLowerCase().includes('tsports');
-        if (isA_TSports && !isB_TSports) return -1;
-        if (!isA_TSports && isB_TSports) return 1;
-
-        const aPriority = priorityKeywords.some(k => a.name.toLowerCase().includes(k)) ? 0 : 1;
-        const bPriority = priorityKeywords.some(k => b.name.toLowerCase().includes(k)) ? 0 : 1;
-        if (aPriority !== bPriority) return aPriority - bPriority;
-        return a.name.localeCompare(b.name);
-      });
-    } else {
-      sorted.sort((a, b) => {
-        // Hardcoded channels come first!
-        const isA_Hard1 = a.url === 'https://hd.muesra.sbs/albaplayer/oooe/?serv=4';
-        const isB_Hard1 = b.url === 'https://hd.muesra.sbs/albaplayer/oooe/?serv=4';
-        if (isA_Hard1 && !isB_Hard1) return -1;
-        if (!isA_Hard1 && isB_Hard1) return 1;
-
-        const isA_Hard2 = a.url === 'https://we.daydons.online/Japa2.m3u8';
-        const isB_Hard2 = b.url === 'https://we.daydons.online/Japa2.m3u8';
-        if (isA_Hard2 && !isB_Hard2) return -1;
-        if (!isA_Hard2 && isB_Hard2) return 1;
-
-        const isA_Hard3 = a.url === 'https://1nyaler.streamhostingcdn.top/stream/52/index.m3u8';
-        const isB_Hard3 = b.url === 'https://1nyaler.streamhostingcdn.top/stream/52/index.m3u8';
-        if (isA_Hard3 && !isB_Hard3) return -1;
-        if (!isA_Hard3 && isB_Hard3) return 1;
-
-        const isA_Hard4 = a.url === 'https://live.thebosstv.com:30443/dwlive/Somoy-TV/playlist.m3u8';
-        const isB_Hard4 = b.url === 'https://live.thebosstv.com:30443/dwlive/Somoy-TV/playlist.m3u8';
-        if (isA_Hard4 && !isB_Hard4) return -1;
-        if (!isA_Hard4 && isB_Hard4) return 1;
-
-        // CazéTV comes next
-        const isA_Caze = a.url === CAZE_TV_CHANNEL.url || a.name.toLowerCase().includes('cazétv');
-        const isB_Caze = b.url === CAZE_TV_CHANNEL.url || b.name.toLowerCase().includes('cazétv');
-        if (isA_Caze && !isB_Caze) return -1;
-        if (!isA_Caze && isB_Caze) return 1;
-
-        // Then beIn sports 1
-        const isA_beIn1 = a.name.toLowerCase().includes('bein sports 1');
-        const isB_beIn1 = b.name.toLowerCase().includes('bein sports 1');
-        if (isA_beIn1 && !isB_beIn1) return -1;
-        if (!isA_beIn1 && isB_beIn1) return 1;
-
-        const aDead = deadChannels.has(a.url);
-        const bDead = deadChannels.has(b.url);
-        
-        if (aDead !== bDead) {
-          return aDead ? 1 : -1;
-        }
-        
-        // Secondary sort: Active server channels first
-        if (a.source === serverSource && b.source !== serverSource) return -1;
-        if (a.source !== serverSource && b.source === serverSource) return 1;
-        
-        // Tertiary sort: Alphabetical
-        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-      });
-    }
+      const aDead = deadChannels.has(a.url);
+      const bDead = deadChannels.has(b.url);
+      
+      if (aDead !== bDead) {
+        return aDead ? 1 : -1;
+      }
+      
+      // Secondary sort: Active server channels first
+      if (a.source === serverSource && b.source !== serverSource) return -1;
+      if (a.source !== serverSource && b.source === serverSource) return 1;
+      
+      // Tertiary sort: Alphabetical
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
     return sorted;
   }, [filteredChannels, deadChannels, activeTab]);
 
@@ -2792,10 +2650,7 @@ export default function App() {
                   setIsServer1Enabled={setIsServer1Enabled}
                   isServer2Enabled={isServer2Enabled}
                   setIsServer2Enabled={setIsServer2Enabled}
-                  isServer3Enabled={isServer3Enabled}
-                  setIsServer3Enabled={setIsServer3Enabled}
-                  isServer4Enabled={isServer4Enabled}
-                  setIsServer4Enabled={setIsServer4Enabled}
+
                   serverSource={serverSource}
                   setServerSource={setServerSource}
                   setIsCustomModalOpen={setIsCustomModalOpen}
@@ -2821,12 +2676,12 @@ export default function App() {
 
               <div className="flex items-center justify-between mb-2">
                  <h1 className="text-xl sm:text-2xl font-bold font-sans text-white">
-                   {activeTab === 'all' ? t.explore : activeTab === 'favorites' ? t.favorites : activeTab === 'news' ? t.news : activeTab === 'fifa' ? t.fifa : t.sports}
+                   {activeTab === 'all' ? t.explore : activeTab === 'favorites' ? t.favorites : activeTab === 'news' ? t.news : t.sports}
                  </h1>
                  <span className="text-sm font-medium text-zinc-500 hidden sm:block">{displayChannelsList.length} {t.views.replace('views', 'streams')}</span>
               </div>
 
-              {activeTab === 'all' && (isServer1Enabled || isServer2Enabled || isServer3Enabled || isServer4Enabled) && (
+              {activeTab === 'all' && (isServer1Enabled || isServer2Enabled) && (
                 <div className="flex space-x-2 mb-6 select-none">
                   {isServer1Enabled && (
                     <button 
@@ -2842,22 +2697,6 @@ export default function App() {
                       className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${serverSource === '2' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
                     >
                       Server 2
-                    </button>
-                  )}
-                  {isServer3Enabled && (
-                    <button 
-                      onClick={() => setServerSource('3')}
-                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${serverSource === '3' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-                    >
-                      Server 3
-                    </button>
-                  )}
-                  {isServer4Enabled && (
-                    <button 
-                      onClick={() => setServerSource('4')}
-                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${serverSource === '4' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-                    >
-                      Server 4
                     </button>
                   )}
                 </div>

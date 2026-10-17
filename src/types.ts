@@ -55,10 +55,6 @@ export interface SidebarProps {
   setIsServer1Enabled: (v: boolean) => void;
   isServer2Enabled: boolean;
   setIsServer2Enabled: (v: boolean) => void;
-  isServer3Enabled: boolean;
-  setIsServer3Enabled: (v: boolean) => void;
-  isServer4Enabled: boolean;
-  setIsServer4Enabled: (v: boolean) => void;
   serverSource: string;
   setServerSource: (s: any) => void;
   setIsCustomModalOpen: (o: boolean) => void;
